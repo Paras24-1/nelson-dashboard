@@ -9,7 +9,7 @@ import AdminPanel from '@/components/admin/AdminPanel'
 import SettingsPanel from '@/components/admin/SettingsPanel'
 import { 
   Menu, X, BarChart2, MessageSquare, Calendar, Users, 
-  Send, Sun, Moon, Settings, LogOut, Package, PhoneCall, ShoppingBag, Mail, Shield, MessageCircle
+  Send, Sun, Moon, Settings, LogOut, Package, PhoneCall, ShoppingBag, Mail, Shield, MessageCircle, Globe
 } from 'lucide-react'
 
 export default function Sidebar() {
@@ -92,6 +92,12 @@ export default function Sidebar() {
       name: 'Bulk Message',
       href: '/bulk',
       icon: Send,
+      visible: true
+    },
+    {
+      name: 'Leads Scraper',
+      href: '/scraper',
+      icon: Globe,
       visible: true
     }
   ]
