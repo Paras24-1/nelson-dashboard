@@ -243,6 +243,28 @@ function ScraperContent() {
       alert('Error in bulk import session')
     }
   }
+  // Cancel/Reset a stuck job
+  const handleCancelJob = async (jobId: string) => {
+    if (!confirm('Are you sure you want to cancel and reset this scraping run?')) return
+    
+    try {
+      const { error } = await supabase
+        .from('scraping_jobs')
+        .update({ status: 'failed', error_message: 'Cancelled by user' })
+        .eq('id', jobId)
+
+      if (error) throw error
+      
+      // Update local state
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'failed', error_message: 'Cancelled by user' } : j))
+      if (selectedJob?.id === jobId) {
+        setSelectedJob(prev => prev ? { ...prev, status: 'failed', error_message: 'Cancelled by user' } : null)
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert('Failed to cancel job: ' + (err.message || String(err)))
+    }
+  }
 
   // Download Job Leads as CSV
   const handleDownloadCSV = () => {
@@ -367,6 +389,15 @@ function ScraperContent() {
                       className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
                     />
                   </div>
+                  
+                  {/* Cancel/Reset Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleCancelJob(runningJob.id)}
+                    className="mt-4 w-full py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl text-[11px] font-bold transition-all border border-rose-200/50 dark:border-rose-900/40"
+                  >
+                    Cancel Scraping Run
+                  </button>
                 </div>
               ) : (
                 <button
