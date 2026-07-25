@@ -13,9 +13,6 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
-  },
-  global: {
-    fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' })
   }
 })
 
@@ -97,9 +94,6 @@ export const supabaseVoiceAdmin = voiceSupabaseUrl && voiceSupabaseServiceKey
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-      },
-      global: {
-        fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' })
       }
     })
   : null
