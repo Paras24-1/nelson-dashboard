@@ -37,7 +37,7 @@ interface OrgContextType {
 
 const OrgContext = createContext<OrgContextType | undefined>(undefined)
 
-export function OrgProvider({ children }: { children: React.ReactNode }) {
+export default function OrgProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [org, setOrg] = useState<Organization | null>(null)
