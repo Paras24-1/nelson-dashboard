@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useOrg } from '@/contexts/OrgContext'
+import { supabase } from '@/lib/supabaseClient'
 import Sidebar from '@/components/Sidebar'
 import { 
   Globe, Search, Sliders, Play, Trash2, CheckCircle2, 
@@ -80,7 +81,11 @@ function ScraperContent() {
   // Fetch all jobs
   const fetchJobs = useCallback(async () => {
     try {
-      const res = await fetch('/api/scraper/jobs')
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+      const res = await fetch('/api/scraper/jobs', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (res.ok) {
         const data = await res.json()
         setJobs(data)
@@ -121,7 +126,11 @@ function ScraperContent() {
     const fetchLeads = async () => {
       setLeadsLoading(true)
       try {
-        const res = await fetch(`/api/scraper/leads?job_id=${selectedJob.id}`)
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token || ''
+        const res = await fetch(`/api/scraper/leads?job_id=${selectedJob.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
         if (res.ok) {
           const data = await res.json()
           setLeads(data)
@@ -143,9 +152,14 @@ function ScraperContent() {
     
     setSubmitting(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
       const res = await fetch('/api/scraper/jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ query: query.trim(), max_results: maxResults })
       })
 
@@ -170,9 +184,14 @@ function ScraperContent() {
   const handleImportLead = async (leadId: string) => {
     setImportingMap(prev => ({ ...prev, [leadId]: true }))
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
       const res = await fetch('/api/scraper/leads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ lead_id: leadId })
       })
 
@@ -197,20 +216,31 @@ function ScraperContent() {
     
     if (!confirm(`Are you sure you want to import ${unimported.length} leads to your CRM?`)) return
 
-    for (const lead of unimported) {
-      setImportingMap(prev => ({ ...prev, [lead.id]: true }))
-      try {
-        await fetch('/api/scraper/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lead_id: lead.id })
-        })
-        setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, imported: true } : l))
-      } catch (err) {
-        console.error('Failed to import bulk item:', lead.name, err)
-      } finally {
-        setImportingMap(prev => ({ ...prev, [lead.id]: false }))
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+
+      for (const lead of unimported) {
+        setImportingMap(prev => ({ ...prev, [lead.id]: true }))
+        try {
+          await fetch('/api/scraper/leads', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ lead_id: lead.id })
+          })
+          setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, imported: true } : l))
+        } catch (err) {
+          console.error('Failed to import bulk item:', lead.name, err)
+        } finally {
+          setImportingMap(prev => ({ ...prev, [lead.id]: false }))
+        }
       }
+    } catch (err) {
+      console.error(err)
+      alert('Error in bulk import session')
     }
   }
 
