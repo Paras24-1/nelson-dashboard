@@ -6,11 +6,24 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load env variables from Next.js project directory
-env_path_1 = Path(__file__).resolve().parents[3] / "voxaiagents" / ".env.local"
-env_path_2 = Path(__file__).resolve().parents[3] / "voxaiagents" / ".env"
-load_dotenv(env_path_1)
-load_dotenv(env_path_2)
+# Load env variables safely from project directories (supports local dev and Docker container)
+possible_paths = [
+    Path(__file__).resolve().parent / ".env",
+    Path(__file__).resolve().parent / ".env.local",
+]
+
+# Safeguard against list indexing limits inside container directories
+try:
+    possible_paths.append(Path(__file__).resolve().parents[1] / ".env")
+    possible_paths.append(Path(__file__).resolve().parents[1] / ".env.local")
+    possible_paths.append(Path(__file__).resolve().parents[3] / "voxaiagents" / ".env")
+    possible_paths.append(Path(__file__).resolve().parents[3] / "voxaiagents" / ".env.local")
+except IndexError:
+    pass
+
+for path in possible_paths:
+    if path.exists():
+        load_dotenv(path)
 
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
