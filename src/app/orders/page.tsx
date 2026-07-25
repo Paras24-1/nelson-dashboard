@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useOrg } from '@/contexts/OrgContext'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { 
   ShoppingBag, CheckCircle2, Truck, Timer, Search, Plus, 

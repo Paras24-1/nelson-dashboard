@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, UserPlus, Trash2, Shield } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 
 interface User {

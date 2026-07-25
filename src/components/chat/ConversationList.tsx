@@ -6,7 +6,7 @@ import { useConversations } from '@/hooks'
 import { formatDistanceToNow } from 'date-fns'
 import { Search, Filter, Wifi, Trash2, X, UserPlus } from 'lucide-react'
 import { useOrg } from '@/contexts/OrgContext'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 
 const STAGES: Stage[] = ['new', 'interested', 'booking', 'confirmed', 'cancelled', 'completed', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer', 'not_connected']
 

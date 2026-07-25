@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 import { ChevronDown, UserCheck, UserX, Check } from 'lucide-react'
 

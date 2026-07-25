@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, Fragment } from 'react'
 import { Conversation } from '@/types'
 import { useMessages, useSendMessage } from '@/hooks'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 import { formatDistanceToNow } from 'date-fns'
 import { Send, Bot, User, Loader2, Paperclip, X, Tag, MessageSquare } from 'lucide-react'

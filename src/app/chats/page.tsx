@@ -1,6 +1,6 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useOrg } from '@/contexts/OrgContext'

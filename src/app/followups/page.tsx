@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { 

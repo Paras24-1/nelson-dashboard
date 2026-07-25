@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import { useOrg } from '@/contexts/OrgContext'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import WebRTCCallModal from '@/components/WebRTCCallModal'
 import { 
   PhoneCall, 

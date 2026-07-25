@@ -11,7 +11,7 @@ import {
   Trash2, FileText
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 
 interface Contact {

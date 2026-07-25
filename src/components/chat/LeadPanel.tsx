@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Conversation, Lead, LeadActivity } from '@/types'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { RefreshCw, Phone, User, Target, MapPin, Wrench, Star, CheckCircle, MessageSquare, TrendingUp, StickyNote, Save, Calendar, Clock, Trash2, X, Plus, Check, Edit2 } from 'lucide-react'
 
 const getLocalDateString = (d: Date) => {

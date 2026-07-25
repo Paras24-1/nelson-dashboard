@@ -9,7 +9,7 @@ import {
   Trash2, X, Search, Clock, Send, ChevronRight, Inbox, Eye, CornerUpLeft, 
   Save, Check, AlertTriangle
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import FeatureUpgradePaywall from '@/components/FeatureUpgradePaywall'
 
 export const dynamic = 'force-dynamic'

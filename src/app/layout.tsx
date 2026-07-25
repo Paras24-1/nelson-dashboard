@@ -23,7 +23,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </OrgProvider>
         </ThemeProvider>
-
       </body>
     </html>
   )

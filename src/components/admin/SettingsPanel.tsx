@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Settings, Database, Cpu, User, Mail, Shield, Save, RefreshCw, Key, Bot } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 
 interface SettingsData {
