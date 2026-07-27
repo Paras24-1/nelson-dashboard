@@ -129,7 +129,7 @@ export default function Sidebar() {
       `}>
         
         {/* Top Section */}
-        <div>
+        <div className="flex-grow overflow-y-auto">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-emerald-600 dark:bg-emerald-800 text-white">
             <span className="font-bold text-sm">Navigation Menu</span>
