@@ -13,9 +13,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useOrg } from "@/contexts/OrgContext"
 
-const WHATSAPP_DEMO = "wa.me/917889019602?text=Hi%20I%20want%20to%20test%20Vox%20AI"
+const WHATSAPP_DEMO = "wa.me/918360599157?text=Hi!%20I%20want%20to%20test%20Vox%20AI."
 const VOICE_DEMO = "tel:+918071583309"
-const CALENDLY = "https://calendly.com/voxai4278/30min"
+const CALENDLY = "https://wa.me/918360599157?text=Hello%20VoxAI%20Team!%20I%20would%20like%20to%20discuss%20custom%20pricing%20options%20for%20my%20business."
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
@@ -726,8 +726,7 @@ export default function HomePage() {
                   </div>
                   <div className="mt-5">
                     <div className="flex items-baseline">
-                      <span className="text-3xl font-black tracking-tight text-white">₹1,800</span>
-                      <span className="ml-1 text-xs text-muted-foreground">/ month</span>
+                      <span className="text-2xl font-black tracking-tight text-white">Custom Pricing</span>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                       An entry-level plan featuring full WhatsApp CRM capabilities with automated AI text agents and catalog routing.
@@ -772,8 +771,7 @@ export default function HomePage() {
                   </div>
                   <div className="mt-5">
                     <div className="flex items-baseline">
-                      <span className="text-3xl font-black tracking-tight text-white">₹3,999</span>
-                      <span className="ml-1 text-xs text-muted-foreground">/ month</span>
+                      <span className="text-2xl font-black tracking-tight text-white">Custom Pricing</span>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                       Our flagship plan introducing human-like voice agents, outbound campaigns, and call recording transcripts.
@@ -819,7 +817,7 @@ export default function HomePage() {
                   </div>
                   <div className="mt-5">
                     <div className="flex items-baseline">
-                      <span className="text-3xl font-black tracking-tight text-white">Custom</span>
+                      <span className="text-2xl font-black tracking-tight text-white">Custom Pricing</span>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                       Bespoke integrations, system engineering, and custom workflows configured for your organization structure.
