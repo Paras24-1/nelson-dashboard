@@ -53,7 +53,7 @@ export default function FeatureUpgradePaywall({ featureName, orgName }: FeatureU
 
         <div className="mt-6 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
           <PhoneCall className="w-3.5 h-3.5" />
-          Powered by VoxAI Engine
+          Powered by {orgName === 'Iwebmagics' ? 'Iwebmagics' : 'VoxAI'} Engine
         </div>
 
       </div>

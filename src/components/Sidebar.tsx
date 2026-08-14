@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useOrg } from '@/contexts/OrgContext'
@@ -32,6 +32,12 @@ export default function Sidebar() {
     await signOut()
     router.push('/login')
   }
+
+  useEffect(() => {
+    if (org?.name) {
+      document.title = `${org.name} — Workspace Dashboard`
+    }
+  }, [org?.name])
 
   const navItems = [
     {
@@ -132,7 +138,7 @@ export default function Sidebar() {
         <div className="flex-grow overflow-y-auto">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-emerald-600 dark:bg-emerald-800 text-white">
-            <span className="font-bold text-sm">Navigation Menu</span>
+            <span className="font-bold text-sm">{org?.name || 'Navigation Menu'}</span>
             <button 
               onClick={closeSidebar}
               className="p-1 rounded-lg hover:bg-emerald-755 dark:hover:bg-emerald-950 transition-colors"
