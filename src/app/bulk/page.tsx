@@ -8,7 +8,7 @@ import {
   Upload, Send, Filter, Clock, BarChart2,
   CheckCircle, XCircle, AlertCircle, RefreshCw,
   Download, Pause, MessageSquare, TrendingUp, X, Plus, Eye,
-  Trash2, FileText
+  Trash2, FileText, BookOpen
 } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import { supabase } from '@/lib/supabaseClient'
@@ -145,7 +145,7 @@ function findNameKey(cols: string[], phoneKey: string): string {
 
 // ── Main Page ──────────────────────────────────────────────────
 export default function BulkMessagingPage() {
-  const [tab, setTab]             = useState<'new' | 'history'>('history')
+  const [tab, setTab]             = useState<'new' | 'history' | 'phonebooks'>('history')
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
 
   const fetchCampaigns = useCallback(async () => {
@@ -185,12 +185,15 @@ export default function BulkMessagingPage() {
               <p className="text-sm text-gray-500 mt-0.5">Send WhatsApp template messages to multiple contacts</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setTab('new')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${tab === 'new' ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
-              <Plus className="w-4 h-4 inline mr-1.5" />New Campaign
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setTab('phonebooks')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 ${tab === 'phonebooks' ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+              <BookOpen className="w-4 h-4" />Phonebooks
             </button>
-            <button onClick={() => setTab('history')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${tab === 'history' ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
-              <BarChart2 className="w-4 h-4 inline mr-1.5" />Campaign History
+            <button onClick={() => setTab('new')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 ${tab === 'new' ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+              <Plus className="w-4 h-4" />New Campaign
+            </button>
+            <button onClick={() => setTab('history')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 ${tab === 'history' ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}>
+              <BarChart2 className="w-4 h-4" />Campaign History
             </button>
           </div>
         </div>
@@ -203,10 +206,15 @@ export default function BulkMessagingPage() {
           <StatCard icon={<CheckCircle  className="w-5 h-5 text-green-500" />}  label="Completed"       value={stats.completed} />
           <StatCard icon={<TrendingUp   className="w-5 h-5 text-emerald-500" />} label="Total Delivered" value={stats.delivered} />
         </div>
-        {tab === 'new'
-          ? <NewCampaign onCreated={() => { fetchCampaigns(); setTab('history') }} />
-          : <CampaignHistory campaigns={campaigns} onRefresh={fetchCampaigns} />
-        }
+        {tab === 'new' && (
+          <NewCampaign onCreated={() => { fetchCampaigns(); setTab('history') }} />
+        )}
+        {tab === 'history' && (
+          <CampaignHistory campaigns={campaigns} onRefresh={fetchCampaigns} />
+        )}
+        {tab === 'phonebooks' && (
+          <PhonebooksTab />
+        )}
       </div>
     </div>
   )
@@ -243,8 +251,63 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
   const [headerImageUrl, setHeaderImageUrl]     = useState('')
   const [uploadingImage, setUploadingImage]     = useState(false)
   
+  // Phonebooks integrations
+  const [phonebooks, setPhonebooks]             = useState<any[]>([])
+  const [selectedPhonebookId, setSelectedPhonebookId] = useState('')
+  const [loadingPhonebooks, setLoadingPhonebooks] = useState(false)
+
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
+
+  // Fetch phonebooks on mount
+  useEffect(() => {
+    const fetchPhonebooksList = async () => {
+      setLoadingPhonebooks(true)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const headers: HeadersInit = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+        const res = await fetch('/api/phonebooks', { headers })
+        if (res.ok) {
+          setPhonebooks(await res.json())
+        }
+      } catch (err) {
+        console.error('Failed to load phonebooks:', err)
+      } finally {
+        setLoadingPhonebooks(false)
+      }
+    }
+    fetchPhonebooksList()
+  }, [])
+
+  const loadPhonebookContacts = async (phonebookId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+      const res = await fetch(`/api/phonebooks/${phonebookId}/contacts`, { headers })
+      if (!res.ok) throw new Error('Failed to load contacts')
+      const data = await res.json()
+      
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map((c: any) => ({
+          phone: c.phone,
+          name: c.name,
+          ...c.variables
+        }))
+        
+        const first = data[0]
+        const keys = ['phone', 'name', ...Object.keys(first.variables || {})]
+        
+        setColumns(keys)
+        setAllContacts(mapped)
+        setStep(2)
+      } else {
+        alert('This phonebook is empty.')
+        setAllContacts([])
+      }
+    } catch (err: any) {
+      alert(`Error loading phonebook contacts: ${err.message}`)
+    }
+  }
 
   // Fetch templates on step 3
   useEffect(() => {
@@ -516,6 +579,35 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
               {loadingGs ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Import'}
             </button>
           </div>
+
+          {phonebooks.length > 0 && (
+            <>
+              <div className="flex items-center gap-3 my-3">
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
+                <span className="text-xs text-gray-400">or use saved Phonebook</span>
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-800" />
+              </div>
+
+              <div className="flex gap-2">
+                <select
+                  value={selectedPhonebookId}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setSelectedPhonebookId(id)
+                    if (id) loadPhonebookContacts(id)
+                  }}
+                  className="flex-1 px-3 py-2 text-sm rounded-xl bg-gray-150 dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="">-- Select Phonebook --</option>
+                  {phonebooks.map((pb) => (
+                    <option key={pb.id} value={pb.id}>
+                      {pb.name} ({pb.contact_count} contacts)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           {allContacts.length > 0 && (
             <div className="mt-3 p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex items-center justify-between">
@@ -1048,6 +1140,441 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
     <div className="text-center">
       <p className={`text-base font-bold ${color}`}>{value.toLocaleString()}</p>
       <p className="text-[10px] text-gray-400">{label}</p>
+    </div>
+  )
+}
+
+function PhonebooksTab() {
+  const [phonebooks, setPhonebooks] = useState<any[]>([])
+  const [selectedPbId, setSelectedPbId] = useState<string | null>(null)
+  const [contacts, setContacts] = useState<any[]>([])
+  const [pbName, setPbName] = useState('')
+  const [loading, setLoading] = useState(false)
+  
+  // Contact creation state
+  const [showAddContact, setShowAddContact] = useState(false)
+  const [newContactPhone, setNewContactPhone] = useState('')
+  const [newContactName, setNewContactName] = useState('')
+  const [newContactVarsText, setNewContactVarsText] = useState('')
+  const [addingContact, setAddingContact] = useState(false)
+
+  // CSV upload state inside phonebook details
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const fetchPhonebooks = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+      const res = await fetch('/api/phonebooks', { headers })
+      if (res.ok) {
+        setPhonebooks(await res.json())
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchPhonebooks()
+  }, [fetchPhonebooks])
+
+  const handleCreatePb = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pbName.trim()) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+      }
+      const res = await fetch('/api/phonebooks', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: pbName })
+      })
+      if (res.ok) {
+        setPbName('')
+        fetchPhonebooks()
+      } else {
+        alert('Failed to create phonebook')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDeletePb = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this phonebook and all its contacts?')) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+      const res = await fetch(`/api/phonebooks?id=${id}`, {
+        method: 'DELETE',
+        headers
+      })
+      if (res.ok) {
+        if (selectedPbId === id) setSelectedPbId(null)
+        fetchPhonebooks()
+      } else {
+        alert('Failed to delete phonebook')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleSelectPb = async (id: string) => {
+    setSelectedPbId(id)
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+      const res = await fetch(`/api/phonebooks/${id}/contacts`, { headers })
+      if (res.ok) {
+        setContacts(await res.json())
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddContact = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newContactPhone || !selectedPbId) return
+    setAddingContact(true)
+    try {
+      let vars = {}
+      if (newContactVarsText.trim()) {
+        try {
+          vars = JSON.parse(newContactVarsText)
+        } catch (err) {
+          alert('Custom variables must be a valid JSON object.')
+          setAddingContact(false)
+          return
+        }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+      }
+      const res = await fetch(`/api/phonebooks/${selectedPbId}/contacts`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          contacts: [{
+            phone: newContactPhone,
+            name: newContactName,
+            variables: vars
+          }]
+        })
+      })
+
+      if (res.ok) {
+        setNewContactPhone('')
+        setNewContactName('')
+        setNewContactVarsText('')
+        setShowAddContact(false)
+        handleSelectPb(selectedPbId)
+        fetchPhonebooks()
+      } else {
+        const d = await res.json()
+        alert(`Failed to add contact: ${d.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setAddingContact(false)
+    }
+  }
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!confirm('Delete this contact?')) return
+    if (!selectedPbId) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: HeadersInit = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+      const res = await fetch(`/api/phonebooks/${selectedPbId}/contacts?contactId=${contactId}`, {
+        method: 'DELETE',
+        headers
+      })
+      if (res.ok) {
+        handleSelectPb(selectedPbId)
+        fetchPhonebooks()
+      } else {
+        alert('Failed to delete contact')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedPbId) return
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data as any[]
+        if (rows.length === 0) {
+          alert('CSV file is empty.')
+          return
+        }
+
+        const cols = Object.keys(rows[0])
+        const phoneKey = findPhoneKey(cols)
+        const nameKey = findNameKey(cols, phoneKey)
+
+        const contactsList = rows.map((row) => {
+          const variables: Record<string, string> = {}
+          cols.forEach((col) => {
+            if (col !== phoneKey && col !== nameKey) {
+              variables[col] = String(row[col] || '').trim()
+            }
+          })
+
+          return {
+            phone: cleanPhoneNumber(row[phoneKey]),
+            name: String(row[nameKey] || '').trim(),
+            variables
+          }
+        }).filter(c => c.phone.length >= 10)
+
+        if (contactsList.length === 0) {
+          alert('No valid contacts (phone numbers) found in the file.')
+          return
+        }
+
+        setLoading(true)
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+          }
+          const res = await fetch(`/api/phonebooks/${selectedPbId}/contacts`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ contacts: contactsList })
+          })
+
+          if (res.ok) {
+            handleSelectPb(selectedPbId)
+            fetchPhonebooks()
+          } else {
+            const d = await res.json()
+            alert(`Failed to import contacts: ${d.error || 'Unknown error'}`)
+          }
+        } catch (err) {
+          console.error(err)
+        } finally {
+          setLoading(false)
+        }
+      }
+    })
+  }
+
+  const activePb = phonebooks.find(p => p.id === selectedPbId)
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Left panel: phonebooks list */}
+      <div className="md:col-span-1 bg-white dark:bg-gray-950 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
+        <h3 className="text-sm font-extrabold text-gray-900 dark:text-white tracking-tight">Your Phonebooks</h3>
+        
+        <form onSubmit={handleCreatePb} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="New phonebook name..."
+            value={pbName}
+            onChange={(e) => setPbName(e.target.value)}
+            className="flex-1 px-3 py-2 text-xs rounded-xl bg-gray-150 dark:bg-gray-800 text-gray-800 dark:text-gray-250 focus:outline-none border border-transparent focus:border-gray-250 focus:ring-1 focus:ring-emerald-500 focus:ring-opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!pbName.trim()}
+            className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </form>
+
+        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+          {phonebooks.map((pb) => (
+            <div
+              key={pb.id}
+              onClick={() => handleSelectPb(pb.id)}
+              className={`p-3 rounded-xl border transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                selectedPbId === pb.id
+                  ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10'
+                  : 'border-gray-100 dark:border-gray-850 hover:bg-gray-50 dark:hover:bg-gray-900'
+              }`}
+            >
+              <div>
+                <p className="text-xs font-bold text-gray-900 dark:text-white">{pb.name}</p>
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{pb.contact_count} contacts</span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeletePb(pb.id)
+                }}
+                className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+          {phonebooks.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-6">No phonebooks created yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Right panel: phonebook contacts details */}
+      <div className="md:col-span-2 bg-white dark:bg-gray-955 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 flex flex-col min-h-[50vh]">
+        {activePb ? (
+          <div className="space-y-4 flex-1 flex flex-col">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white tracking-tight">{activePb.name}</h3>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{contacts.length} total contacts</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAddContact(!showAddContact)}
+                  className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-250 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Contact
+                </button>
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Import CSV
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleCsvUpload}
+                />
+              </div>
+            </div>
+
+            {showAddContact && (
+              <form onSubmit={handleAddContact} className="p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-850 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Phone Number *</label>
+                    <input
+                      type="tel"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                      placeholder="e.g. 919876543210"
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white focus:outline-none border border-gray-200 dark:border-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={newContactName}
+                      onChange={(e) => setNewContactName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white focus:outline-none border border-gray-200 dark:border-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Custom Variables (JSON Format)</label>
+                  <input
+                    type="text"
+                    value={newContactVarsText}
+                    onChange={(e) => setNewContactVarsText(e.target.value)}
+                    placeholder='e.g. {"city": "Mumbai", "company": "Acme"}'
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white focus:outline-none border border-gray-200 dark:border-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddContact(false)}
+                    className="px-3 py-1.5 border border-gray-250 dark:border-gray-800 text-gray-500 text-xs font-bold rounded-xl transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingContact || !newContactPhone}
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center cursor-pointer"
+                  >
+                    {addingContact ? 'Adding...' : 'Add'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="flex-1 rounded-xl border border-gray-150 dark:border-gray-850 overflow-hidden max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-155 dark:border-gray-850">
+                  <tr>
+                    <th className="px-4 py-3 text-gray-500 font-bold uppercase tracking-wider text-[10px]">Name</th>
+                    <th className="px-4 py-3 text-gray-500 font-bold uppercase tracking-wider text-[10px]">Phone</th>
+                    <th className="px-4 py-3 text-gray-500 font-bold uppercase tracking-wider text-[10px]">Variables</th>
+                    <th className="px-4 py-3 text-gray-500 text-right font-bold uppercase tracking-wider text-[10px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-850">
+                  {contacts.map((contact) => (
+                    <tr key={contact.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30">
+                      <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{contact.name || '--'}</td>
+                      <td className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">{contact.phone}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {contact.variables && Object.keys(contact.variables).length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {Object.entries(contact.variables).map(([k, v]) => (
+                              <span key={k} className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-605 dark:text-gray-400 border border-gray-150 dark:border-gray-700/50 font-bold text-[9px]">{k}: {String(v)}</span>
+                            ))}
+                          </div>
+                        ) : '--'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleDeleteContact(contact.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {contacts.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center text-gray-400 py-12">No contacts in this phonebook. Click "Import CSV" or "Add Contact" above to start.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center select-none py-12">
+            <BookOpen className="w-12 h-12 text-gray-300 dark:text-gray-700 mb-3" />
+            <h4 className="text-sm font-extrabold text-gray-700 dark:text-gray-300 tracking-tight">No Phonebook Selected</h4>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs leading-relaxed">Choose a phonebook from the left panel or create a new one to manage your saved contacts.</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -274,6 +274,7 @@ function VoiceUpgradePaywall({ orgName }: { orgName: string }) {
 /* Unlocked Voice AI Dashboard Content */
 function VoiceDashboardContent() {
   const [activeTab, setActiveTab] = useState('overview')
+  const [showTestCallModal, setShowTestCallModal] = useState(false)
   const [timeRange, setTimeRange] = useState('7d')
   const [search, setSearch] = useState('')
   const [stats, setStats] = useState<Stats | null>(null)
@@ -371,27 +372,36 @@ function VoiceDashboardContent() {
         </div>
 
         {/* Tabs Bar */}
-        <div className="flex rounded-xl bg-white dark:bg-gray-900 p-1 border border-gray-150 dark:border-gray-850 shadow-sm self-start md:self-auto">
+        <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-              activeTab === 'overview'
-                ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-205'
-            }`}
+            onClick={() => setShowTestCallModal(true)}
+            className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-sm inline-flex items-center gap-1.5"
           >
-            Overview & Logs
+            <PhoneCall className="w-3.5 h-3.5" /> Test Outbound Call
           </button>
-          <button
-            onClick={() => setActiveTab('campaigns')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-              activeTab === 'campaigns'
-                ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-205'
-            }`}
-          >
-            Campaigns
-          </button>
+          
+          <div className="flex rounded-xl bg-white dark:bg-gray-900 p-1 border border-gray-150 dark:border-gray-855 shadow-sm">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                activeTab === 'overview'
+                  ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-205'
+              }`}
+            >
+              Overview & Logs
+            </button>
+            <button
+              onClick={() => setActiveTab('campaigns')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                activeTab === 'campaigns'
+                  ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-205'
+              }`}
+            >
+              Campaigns
+            </button>
+          </div>
         </div>
       </div>
 
@@ -414,6 +424,10 @@ function VoiceDashboardContent() {
         />
       ) : (
         <VoiceCampaignsTab />
+      )}
+
+      {showTestCallModal && (
+        <TestCallModal onClose={() => setShowTestCallModal(false)} />
       )}
     </div>
   )
@@ -1494,4 +1508,156 @@ function VoiceCampaignsTab() {
       )}
     </div>
   );
+}
+
+interface TestCallModalProps {
+  onClose: () => void
+}
+
+function TestCallModal({ onClose }: TestCallModalProps) {
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [selectedAgentId, setSelectedAgentId] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || '';
+        const res = await fetch('/api/voice/agents', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        setAgents(data || []);
+        if (data && data.length > 0) {
+          setSelectedAgentId(data[0].id);
+        }
+      } catch (err: any) {
+        console.error("Error loading agents:", err);
+        setError(err.message || 'Failed to load voice agents');
+      }
+    };
+    loadAgents();
+  }, []);
+
+  const handleCall = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAgentId || !phoneNumber) return;
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const res = await fetch('/api/voice/test-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ agentId: selectedAgentId, phoneNumber })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to trigger test call');
+      setSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Call failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm select-none">
+      <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-855 rounded-3xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden animate-scale-in">
+        {/* Header */}
+        <div className="p-5 border-b border-gray-150 dark:border-gray-855 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold text-gray-955 dark:text-white tracking-tight">Test Outbound Call</h3>
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Test your Voice AI Agent immediately</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="p-1.5 rounded-xl border border-gray-250 dark:border-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleCall} className="p-6 space-y-4">
+          {error && (
+            <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-xs font-bold">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="p-3.5 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 text-green-600 dark:text-green-400 text-xs font-bold">
+              🎉 Test call initiated! Your agent will dial the number shortly.
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Select Voice Agent</label>
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              required
+              className="w-full px-4 py-3 text-xs font-bold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="" disabled>-- Select Agent --</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Phone Number</label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="e.g. 919876543210"
+              required
+              className="w-full px-4 py-3 text-xs font-bold rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div className="pt-2 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 border border-gray-250 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-850 text-gray-500 rounded-xl text-xs font-bold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !selectedAgentId || !phoneNumber}
+              className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-colors flex items-center justify-center gap-1.5"
+            >
+              {loading ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> Dialing...
+                </>
+              ) : (
+                <>
+                  <PhoneCall className="w-3.5 h-3.5" /> Call Now
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
 }
