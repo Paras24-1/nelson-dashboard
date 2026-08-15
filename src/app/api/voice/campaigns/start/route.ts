@@ -15,34 +15,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameter: campaignId' }, { status: 400 })
     }
 
-    // Retrieve mapped voice_org_id and voice_wallet_credits
+    // Retrieve mapped voice_org_id from the main database
     let voiceOrgId: string | null = null
-    let voiceWalletCredits = 0.00
 
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from('organizations')
-      .select('voice_org_id, voice_wallet_credits')
+      .select('voice_org_id')
       .eq('id', orgId)
       .single()
 
-    if (orgError) {
-      console.warn('[API/Voice/Campaigns/Start] Failed to query voice_wallet_credits, trying fallback:', orgError.message)
-      const { data: orgDataFallback, error: orgErrorFallback } = await supabaseAdmin
-        .from('organizations')
-        .select('voice_org_id')
-        .eq('id', orgId)
-        .single()
+    if (orgError || !orgData?.voice_org_id) {
+      return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
+    }
+    voiceOrgId = orgData.voice_org_id
 
-      if (orgErrorFallback || !orgDataFallback?.voice_org_id) {
-        return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
-      }
-      voiceOrgId = orgDataFallback.voice_org_id
+    // Retrieve the actual wallet balance from the Voice Supabase database (Account B)
+    let voiceWalletCredits = 0.00
+    const { data: voiceOrgData, error: voiceOrgError } = await supabaseVoiceAdmin
+      .from('organizations')
+      .select('wallet_balance')
+      .eq('id', voiceOrgId)
+      .single()
+
+    if (voiceOrgError) {
+      console.warn('[API/Voice/Campaigns/Start] Failed to fetch wallet balance from Voice Supabase:', voiceOrgError.message)
     } else {
-      if (!orgData?.voice_org_id) {
-        return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
-      }
-      voiceOrgId = orgData.voice_org_id
-      voiceWalletCredits = orgData.voice_wallet_credits ? Number(orgData.voice_wallet_credits) : 0.00
+      voiceWalletCredits = voiceOrgData?.wallet_balance ? Number(voiceOrgData.wallet_balance) : 0.00
     }
 
     // 2. Fetch total calling minutes to calculate wallet state

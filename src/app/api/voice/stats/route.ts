@@ -16,43 +16,44 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Voice service is not configured' }, { status: 501 })
     }
 
-    // Retrieve the mapped Voice SaaS Organization ID and wallet balance from the main database
+    // Retrieve the mapped Voice SaaS Organization ID and plan from the main database
     let voiceOrgId: string | null = null
-    let voiceWalletCredits = 0.00
     let plan = 'trial'
 
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from('organizations')
-      .select('voice_org_id, voice_wallet_credits, plan')
+      .select('voice_org_id, plan')
       .eq('id', orgId)
       .single()
 
     if (orgError) {
-      console.warn('[API/Voice/Stats] Failed to select voice_wallet_credits column (might be missing). Trying fallback:', orgError.message)
-      const { data: orgDataFallback, error: orgErrorFallback } = await supabaseAdmin
-        .from('organizations')
-        .select('voice_org_id, plan')
-        .eq('id', orgId)
-        .single()
-
-      if (orgErrorFallback) {
-        console.error('[API/Voice/Stats] Database error fetching organization:', orgErrorFallback)
-        return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
-      }
-      voiceOrgId = orgDataFallback?.voice_org_id || null
-      plan = orgDataFallback?.plan || 'trial'
-    } else {
-      voiceOrgId = orgData?.voice_org_id || null
-      voiceWalletCredits = orgData?.voice_wallet_credits ? Number(orgData.voice_wallet_credits) : 0.00
-      plan = orgData?.plan || 'trial'
+      console.error('[API/Voice/Stats] Database error fetching organization:', orgError)
+      return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
     }
+
+    voiceOrgId = orgData?.voice_org_id || null
+    plan = orgData?.plan || 'trial'
 
     if (!voiceOrgId) {
       console.warn('[API/Voice/Stats] voice_org_id is null/undefined in database for orgId:', orgId)
       return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
     }
 
-    console.log('[API/Voice/Stats] Successfully mapped to voiceOrgId:', voiceOrgId, 'wallet credits:', voiceWalletCredits)
+    // Retrieve the actual wallet balance from the Voice Supabase database (Account B)
+    let voiceWalletCredits = 0.00
+    const { data: voiceOrgData, error: voiceOrgError } = await supabaseVoiceAdmin
+      .from('organizations')
+      .select('wallet_balance')
+      .eq('id', voiceOrgId)
+      .single()
+
+    if (voiceOrgError) {
+      console.warn('[API/Voice/Stats] Failed to fetch wallet balance from Voice Supabase:', voiceOrgError.message)
+    } else {
+      voiceWalletCredits = voiceOrgData?.wallet_balance ? Number(voiceOrgData.wallet_balance) : 0.00
+    }
+
+    console.log('[API/Voice/Stats] Successfully mapped to voiceOrgId:', voiceOrgId, 'voice wallet balance:', voiceWalletCredits)
 
     const { searchParams } = new URL(req.url)
     const timeRange = searchParams.get('timeRange') || '7d'
