@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseVoiceAdmin, supabaseAdmin, getOrgId } from '@/lib/supabase'
 
+// n8n campaign trigger webhook base URL
+const N8N_BASE_URL = 'https://resplendent-rejoicing-production-4b92.up.railway.app'
+
 export async function POST(req: NextRequest) {
   try {
     const orgId = await getOrgId(req)
@@ -16,8 +19,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Retrieve mapped voice_org_id from the main database
-    let voiceOrgId: string | null = null
-
     const { data: orgData, error: orgError } = await supabaseAdmin
       .from('organizations')
       .select('voice_org_id')
@@ -27,52 +28,44 @@ export async function POST(req: NextRequest) {
     if (orgError || !orgData?.voice_org_id) {
       return NextResponse.json({ error: 'Voice service is not linked for this organization' }, { status: 404 })
     }
-    voiceOrgId = orgData.voice_org_id
+    const voiceOrgId = orgData.voice_org_id
 
-    // Retrieve the actual wallet balance from the Voice Supabase database (Account B)
-    let voiceWalletCredits = 0.00
+    // Check wallet balance from Voice Supabase (Account B)
     const { data: voiceOrgData, error: voiceOrgError } = await supabaseVoiceAdmin
       .from('organizations')
       .select('wallet_balance')
       .eq('id', voiceOrgId)
       .single()
 
-    if (voiceOrgError) {
-      console.warn('[API/Voice/Campaigns/Start] Failed to fetch wallet balance from Voice Supabase:', voiceOrgError.message)
-    } else {
-      voiceWalletCredits = voiceOrgData?.wallet_balance ? Number(voiceOrgData.wallet_balance) : 0.00
-    }
+    if (!voiceOrgError && voiceOrgData) {
+      const voiceWalletCredits = Number(voiceOrgData.wallet_balance) || 0
 
-    // 2. Fetch total calling minutes to calculate wallet state
-    const { data: allBilling, error: billingError } = await supabaseVoiceAdmin
-      .from('call_logs')
-      .select('duration_seconds')
-      .eq('organization_id', voiceOrgId)
+      const { data: allBilling } = await supabaseVoiceAdmin
+        .from('call_logs')
+        .select('duration_seconds')
+        .eq('organization_id', voiceOrgId)
 
-    if (billingError) {
-      console.error('[API/Voice/Campaigns/Start] Error fetching logs for billing verification:', billingError)
-    } else {
-      const billingArr = allBilling || []
-      const totalDurationSeconds = billingArr.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
-      const totalMinutes = totalDurationSeconds / 60
-      
-      const freeMinutesLimit = 100
-      const overageMinutes = Math.max(0, totalMinutes - freeMinutesLimit)
-      const creditsConsumed = overageMinutes * 3.5
-      const remainingBalance = voiceWalletCredits - creditsConsumed
+      if (allBilling) {
+        const totalDurationSeconds = allBilling.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
+        const totalMinutes = totalDurationSeconds / 60
+        const freeMinutesLimit = 100
+        const overageMinutes = Math.max(0, totalMinutes - freeMinutesLimit)
+        const creditsConsumed = overageMinutes * 3.5
+        const remainingBalance = voiceWalletCredits - creditsConsumed
 
-      if (totalMinutes >= freeMinutesLimit && remainingBalance <= 0) {
-        return NextResponse.json(
-          { error: `Insufficient wallet balance (₹${remainingBalance.toFixed(2)}). You have used ${Math.round(totalMinutes)} mins (100 free limit exceeded). Please top up your wallet to start campaigns.` },
-          { status: 402 }
-        )
+        if (totalMinutes >= freeMinutesLimit && remainingBalance <= 0) {
+          return NextResponse.json(
+            { error: `Insufficient wallet balance (₹${remainingBalance.toFixed(2)}). Please top up your wallet to start campaigns.` },
+            { status: 402 }
+          )
+        }
       }
     }
 
-    // 1. Verify that the campaign belongs to this organization
+    // Verify campaign belongs to this organization
     const { data: campaign, error: campError } = await supabaseVoiceAdmin
       .from('campaigns')
-      .select('id')
+      .select('id, name, agent_id, status')
       .eq('id', campaignId)
       .eq('organization_id', voiceOrgId)
       .single()
@@ -81,44 +74,80 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Campaign not found or unauthorized' }, { status: 404 })
     }
 
-    // Determine the gateway API URL from environment variables
-    let gatewayUrl = process.env.GATEWAY_URL
-    if (!gatewayUrl && process.env.NEXT_PUBLIC_WS_URL) {
-      gatewayUrl = process.env.NEXT_PUBLIC_WS_URL
-        .replace(/^ws/, 'http')
-        .replace('/webRTC-stream', '')
+    // Mark campaign as running in Voice DB
+    await supabaseVoiceAdmin
+      .from('campaigns')
+      .update({ status: 'running' })
+      .eq('id', campaignId)
+
+    // Fetch all pending contacts for this campaign
+    const { data: contacts, error: contactsError } = await supabaseVoiceAdmin
+      .from('campaign_contacts')
+      .select('id, phone_number, name')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'pending')
+
+    if (contactsError) throw contactsError
+
+    if (!contacts || contacts.length === 0) {
+      return NextResponse.json({ error: 'No pending contacts found in this campaign' }, { status: 400 })
     }
 
-    const urlsToTry = gatewayUrl
-      ? [gatewayUrl]
-      : ['http://localhost:5050', 'http://localhost:8080']
+    // Trigger each contact via voice-aura dialer
+    const triggerUrl = 'https://voice-aura-production.up.railway.app/api/calls/trigger'
+    let triggered = 0
+    let failed = 0
 
-    let lastError: any = null
-    let response: Response | null = null
-
-    for (const url of urlsToTry) {
+    for (const contact of contacts) {
       try {
-        console.log(`[API/Voice/Campaigns/Start] Forwarding request to: ${url}/api/campaigns/start`)
-        response = await fetch(`${url}/api/campaigns/start`, {
+        const response = await fetch(triggerUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId })
+          body: JSON.stringify({
+            phone_number: contact.phone_number,
+            name: contact.name || 'Contact',
+            agentId: campaign.agent_id,
+            contactId: contact.id
+          })
         })
-        if (response.ok) break
+
+        if (response.ok) {
+          triggered++
+          // Mark contact as in-progress
+          await supabaseVoiceAdmin
+            .from('campaign_contacts')
+            .update({ status: 'in-progress' })
+            .eq('id', contact.id)
+        } else {
+          failed++
+          console.warn(`[API/Voice/Campaigns/Start] Failed to trigger contact ${contact.id}: ${response.status}`)
+        }
       } catch (err) {
-        lastError = err
+        failed++
+        console.warn(`[API/Voice/Campaigns/Start] Error triggering contact ${contact.id}:`, err)
       }
     }
 
-    if (!response || !response.ok) {
+    console.log(`[API/Voice/Campaigns/Start] Campaign ${campaignId}: triggered=${triggered}, failed=${failed}`)
+
+    if (triggered === 0) {
+      // Revert to draft if nothing triggered
+      await supabaseVoiceAdmin
+        .from('campaigns')
+        .update({ status: 'draft' })
+        .eq('id', campaignId)
       return NextResponse.json(
-        { error: `Dialer gateway connection failed. Error: ${lastError?.message || 'Response not OK'}` },
+        { error: `Failed to trigger any contacts. All ${failed} trigger attempts failed.` },
         { status: 502 }
       )
     }
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json({
+      success: true,
+      message: `Campaign started. ${triggered} calls triggered${failed > 0 ? `, ${failed} failed` : ''}.`,
+      triggered,
+      failed
+    })
   } catch (err: any) {
     const error = err?.message || err?.details || String(err) || 'Unknown error'
     return NextResponse.json({ error }, { status: 500 })
