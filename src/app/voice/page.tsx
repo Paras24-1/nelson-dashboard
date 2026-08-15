@@ -693,7 +693,7 @@ function VoiceDashboardContent() {
                     🎧 Play Call Recording
                   </span>
                   <audio 
-                    src={log.recording_url} 
+                    src={`/api/voice/recordings/play?url=${encodeURIComponent(log.recording_url)}`} 
                     controls 
                     className="w-full h-10 outline-none rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-sm"
                   />
