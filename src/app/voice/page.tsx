@@ -47,6 +47,7 @@ interface CallLog {
   cost: number
   created_at: string
   transcript: string | null
+  recording_url?: string | null
   agents?: { name: string } | null
 }
 
@@ -668,6 +669,29 @@ function VoiceDashboardContent() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Audio Recording Player */}
+            {(() => {
+              const log = logs.find((l: CallLog) => l.id === expandedLogId);
+              return log?.recording_url ? (
+                <div className="p-5 border-b border-gray-150 dark:border-gray-855 bg-gray-50/50 dark:bg-gray-900/50 flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">
+                    🎧 Play Call Recording
+                  </span>
+                  <audio 
+                    src={log.recording_url} 
+                    controls 
+                    className="w-full h-10 outline-none rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-sm"
+                  />
+                </div>
+              ) : (
+                <div className="p-4 border-b border-gray-150 dark:border-gray-855 bg-gray-50/30 dark:bg-gray-900/30 text-center">
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Audio recording is not available for this call
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Transcript Body */}
             <div className="flex-1 p-6 overflow-y-auto bg-gray-50/20 dark:bg-gray-955/10">
