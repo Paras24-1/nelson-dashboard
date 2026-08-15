@@ -37,24 +37,26 @@ export async function GET(req: NextRequest) {
 
     // Calculate total and completed stats for each campaign
     const campaignsWithStats = await Promise.all(
-      (campaignsData || []).map(async (camp) => {
-        const { count: total } = await voiceAdmin
-          .from('campaign_contacts')
-          .select('*', { count: 'exact', head: true })
-          .eq('campaign_id', camp.id)
+      (campaignsData || [])
+        .filter((camp) => !camp.name?.startsWith('Test Call - '))
+        .map(async (camp) => {
+          const { count: total } = await voiceAdmin
+            .from('campaign_contacts')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', camp.id)
 
-        const { count: completed } = await voiceAdmin
-          .from('campaign_contacts')
-          .select('*', { count: 'exact', head: true })
-          .eq('campaign_id', camp.id)
-          .eq('status', 'completed')
+          const { count: completed } = await voiceAdmin
+            .from('campaign_contacts')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', camp.id)
+            .eq('status', 'completed')
 
-        return {
-          ...camp,
-          total_contacts: total || 0,
-          completed_contacts: completed || 0
-        }
-      })
+          return {
+            ...camp,
+            total_contacts: total || 0,
+            completed_contacts: completed || 0
+          }
+        })
     )
 
     return NextResponse.json(campaignsWithStats)

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         name: `Test Call - ${cleanPhone}`,
         agent_id: agentId,
         organization_id: voiceOrgId,
-        status: 'draft'
+        status: 'active'
       })
       .select()
       .single()
