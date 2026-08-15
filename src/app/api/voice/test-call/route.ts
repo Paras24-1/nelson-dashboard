@@ -39,13 +39,14 @@ export async function POST(req: NextRequest) {
     const voiceOrgId = orgData.voice_org_id
 
     // 1. Create a one-off test campaign in Voice SaaS DB (Account B)
+    // Status MUST be 'running' — the voice-aura dialer server rejects all other statuses
     const { data: campaign, error: campErr } = await supabaseVoiceAdmin
       .from('campaigns')
       .insert({
         name: `Test Call - ${cleanPhone}`,
         agent_id: agentId,
         organization_id: voiceOrgId,
-        status: 'active'
+        status: 'running'
       })
       .select()
       .single()
