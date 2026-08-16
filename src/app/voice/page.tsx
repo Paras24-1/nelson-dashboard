@@ -713,13 +713,26 @@ function VoiceDashboardContent() {
                     className="w-full h-10 outline-none rounded-xl border border-gray-250 dark:border-gray-800 bg-white dark:bg-gray-950 shadow-sm"
                   />
                 </div>
-              ) : (
-                <div className="p-4 border-b border-gray-150 dark:border-gray-855 bg-gray-50/30 dark:bg-gray-900/30 text-center">
-                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Audio recording is not available for this call
-                  </span>
-                </div>
-              );
+              ) : (() => {
+                const noRecLog = logs.find((l: CallLog) => l.id === expandedLogId);
+                const st = noRecLog?.status?.toLowerCase() || '';
+                const isUnanswered = st === 'no-answer' || st === 'no_answer' || st === 'noanswer';
+                const isFailed = st === 'failed' || st === 'busy' || st === 'canceled';
+                const emoji = isUnanswered ? '📵' : isFailed ? '❌' : '🎙️';
+                const reason = isUnanswered
+                  ? 'Call was not answered — no recording available'
+                  : isFailed
+                  ? 'Call failed to connect — no recording available'
+                  : 'Recording will appear here once the call completes';
+                return (
+                  <div className="p-4 border-b border-gray-150 dark:border-gray-855 bg-gray-50/30 dark:bg-gray-900/30 flex items-center justify-center gap-2">
+                    <span className="text-base">{emoji}</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                      {reason}
+                    </span>
+                  </div>
+                );
+              })()}
             })()}
 
             {/* Transcript Body */}
