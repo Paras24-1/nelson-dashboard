@@ -53,6 +53,12 @@ export default function Sidebar() {
       visible: true
     },
     {
+      name: 'Voice AI',
+      href: '/voice',
+      icon: PhoneCall,
+      visible: true
+    },
+    {
       name: 'Comments',
       href: '/comments',
       icon: MessageCircle,
@@ -86,12 +92,6 @@ export default function Sidebar() {
       name: 'Email Inbox',
       href: '/emails',
       icon: Mail,
-      visible: true
-    },
-    {
-      name: 'Voice AI',
-      href: '/voice',
-      icon: PhoneCall,
       visible: true
     },
     {
