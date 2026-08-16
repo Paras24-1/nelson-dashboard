@@ -614,6 +614,7 @@ function VoiceDashboardContent() {
                 <thead>
                   <tr className="border-b border-gray-150 dark:border-gray-850 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 bg-gray-50/50 dark:bg-gray-955/20 select-none">
                     <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">Time</th>
                     <th className="px-5 py-3.5">From</th>
                     <th className="px-5 py-3.5">To</th>
                     <th className="px-5 py-3.5">Agent</th>
@@ -630,6 +631,20 @@ function VoiceDashboardContent() {
                         <tr className="hover:bg-gray-50/30 dark:hover:bg-gray-850/20 transition-all">
                           <td className="px-5 py-3.5 whitespace-nowrap align-middle">
                             {getStatusBadge(log.status)}
+                          </td>
+                          <td className="px-5 py-3.5 align-middle whitespace-nowrap">
+                            {log.created_at ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[11px] font-bold text-gray-800 dark:text-gray-200">
+                                  {new Date(log.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500">
+                                  {new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-gray-400">—</span>
+                            )}
                           </td>
                           <td className="px-5 py-3.5 font-medium font-mono text-[11px] align-middle">
                             {log.from_phone_number || 'Inbound (Virtual)'}
