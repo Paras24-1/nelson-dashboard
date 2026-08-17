@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         // Contact status breakdown
         const { data: contacts } = await supabaseVoiceAdmin!
           .from('campaign_contacts')
-          .select('id, status, duration_seconds, phone_number')
+          .select('id, name, status, duration_seconds, phone_number')
           .eq('campaign_id', camp.id)
 
         const contactList = contacts || []
@@ -96,9 +96,32 @@ export async function GET(req: NextRequest) {
         const totalCost = callLogs.reduce((sum, l) => sum + (l.cost || 0), 0)
         const avgDuration = callLogs.length > 0 ? totalDuration / callLogs.length : 0
         const answeredLogs = callLogs.filter(l => l.status === 'completed' && (l.duration_seconds || 0) > 5)
-        const answerRate = total > 0 ? Math.round((answeredLogs.length / total) * 100) : 0
-        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+        
+        // Call-based answer rate (answered call attempts / total call attempts made, max 100%)
+        const answerRate = callLogs.length > 0 ? Math.min(100, Math.round((answeredLogs.length / callLogs.length) * 100)) : 0
+        const completionRate = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
         const withRecording = callLogs.filter(l => l.recording_url).length
+
+        // Build lead-by-lead details
+        const leadDetails = contactList.map((contact) => {
+          const cLogs = callLogs.filter((l) => l.to_phone_number === contact.phone_number)
+          const answeredLog = cLogs.find((l) => l.status === 'completed' && (l.duration_seconds || 0) > 5)
+          const recording = cLogs.find((l) => l.recording_url)?.recording_url || null
+          const totalDur = cLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
+          const latestCallTime = cLogs.length > 0 ? cLogs[cLogs.length - 1].created_at : null
+
+          return {
+            id: contact.id,
+            name: contact.name || 'Unnamed Lead',
+            phone_number: contact.phone_number,
+            status: contact.status,
+            attempts: cLogs.length,
+            answered: !!answeredLog,
+            duration_seconds: totalDur || contact.duration_seconds || 0,
+            recording_url: recording,
+            last_call_at: latestCallTime
+          }
+        })
 
         return {
           id: camp.id,
@@ -121,6 +144,7 @@ export async function GET(req: NextRequest) {
           avg_duration_seconds: Math.round(avgDuration),
           total_cost: Math.round(totalCost * 100) / 100,
           recordings_available: withRecording,
+          contacts: leadDetails
         }
       })
     )

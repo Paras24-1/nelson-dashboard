@@ -1710,6 +1710,18 @@ function TestCallModal({ onClose }: TestCallModalProps) {
 /* ─────────────────────────────────────────────────────────────
    Campaign Analytics Tab
 ───────────────────────────────────────────────────────────── */
+interface LeadAnalytic {
+  id: string
+  name: string
+  phone_number: string
+  status: string
+  attempts: number
+  answered: boolean
+  duration_seconds: number
+  recording_url: string | null
+  last_call_at: string | null
+}
+
 interface CampaignAnalytic {
   id: string
   name: string
@@ -1729,6 +1741,7 @@ interface CampaignAnalytic {
   avg_duration_seconds: number
   total_cost: number
   recordings_available: number
+  contacts?: LeadAnalytic[]
 }
 
 function CampaignAnalyticsTab() {
@@ -1953,6 +1966,78 @@ function CampaignAnalyticsTab() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* ── Lead-by-Lead Details Table ── */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                    Lead-by-Lead Campaign Details
+                  </h3>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    Individual call logs & recording breakdown for {selected.contacts?.length || 0} leads
+                  </p>
+                </div>
+                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                  {selected.contacts?.length || 0} Total Leads
+                </span>
+              </div>
+
+              {selected.contacts && selected.contacts.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-150 dark:border-gray-800 text-gray-400 uppercase text-[9px] font-extrabold tracking-wider">
+                        <th className="py-2.5 px-3">Lead / Contact</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Attempts</th>
+                        <th className="py-2.5 px-3">Total Duration</th>
+                        <th className="py-2.5 px-3">Audio Recording</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {selected.contacts.map((lead) => (
+                        <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-850/50 transition-colors">
+                          <td className="py-3 px-3">
+                            <p className="font-bold text-gray-800 dark:text-gray-200">{lead.name}</p>
+                            <p className="text-[10px] font-mono text-gray-400">{lead.phone_number}</p>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statusColor(lead.status)}`}>
+                              {lead.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 font-semibold text-gray-700 dark:text-gray-300">
+                            {lead.attempts} {lead.attempts === 1 ? 'call' : 'calls'}
+                          </td>
+                          <td className="py-3 px-3 font-mono text-gray-600 dark:text-gray-400">
+                            {fmtDur(lead.duration_seconds)}
+                          </td>
+                          <td className="py-3 px-3">
+                            {lead.recording_url ? (
+                              <audio
+                                controls
+                                preload="metadata"
+                                className="h-8 max-w-[210px] rounded-lg"
+                                src={lead.recording_url}
+                              />
+                            ) : lead.answered ? (
+                              <span className="text-[10px] text-gray-400 italic">Processing audio...</span>
+                            ) : (
+                              <span className="text-[10px] text-gray-400 italic">No recording (not answered)</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-gray-400 text-xs">
+                  No lead details available for this campaign.
+                </div>
+              )}
             </div>
 
           </div>
