@@ -9,7 +9,7 @@ import AdminPanel from '@/components/admin/AdminPanel'
 import SettingsPanel from '@/components/admin/SettingsPanel'
 import { 
   Menu, X, BarChart2, MessageSquare, Calendar, Users, 
-  Send, Sun, Moon, Settings, LogOut, Package, PhoneCall, ShoppingBag, Mail, Shield, MessageCircle, Globe
+  Send, Sun, Moon, Settings, LogOut, Package, PhoneCall, ShoppingBag, Mail, Shield, MessageCircle, Globe, GitBranch
 } from 'lucide-react'
 
 export default function Sidebar() {
@@ -68,6 +68,12 @@ export default function Sidebar() {
       name: 'Followups',
       href: '/followups',
       icon: Calendar,
+      visible: true
+    },
+    {
+      name: 'Followup Workflows',
+      href: '/workflows',
+      icon: GitBranch,
       visible: true
     },
     {
