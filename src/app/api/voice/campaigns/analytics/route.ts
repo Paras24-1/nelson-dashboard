@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseVoiceAdmin, supabaseAdmin, getOrgId } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
+function cleanPhone(p: string | null | undefined): string {
+  if (!p) return ''
+  const digits = p.replace(/\D/g, '')
+  return digits.length >= 10 ? digits.slice(-10) : digits
+}
+
 export async function GET(req: NextRequest) {
   try {
     let orgId = await getOrgId(req)
@@ -9,7 +15,6 @@ export async function GET(req: NextRequest) {
     // Robust fallback using next/headers if NextRequest headers are stripped
     if (!orgId) {
       const cookieStore = cookies()
-      // Use the MAIN SaaS project ID cookie (jncmizoejeaclpnfxazg)
       const tokenCookie = cookieStore.get('sb-jncmizoejeaclpnfxazg-auth-token')
       if (tokenCookie?.value) {
         try {
@@ -32,7 +37,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (!orgId) return NextResponse.json({ error: 'Unauthorized', debug: 'orgId is null even with fallback' }, { status: 401 })
+    if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (!supabaseVoiceAdmin) return NextResponse.json({ error: 'Voice service not configured' }, { status: 501 })
 
     const { data: orgData, error: orgError } = await supabaseAdmin
@@ -59,7 +64,7 @@ export async function GET(req: NextRequest) {
 
     // For each campaign, fetch detailed analytics
     const analytics = await Promise.all(
-      realCampaigns.map(async (camp) => {
+      realCampaigns.map(async (camp, idx) => {
         // Contact status breakdown
         const { data: contacts } = await supabaseVoiceAdmin!
           .from('campaign_contacts')
@@ -73,55 +78,70 @@ export async function GET(req: NextRequest) {
         const pending = contactList.filter(c => c.status === 'pending').length
         const inProgress = contactList.filter(c => c.status === 'in-progress').length
 
-        // Call logs for this campaign's contacts
-        const contactIds = contactList.map(c => c.id)
-        let callLogs: any[] = []
-        if (contactIds.length > 0) {
-          // Match call logs by phone numbers from this campaign
-          const phones = contactList.map(c => c.phone_number).filter(Boolean)
-          if (phones.length > 0) {
-            const { data: logs } = await supabaseVoiceAdmin!
-              .from('call_logs')
-              .select('duration_seconds, cost, status, created_at, to_phone_number, recording_url')
-              .eq('organization_id', voiceOrgId)
-              .eq('agent_id', camp.agent_id)
-              .in('to_phone_number', phones)
-              .gte('created_at', camp.created_at)
-
-            callLogs = logs || []
-          }
+        // Determine campaign timeframe window to isolate call logs
+        // Upper bound: Next campaign's start time (idx > 0 because sorted DESC), or camp.updated_at + 15m, or created_at + 24h
+        let lteTime: string | null = null
+        if (idx > 0 && realCampaigns[idx - 1]?.created_at) {
+          lteTime = realCampaigns[idx - 1].created_at
+        } else if (camp.updated_at && camp.status === 'completed') {
+          lteTime = new Date(new Date(camp.updated_at).getTime() + 15 * 60 * 1000).toISOString()
         }
+
+        // Fetch call logs in this campaign's timeframe
+        let logsQuery = supabaseVoiceAdmin!
+          .from('call_logs')
+          .select('duration_seconds, cost, status, created_at, to_phone_number, recording_url')
+          .eq('organization_id', voiceOrgId)
+          .eq('agent_id', camp.agent_id)
+          .gte('created_at', camp.created_at)
+
+        if (lteTime) {
+          logsQuery = logsQuery.lte('created_at', lteTime)
+        }
+
+        const { data: logs } = await logsQuery
+        const rawLogs = logs || []
+
+        // Filter logs matching contacts in this campaign using normalized 10-digit phone numbers
+        const campaignPhones = new Set(contactList.map(c => cleanPhone(c.phone_number)))
+        const callLogs = rawLogs.filter(l => campaignPhones.has(cleanPhone(l.to_phone_number)))
 
         const totalDuration = callLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
         const totalCost = callLogs.reduce((sum, l) => sum + (l.cost || 0), 0)
         const avgDuration = callLogs.length > 0 ? totalDuration / callLogs.length : 0
-        const answeredLogs = callLogs.filter(l => l.status === 'completed' && (l.duration_seconds || 0) > 5)
-        
-        // Call-based answer rate (answered call attempts / total call attempts made, max 100%)
-        const answerRate = callLogs.length > 0 ? Math.min(100, Math.round((answeredLogs.length / callLogs.length) * 100)) : 0
-        const completionRate = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
-        const withRecording = callLogs.filter(l => l.recording_url).length
+
+        // Calls attempted in this campaign
+        const callsTriggered = completed + failed + inProgress
 
         // Build lead-by-lead details
         const leadDetails = contactList.map((contact) => {
-          const cLogs = callLogs.filter((l) => l.to_phone_number === contact.phone_number)
+          const cPhone = cleanPhone(contact.phone_number)
+          const cLogs = callLogs.filter((l) => cleanPhone(l.to_phone_number) === cPhone)
           const answeredLog = cLogs.find((l) => l.status === 'completed' && (l.duration_seconds || 0) > 5)
           const recording = cLogs.find((l) => l.recording_url)?.recording_url || null
           const totalDur = cLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
           const latestCallTime = cLogs.length > 0 ? cLogs[cLogs.length - 1].created_at : null
+
+          // Attempts for a campaign contact: 1 if attempted (completed/failed/in-progress), 0 if pending
+          const attempts = contact.status === 'pending' ? 0 : 1
 
           return {
             id: contact.id,
             name: contact.name || 'Unnamed Lead',
             phone_number: contact.phone_number,
             status: contact.status,
-            attempts: cLogs.length,
-            answered: !!answeredLog,
+            attempts: attempts,
+            answered: contact.status === 'completed' || !!answeredLog,
             duration_seconds: totalDur || contact.duration_seconds || 0,
             recording_url: recording,
             last_call_at: latestCallTime
           }
         })
+
+        const answeredCallsCount = leadDetails.filter(l => l.answered).length
+        const answerRate = callsTriggered > 0 ? Math.min(100, Math.round((answeredCallsCount / callsTriggered) * 100)) : 0
+        const completionRate = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
+        const withRecording = leadDetails.filter(l => l.recording_url).length
 
         return {
           id: camp.id,
@@ -136,8 +156,8 @@ export async function GET(req: NextRequest) {
           pending_contacts: pending,
           in_progress_contacts: inProgress,
           // Call stats
-          total_calls: callLogs.length,
-          answered_calls: answeredLogs.length,
+          total_calls: callsTriggered,
+          answered_calls: answeredCallsCount,
           answer_rate: answerRate,
           completion_rate: completionRate,
           total_duration_seconds: totalDuration,
