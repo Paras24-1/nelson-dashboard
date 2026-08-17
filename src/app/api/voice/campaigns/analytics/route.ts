@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 function cleanPhone(p: string | null | undefined): string {
   if (!p) return ''
   const digits = p.replace(/\D/g, '')
-  return digits.length >= 10 ? digits.slice(-10) : digits
+  return digits.length >= 10 ? digits.slice(-10) : (digits.length >= 5 ? digits : '')
 }
 
 export async function GET(req: NextRequest) {
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     // Fetch all call logs for this organization to link recordings and costs
     const { data: allLogs } = await supabaseVoiceAdmin
       .from('call_logs')
-      .select('duration_seconds, cost, status, created_at, to_phone_number, recording_url, call_sid, call_uuid')
+      .select('duration_seconds, cost, status, created_at, to_phone_number, recording_url, call_sid, call_uuid, lead_details')
       .eq('organization_id', voiceOrgId)
 
     const rawLogs = allLogs || []
@@ -89,12 +89,18 @@ export async function GET(req: NextRequest) {
 
         // Build lead-by-lead details
         const leadDetails = contactList.map((contact) => {
-          const cPhone = cleanPhone(contact.phone_number)
-          // Find matching log by call_sid or phone number
-          const matchedLog = rawLogs.find(l => 
-            (contact.call_sid && (l.call_sid === contact.call_sid || l.call_uuid === contact.call_sid)) ||
-            (cPhone && cleanPhone(l.to_phone_number) === cPhone && new Date(l.created_at) >= new Date(camp.created_at))
-          )
+          const p1 = cleanPhone(contact.phone_number)
+          const p2 = cleanPhone(contact.name)
+          const targetPhone = p1 || p2 || ''
+
+          // Find matching log by call_sid, phone number, or lead name
+          const matchedLog = rawLogs.find(l => {
+            const logPhone = cleanPhone(l.to_phone_number)
+            const sidMatch = contact.call_sid && (l.call_sid === contact.call_sid || l.call_uuid === contact.call_sid)
+            const phoneMatch = targetPhone && logPhone && targetPhone === logPhone
+            const nameMatch = l.lead_details && (l.lead_details.name === contact.name || l.lead_details.name === contact.phone_number)
+            return sidMatch || phoneMatch || nameMatch
+          })
 
           const recording = matchedLog?.recording_url || null
           const isAnswered = contact.status === 'completed' || (contact.duration_seconds || 0) > 0 || (matchedLog?.duration_seconds || 0) > 0
