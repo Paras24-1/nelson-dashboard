@@ -4,14 +4,34 @@ import { cookies } from 'next/headers'
 
 export async function GET(req: NextRequest) {
   try {
-    cookies() // Opt-in to dynamic rendering
-    console.log('[Analytics API] Route hit')
-    console.log('[Analytics API] Cookies:', req.headers.get('cookie') ? 'present' : 'missing')
+    let orgId = await getOrgId(req)
     
-    const orgId = await getOrgId(req)
-    console.log('[Analytics API] orgId:', orgId)
-    
-    if (!orgId) return NextResponse.json({ error: 'Unauthorized', debug: 'orgId is null' }, { status: 401 })
+    // Robust fallback using next/headers if NextRequest headers are stripped
+    if (!orgId) {
+      const cookieStore = cookies()
+      const tokenCookie = cookieStore.get('sb-ujioydnrqbltdgteeclf-auth-token')
+      if (tokenCookie?.value) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(tokenCookie.value))
+          const accessToken = parsed.access_token || parsed[0]?.access_token
+          if (accessToken) {
+            const { data } = await supabaseAdmin.auth.getUser(accessToken)
+            if (data?.user?.id) {
+              const { data: profile } = await supabaseAdmin
+                .from('users')
+                .select('org_id')
+                .eq('id', data.user.id)
+                .single()
+              if (profile?.org_id) orgId = profile.org_id
+            }
+          }
+        } catch (e) {
+          console.error("Fallback cookie parsing failed", e)
+        }
+      }
+    }
+
+    if (!orgId) return NextResponse.json({ error: 'Unauthorized', debug: 'orgId is null even with fallback' }, { status: 401 })
     if (!supabaseVoiceAdmin) return NextResponse.json({ error: 'Voice service not configured' }, { status: 501 })
 
     const { data: orgData, error: orgError } = await supabaseAdmin
