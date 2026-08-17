@@ -62,13 +62,20 @@ export async function GET(req: NextRequest) {
 
     const realCampaigns = (campaigns || []).filter(c => !c.name?.startsWith('Test Call - '))
 
-    // For each campaign, fetch detailed analytics
+    // Fetch all call logs for this organization to link recordings and costs
+    const { data: allLogs } = await supabaseVoiceAdmin
+      .from('call_logs')
+      .select('duration_seconds, cost, status, created_at, to_phone_number, recording_url, call_sid, call_uuid')
+      .eq('organization_id', voiceOrgId)
+
+    const rawLogs = allLogs || []
+
+    // For each campaign, compute analytics directly from campaign_contacts
     const analytics = await Promise.all(
-      realCampaigns.map(async (camp, idx) => {
-        // Contact status breakdown
+      realCampaigns.map(async (camp) => {
         const { data: contacts } = await supabaseVoiceAdmin!
           .from('campaign_contacts')
-          .select('id, name, status, duration_seconds, phone_number')
+          .select('id, name, status, duration_seconds, phone_number, call_sid, created_at, updated_at')
           .eq('campaign_id', camp.id)
 
         const contactList = contacts || []
@@ -78,51 +85,20 @@ export async function GET(req: NextRequest) {
         const pending = contactList.filter(c => c.status === 'pending').length
         const inProgress = contactList.filter(c => c.status === 'in-progress').length
 
-        // Determine campaign timeframe window to isolate call logs
-        // Upper bound: Next campaign's start time (idx > 0 because sorted DESC), or camp.updated_at + 15m, or created_at + 24h
-        let lteTime: string | null = null
-        if (idx > 0 && realCampaigns[idx - 1]?.created_at) {
-          lteTime = realCampaigns[idx - 1].created_at
-        } else if (camp.updated_at && camp.status === 'completed') {
-          lteTime = new Date(new Date(camp.updated_at).getTime() + 15 * 60 * 1000).toISOString()
-        }
-
-        // Fetch call logs in this campaign's timeframe
-        let logsQuery = supabaseVoiceAdmin!
-          .from('call_logs')
-          .select('duration_seconds, cost, status, created_at, to_phone_number, recording_url')
-          .eq('organization_id', voiceOrgId)
-          .eq('agent_id', camp.agent_id)
-          .gte('created_at', camp.created_at)
-
-        if (lteTime) {
-          logsQuery = logsQuery.lte('created_at', lteTime)
-        }
-
-        const { data: logs } = await logsQuery
-        const rawLogs = logs || []
-
-        // Filter logs matching contacts in this campaign using normalized 10-digit phone numbers
-        const campaignPhones = new Set(contactList.map(c => cleanPhone(c.phone_number)))
-        const callLogs = rawLogs.filter(l => campaignPhones.has(cleanPhone(l.to_phone_number)))
-
-        const totalDuration = callLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
-        const totalCost = callLogs.reduce((sum, l) => sum + (l.cost || 0), 0)
-        const avgDuration = callLogs.length > 0 ? totalDuration / callLogs.length : 0
-
-        // Calls attempted in this campaign
         const callsTriggered = completed + failed + inProgress
 
         // Build lead-by-lead details
         const leadDetails = contactList.map((contact) => {
           const cPhone = cleanPhone(contact.phone_number)
-          const cLogs = callLogs.filter((l) => cleanPhone(l.to_phone_number) === cPhone)
-          const answeredLog = cLogs.find((l) => l.status === 'completed' && (l.duration_seconds || 0) > 5)
-          const recording = cLogs.find((l) => l.recording_url)?.recording_url || null
-          const totalDur = cLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
-          const latestCallTime = cLogs.length > 0 ? cLogs[cLogs.length - 1].created_at : null
+          // Find matching log by call_sid or phone number
+          const matchedLog = rawLogs.find(l => 
+            (contact.call_sid && (l.call_sid === contact.call_sid || l.call_uuid === contact.call_sid)) ||
+            (cPhone && cleanPhone(l.to_phone_number) === cPhone && new Date(l.created_at) >= new Date(camp.created_at))
+          )
 
-          // Attempts for a campaign contact: 1 if attempted (completed/failed/in-progress), 0 if pending
+          const recording = matchedLog?.recording_url || null
+          const isAnswered = contact.status === 'completed' || (contact.duration_seconds || 0) > 0 || (matchedLog?.duration_seconds || 0) > 0
+          const durationSec = contact.duration_seconds || matchedLog?.duration_seconds || 0
           const attempts = contact.status === 'pending' ? 0 : 1
 
           return {
@@ -131,14 +107,18 @@ export async function GET(req: NextRequest) {
             phone_number: contact.phone_number,
             status: contact.status,
             attempts: attempts,
-            answered: contact.status === 'completed' || !!answeredLog,
-            duration_seconds: totalDur || contact.duration_seconds || 0,
+            answered: isAnswered,
+            duration_seconds: durationSec,
+            cost: matchedLog?.cost || 0,
             recording_url: recording,
-            last_call_at: latestCallTime
+            last_call_at: matchedLog?.created_at || contact.updated_at || contact.created_at
           }
         })
 
         const answeredCallsCount = leadDetails.filter(l => l.answered).length
+        const totalDuration = leadDetails.reduce((sum, l) => sum + (l.duration_seconds || 0), 0)
+        const totalCost = leadDetails.reduce((sum, l) => sum + (l.cost || 0), 0)
+        const avgDuration = answeredCallsCount > 0 ? Math.round(totalDuration / answeredCallsCount) : 0
         const answerRate = callsTriggered > 0 ? Math.min(100, Math.round((answeredCallsCount / callsTriggered) * 100)) : 0
         const completionRate = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
         const withRecording = leadDetails.filter(l => l.recording_url).length
@@ -161,7 +141,7 @@ export async function GET(req: NextRequest) {
           answer_rate: answerRate,
           completion_rate: completionRate,
           total_duration_seconds: totalDuration,
-          avg_duration_seconds: Math.round(avgDuration),
+          avg_duration_seconds: avgDuration,
           total_cost: Math.round(totalCost * 100) / 100,
           recordings_available: withRecording,
           contacts: leadDetails
