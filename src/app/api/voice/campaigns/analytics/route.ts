@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
     // Robust fallback using next/headers if NextRequest headers are stripped
     if (!orgId) {
       const cookieStore = cookies()
-      const tokenCookie = cookieStore.get('sb-ujioydnrqbltdgteeclf-auth-token')
+      // Use the MAIN SaaS project ID cookie (jncmizoejeaclpnfxazg)
+      const tokenCookie = cookieStore.get('sb-jncmizoejeaclpnfxazg-auth-token')
       if (tokenCookie?.value) {
         try {
           const parsed = JSON.parse(decodeURIComponent(tokenCookie.value))

@@ -51,7 +51,9 @@ export async function getOrgId(req: Request): Promise<string | null> {
     if (!userId) {
       // Try from cookie session
       const cookieStr = req.headers.get('cookie') || ''
-      const tokenMatch = cookieStr.match(/sb-[^-]+-auth-token=([^;]+)/)
+      // Get the specific project ID from supabaseUrl
+      const projectId = supabaseUrl.replace('https://', '').split('.')[0]
+      const tokenMatch = cookieStr.match(new RegExp(`sb-${projectId}-auth-token=([^;]+)`))
       if (tokenMatch) {
         const token = decodeURIComponent(tokenMatch[1])
         try {
