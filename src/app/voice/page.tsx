@@ -1741,8 +1741,15 @@ function CampaignAnalyticsTab() {
     setLoading(true)
     setError(null)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const res = await fetch('/api/voice/campaigns/analytics', {
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         cache: 'no-store'
       })
