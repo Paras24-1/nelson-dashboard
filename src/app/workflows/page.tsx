@@ -123,10 +123,20 @@ function WorkflowsContent() {
     }
   }, [])
 
+  // Run in-house workflow engine poller
+  const runCronPoller = useCallback(async () => {
+    try {
+      await fetch('/api/workflows/cron')
+    } catch (e) {
+      console.error('Failed to trigger workflow cron poller:', e)
+    }
+  }, [])
+
   useEffect(() => {
     fetchWorkflows()
     fetchAgents()
-  }, [fetchWorkflows, fetchAgents])
+    runCronPoller()
+  }, [fetchWorkflows, fetchAgents, runCronPoller])
 
   // Open Builder Modal (Create or Edit)
   const openBuilderModal = (wf?: WorkflowDefinition) => {
