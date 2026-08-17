@@ -33,7 +33,12 @@ import {
   Upload,
   FileText,
   ChevronUp,
-  Coins
+  Coins,
+  BarChart2,
+  TrendingUp,
+  Target,
+  Award,
+  Mic
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -401,6 +406,16 @@ function VoiceDashboardContent() {
             >
               Campaigns
             </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                activeTab === 'analytics'
+                  ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-205'
+              }`}
+            >
+              📊 Campaign Analytics
+            </button>
           </div>
         </div>
       </div>
@@ -422,8 +437,10 @@ function VoiceDashboardContent() {
           getStatusBadge={getStatusBadge}
           fetchDashboardData={fetchDashboardData}
         />
-      ) : (
+      ) : activeTab === 'campaigns' ? (
         <VoiceCampaignsTab />
+      ) : (
+        <CampaignAnalyticsTab />
       )}
 
       {showTestCallModal && (
@@ -1685,6 +1702,257 @@ function TestCallModal({ onClose }: TestCallModalProps) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Campaign Analytics Tab
+───────────────────────────────────────────────────────────── */
+interface CampaignAnalytic {
+  id: string
+  name: string
+  status: string
+  agent_name: string
+  created_at: string
+  total_contacts: number
+  completed_contacts: number
+  failed_contacts: number
+  pending_contacts: number
+  in_progress_contacts: number
+  total_calls: number
+  answered_calls: number
+  answer_rate: number
+  completion_rate: number
+  total_duration_seconds: number
+  avg_duration_seconds: number
+  total_cost: number
+  recordings_available: number
+}
+
+function CampaignAnalyticsTab() {
+  const [analytics, setAnalytics] = useState<CampaignAnalytic[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/voice/campaigns/analytics', {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      setAnalytics(data || [])
+      if (data?.length > 0 && !selectedId) setSelectedId(data[0].id)
+    } catch (e: any) {
+      setError(e.message || 'Failed to load analytics')
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedId])
+
+  useEffect(() => { fetchAnalytics() }, [])
+
+  const fmtDur = (s: number) => {
+    if (!s) return '0s'
+    const m = Math.floor(s / 60), sec = s % 60
+    return m > 0 ? `${m}m ${sec}s` : `${sec}s`
+  }
+
+  const statusColor = (s: string) => {
+    if (s === 'completed') return 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400'
+    if (s === 'running') return 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400'
+    if (s === 'draft') return 'text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400'
+    if (s === 'paused') return 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400'
+    return 'text-gray-500 bg-gray-100 dark:bg-gray-800'
+  }
+
+  const selected = analytics.find(a => a.id === selectedId)
+
+  // Summary totals across all campaigns
+  const totals = analytics.reduce((acc, a) => ({
+    contacts: acc.contacts + a.total_contacts,
+    calls: acc.calls + a.total_calls,
+    cost: acc.cost + a.total_cost,
+    duration: acc.duration + a.total_duration_seconds,
+    answered: acc.answered + a.answered_calls,
+  }), { contacts: 0, calls: 0, cost: 0, duration: 0, answered: 0 })
+
+  const overallAnswerRate = totals.calls > 0 ? Math.round((totals.answered / totals.calls) * 100) : 0
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-32">
+      <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+    </div>
+  )
+
+  if (error) return (
+    <div className="flex items-center justify-center py-20 text-red-500 text-sm">{error}</div>
+  )
+
+  if (analytics.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3 text-gray-400">
+      <BarChart2 className="w-10 h-10 opacity-20" />
+      <p className="text-sm font-bold">No campaign data yet</p>
+      <p className="text-xs">Create and run a campaign to see analytics here.</p>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* ── Summary Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Campaigns', value: analytics.length, icon: <Target className="w-4 h-4" />, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/30' },
+          { label: 'Total Contacts', value: totals.contacts.toLocaleString(), icon: <Users className="w-4 h-4" />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+          { label: 'Overall Answer Rate', value: `${overallAnswerRate}%`, icon: <TrendingUp className="w-4 h-4" />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+          { label: 'Total Spend', value: `₹${totals.cost.toFixed(2)}`, icon: <Coins className="w-4 h-4" />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30' },
+        ].map((card, i) => (
+          <div key={i} className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-5 flex items-start gap-3 shadow-sm">
+            <div className={`p-2 rounded-xl ${card.bg} ${card.color}`}>{card.icon}</div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{card.label}</p>
+              <p className={`text-xl font-extrabold ${card.color} mt-0.5`}>{card.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ── Campaign List ── */}
+        <div className="lg:col-span-1 bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-gray-500">Campaigns</h3>
+            <button onClick={fetchAnalytics} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[520px] overflow-y-auto">
+            {analytics.map(camp => (
+              <button
+                key={camp.id}
+                onClick={() => setSelectedId(camp.id)}
+                className={`w-full text-left p-4 transition-all hover:bg-gray-50 dark:hover:bg-gray-850 ${selectedId === camp.id ? 'bg-emerald-50 dark:bg-emerald-950/20 border-l-2 border-emerald-500' : 'border-l-2 border-transparent'}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{camp.name}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{camp.agent_name}</p>
+                  </div>
+                  <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ${statusColor(camp.status)}`}>
+                    {camp.status}
+                  </span>
+                </div>
+                {/* Mini progress bar */}
+                <div className="mt-2.5">
+                  <div className="flex justify-between text-[9px] text-gray-400 mb-1">
+                    <span>{camp.completed_contacts}/{camp.total_contacts} done</span>
+                    <span>{camp.completion_rate}%</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      style={{ width: `${camp.completion_rate}%` }}
+                    />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Detailed Analytics Panel ── */}
+        {selected ? (
+          <div className="lg:col-span-2 flex flex-col gap-4">
+
+            {/* Header */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-sm font-extrabold text-gray-900 dark:text-white">{selected.name}</h2>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    Agent: <span className="font-bold text-gray-600 dark:text-gray-300">{selected.agent_name}</span>
+                    &nbsp;·&nbsp;Created: {new Date(selected.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+                <span className={`text-[10px] font-extrabold uppercase px-3 py-1 rounded-full ${statusColor(selected.status)}`}>
+                  {selected.status}
+                </span>
+              </div>
+
+              {/* KPI Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                {[
+                  { label: 'Answer Rate', value: `${selected.answer_rate}%`, sub: `${selected.answered_calls} answered`, color: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Completion', value: `${selected.completion_rate}%`, sub: `${selected.completed_contacts}/${selected.total_contacts}`, color: 'text-blue-600 dark:text-blue-400' },
+                  { label: 'Avg Duration', value: fmtDur(selected.avg_duration_seconds), sub: `Total: ${fmtDur(selected.total_duration_seconds)}`, color: 'text-violet-600 dark:text-violet-400' },
+                  { label: 'Total Cost', value: `₹${selected.total_cost.toFixed(2)}`, sub: `${selected.total_calls} calls made`, color: 'text-amber-600 dark:text-amber-400' },
+                ].map((kpi, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-850 rounded-xl p-3">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{kpi.label}</p>
+                    <p className={`text-lg font-extrabold ${kpi.color} mt-0.5`}>{kpi.value}</p>
+                    <p className="text-[10px] text-gray-400">{kpi.sub}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Contact Status Breakdown */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-4">Contact Status Breakdown</h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'Completed', count: selected.completed_contacts, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
+                  { label: 'Failed / No Answer', count: selected.failed_contacts, color: 'bg-red-400', textColor: 'text-red-500 dark:text-red-400' },
+                  { label: 'Pending', count: selected.pending_contacts, color: 'bg-gray-300 dark:bg-gray-600', textColor: 'text-gray-500 dark:text-gray-400' },
+                  { label: 'In Progress', count: selected.in_progress_contacts, color: 'bg-blue-400', textColor: 'text-blue-500 dark:text-blue-400' },
+                ].map((item, i) => {
+                  const pct = selected.total_contacts > 0 ? Math.round((item.count / selected.total_contacts) * 100) : 0
+                  return (
+                    <div key={i}>
+                      <div className="flex justify-between text-[11px] mb-1">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">{item.label}</span>
+                        <span className={`font-extrabold ${item.textColor}`}>{item.count} <span className="text-gray-400 font-normal">({pct}%)</span></span>
+                      </div>
+                      <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div className={`h-full ${item.color} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { icon: <Phone className="w-4 h-4" />, label: 'Calls Triggered', value: selected.total_calls, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+                { icon: <Mic className="w-4 h-4" />, label: 'Recordings', value: selected.recordings_available, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/30' },
+                { icon: <Award className="w-4 h-4" />, label: 'Answer Rate', value: `${selected.answer_rate}%`, color: selected.answer_rate >= 50 ? 'text-emerald-500' : 'text-amber-500', bg: selected.answer_rate >= 50 ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-amber-50 dark:bg-amber-950/30' },
+              ].map((s, i) => (
+                <div key={i} className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+                  <div className={`p-2 rounded-xl ${s.bg} ${s.color}`}>{s.icon}</div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{s.label}</p>
+                    <p className={`text-lg font-extrabold ${s.color}`}>{s.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        ) : (
+          <div className="lg:col-span-2 flex items-center justify-center bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl shadow-sm text-gray-400 text-sm">
+            Select a campaign to view analytics
+          </div>
+        )}
       </div>
     </div>
   )
