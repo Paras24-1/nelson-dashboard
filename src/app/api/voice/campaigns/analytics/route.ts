@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseVoiceAdmin, supabaseAdmin, getOrgId } from '@/lib/supabase'
-
-export const dynamic = 'force-dynamic'
+import { cookies } from 'next/headers'
 
 export async function GET(req: NextRequest) {
   try {
+    cookies() // Opt-in to dynamic rendering
     console.log('[Analytics API] Route hit')
     console.log('[Analytics API] Cookies:', req.headers.get('cookie') ? 'present' : 'missing')
     
