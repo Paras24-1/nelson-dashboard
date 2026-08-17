@@ -5,8 +5,13 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('[Analytics API] Route hit')
+    console.log('[Analytics API] Cookies:', req.headers.get('cookie') ? 'present' : 'missing')
+    
     const orgId = await getOrgId(req)
-    if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    console.log('[Analytics API] orgId:', orgId)
+    
+    if (!orgId) return NextResponse.json({ error: 'Unauthorized', debug: 'orgId is null' }, { status: 401 })
     if (!supabaseVoiceAdmin) return NextResponse.json({ error: 'Voice service not configured' }, { status: 501 })
 
     const { data: orgData, error: orgError } = await supabaseAdmin

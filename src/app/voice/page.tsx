@@ -1743,7 +1743,8 @@ function CampaignAnalyticsTab() {
     try {
       const res = await fetch('/api/voice/campaigns/analytics', {
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       })
       if (!res.ok) throw new Error(await res.text())
       const data = await res.json()
