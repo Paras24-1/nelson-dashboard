@@ -31,8 +31,12 @@ import {
 
 interface WorkflowStep {
   id: string
-  type: 'delay' | 'action'
-  action_type?: 'voice_call' | 'email' | 'whatsapp' | 'crm_status'
+  type: 'delay' | 'action' | 'condition'
+  action_type?: 'voice_call' | 'email' | 'whatsapp' | 'crm_status' | 'human_handover' | 'ai_score'
+  condition_type?: 'branch_on_temperature'
+  branch_hot_step_index?: number
+  branch_warm_step_index?: number
+  branch_cold_step_index?: number
   delay_minutes?: string
   agent_id?: string
   email_subject?: string
@@ -528,7 +532,10 @@ function WorkflowsContent() {
                                     className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
                                   >
                                     <option value="voice_call">📞 Trigger AI Voice Call</option>
+                                    <option value="whatsapp">💬 Send WhatsApp Message</option>
                                     <option value="crm_status">🏷️ Update CRM Status</option>
+                                    <option value="human_handover">👤 Trigger Human Handover</option>
+                                    <option value="ai_score">🧠 AI Calculate Lead Score</option>
                                   </select>
                                 </div>
 
@@ -544,6 +551,18 @@ function WorkflowsContent() {
                                         <option key={a.id} value={a.id}>{a.name}</option>
                                       ))}
                                     </select>
+                                  </div>
+                                )}
+
+                                {step.action_type === 'whatsapp' && (
+                                  <div className="flex flex-col gap-2 text-xs">
+                                    <span className="text-gray-400">Message (Supports {'{Name}'}, {'{Business_Name}'}, {'{Industry}'}):</span>
+                                    <textarea
+                                      value={step.whatsapp_message || ''}
+                                      onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
+                                      placeholder="Hi {Name}, here are some designs for your {Industry} business..."
+                                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[60px]"
+                                    />
                                   </div>
                                 )}
 

@@ -69,7 +69,9 @@ export interface Lead {
   machine_interest?: string
   callback_ready?: string
   conversation_summary?: string
-  lead_score?: string
+  lead_score?: number
+  lead_temperature?: string
+  metadata?: Record<string, any>
   followup_date?: string
   followup_notes?: string
   followup_notified?: boolean

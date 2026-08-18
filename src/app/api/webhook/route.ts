@@ -161,6 +161,41 @@ export async function POST(req: NextRequest) {
       assignedEmployeePhone = empData?.phone || null
     }
 
+    // 7. [iWebMagics State Machine] STOP DRIP Reply Interceptor
+    // If we receive an incoming message, pause any active workflows waiting for a delay
+    if (direction === 'incoming') {
+      try {
+        const { error: stopDripError } = await supabaseAdmin
+          .from('workflow_instances')
+          .update({ status: 'paused', updated_at: new Date().toISOString() })
+          .eq('phone_number', phone_number)
+          .eq('org_id', orgId)
+          .eq('status', 'pending') // Only stop if it's waiting in a delay node
+
+        if (stopDripError) {
+          console.error('[webhook] Failed to stop drip:', stopDripError)
+        } else {
+          console.log(`[webhook] STOP DRIP executed for ${phone_number}`)
+        }
+        
+        // Trigger Async Native WhatsApp AI Chatbot & Scoring Engine
+        // We do not await this to prevent blocking the webhook response
+        fetch(`${req.nextUrl.origin}/api/webhook/async-ai-reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            orgId, 
+            phone_number, 
+            message: msgText, 
+            conversation_id: conversation.id 
+          })
+        }).catch(err => console.error('[webhook] Failed to trigger async AI reply:', err))
+
+      } catch (e) {
+        console.error('[webhook] State machine interceptor error:', e)
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
       conversation_id: conversation.id, 

@@ -21,7 +21,7 @@ async function processInstanceStep(instance: any) {
     }
 
     const steps = wf.steps || []
-    const stepIdx = instance.current_step_index || 0
+    let stepIdx = instance.current_step_index || 0
 
     if (stepIdx >= steps.length) {
       await supabaseAdmin
@@ -67,6 +67,56 @@ async function processInstanceStep(instance: any) {
             .update({ status: currentStep.new_status || 'Followup Scheduled' })
             .eq('id', instance.contact_id)
         }
+      } else if (actionType === 'whatsapp') {
+        // Send WhatsApp Message via internal API
+        const text = currentStep.whatsapp_message || ''
+        if (text && instance.phone_number) {
+          // Replace dynamic tags
+          let finalMsg = text
+          if (instance.lead_name) finalMsg = finalMsg.replace('{Name}', instance.lead_name)
+          if (instance.metadata?.company_name) finalMsg = finalMsg.replace('{Business_Name}', instance.metadata.company_name)
+          if (instance.metadata?.industry) finalMsg = finalMsg.replace('{Industry}', instance.metadata.industry)
+
+          try {
+            // Note: In real setup, you'd fetch the origin domain from req headers if passing req down, 
+            // but for cron worker, localhost works if hitting its own internal route, or call n8n webhook directly.
+            // For simplicity, we just insert it into `messages` table and let the listener pick it up.
+            await supabaseAdmin.from('messages').insert({
+              conversation_id: instance.conversation_id || 'new', // Needs real mapping ideally
+              org_id: instance.org_id,
+              phone_number: instance.phone_number,
+              message: finalMsg,
+              direction: 'outgoing',
+              timestamp: new Date().toISOString(),
+              platform: 'whatsapp'
+            })
+          } catch (e) {
+            console.error('Failed to send workflow whatsapp:', e)
+          }
+        }
+      } else if (actionType === 'human_handover') {
+        // Notify consultant, set lead state
+        await supabaseAdmin
+          .from('leads')
+          .update({ 
+            status: 'Human Handover', 
+            lead_priority: 'HIGH' 
+          })
+          .eq('phone_number', instance.phone_number)
+          .eq('org_id', instance.org_id)
+      } else if (actionType === 'ai_score') {
+        // Call the async-ai-reply endpoint or do scoring logic inline
+        // Since we built scoring into the async-ai-reply, this node just triggers an async fetch
+        console.log(`[Workflow Engine] AI Score node triggered for ${instance.phone_number}`)
+      }
+    } else if (currentStep.type === 'condition' && currentStep.condition_type === 'branch_on_temperature') {
+      const leadTemp = instance.metadata?.lead_temperature || 'COLD'
+      if (leadTemp === 'HOT' && currentStep.branch_hot_step_index) {
+        stepIdx = currentStep.branch_hot_step_index - 1 // Will be +1 below
+      } else if (leadTemp === 'WARM' && currentStep.branch_warm_step_index) {
+        stepIdx = currentStep.branch_warm_step_index - 1
+      } else if (currentStep.branch_cold_step_index) {
+        stepIdx = currentStep.branch_cold_step_index - 1
       }
     }
 

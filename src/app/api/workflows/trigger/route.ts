@@ -31,7 +31,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No active workflows for event', triggeredCount: 0 })
     }
 
-    // 2. Spawn workflow instances for each matching active workflow
+    // 2. Inject Voice context metadata into Lead CRM natively
+    if (metadata && phone_number) {
+      // Fetch existing
+      const { data: existingLead } = await supabaseAdmin
+        .from('leads')
+        .select('metadata')
+        .eq('phone_number', phone_number)
+        .eq('org_id', orgId)
+        .maybeSingle()
+      
+      const newMetadata = { ...(existingLead?.metadata || {}), ...metadata }
+      
+      await supabaseAdmin
+        .from('leads')
+        .update({ metadata: newMetadata })
+        .eq('phone_number', phone_number)
+        .eq('org_id', orgId)
+    }
+
+    // 3. Spawn workflow instances for each matching active workflow
     const spawnedInstances = await Promise.all(
       activeWorkflows.map(async (wf) => {
         const steps = wf.steps || []
