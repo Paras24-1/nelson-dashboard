@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // 1. Fetch Lead context & metadata
     const { data: lead } = await supabaseAdmin
       .from('leads')
-      .select('metadata, lead_score, lead_temperature, industry, name')
+      .select('id, metadata, lead_score, lead_temperature, industry, name')
       .eq('phone_number', phone_number)
       .eq('org_id', orgId)
       .maybeSingle()
@@ -139,9 +139,22 @@ Respond in JSON format:
 
     // 6. If HOT, Trigger Human Handover Task natively
     if (newTemp === 'HOT' && lead?.lead_temperature !== 'HOT') {
-      await fetch(`${req.nextUrl.origin}/api/workflows/cron`, { method: 'POST' }) 
-      // Note: Ideally we directly insert a task into 'lead_activities' or 'tasks' table here
-      console.log(`[async-ai-reply] Lead ${phone_number} reached HOT. Human Handover required.`)
+      if (lead?.id) {
+        await supabaseAdmin.from('lead_activities').insert({
+          lead_id: lead.id,
+          activity_type: 'human_handover',
+          description: 'Lead reached HOT status. Human Handover Required.',
+          notes: `Reason: ${content.reasoning || 'AI Scoring threshold met.'}\nScore: ${newScore}\nTimeline: ${content.extractedTimeline || 'Unknown'}`
+        })
+      }
+      
+      // Stop Automation explicitly
+      await supabaseAdmin.from('workflow_instances')
+        .update({ status: 'completed' })
+        .eq('phone_number', phone_number)
+        .eq('org_id', orgId)
+
+      console.log(`[async-ai-reply] Lead ${phone_number} reached HOT. Human Handover task created and automation stopped.`)
     }
 
     return NextResponse.json({ success: true, newScore, newTemp })
