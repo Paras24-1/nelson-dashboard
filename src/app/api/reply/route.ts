@@ -3,10 +3,16 @@ import { supabaseAdmin, getOrgId } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await getOrgId(req)
+    const body = await req.json()
+    let orgId = await getOrgId(req)
+    
+    // Allow internal webhook routing to bypass cookie auth
+    if (!orgId && req.headers.get('x-internal-secret') === (process.env.N8N_WEBHOOK_SECRET || 'internal-ai-reply')) {
+      orgId = body.org_id
+    }
+
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await req.json()
     const { conversation_id, phone_number, message, media_url, media_type } = body
 
     if (!conversation_id || !phone_number) {

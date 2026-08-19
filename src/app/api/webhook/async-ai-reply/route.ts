@@ -145,10 +145,14 @@ Respond in JSON format with exactly these keys:
     if (content.replyMessage) {
       await fetch(`${req.nextUrl.origin}/api/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-internal-secret': process.env.N8N_WEBHOOK_SECRET || 'internal-ai-reply'
+        },
         body: JSON.stringify({
           conversation_id,
           phone_number,
+          org_id: orgId,
           message: content.replyMessage
         })
       })

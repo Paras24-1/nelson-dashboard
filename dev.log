@@ -1,0 +1,28 @@
+
+> whatsapp-chat-dashboard@1.0.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.5s
+ ○ Compiling /api/webhook ...
+ ✓ Compiled /api/webhook in 503ms (98 modules)
+ GET /api/webhook?org=iwebmagics&hub.mode=subscribe&hub.challenge=123456789&hub.verify_token=Osmo123 200 in 669ms
+ GET /api/webhook?org=iwebmagics&hub.mode=subscribe&hub.challenge=123456789 200 in 90ms
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1464ms
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.2s
