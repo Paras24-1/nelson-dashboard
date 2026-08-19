@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
       machine_interest: data.machine_interest || '',
       lead_quality: data.lead_quality || '',
       lead_score: String(data.lead_score || 0),
+      lead_temperature: data.lead_temperature || '',
       callback_ready: data.callback_ready || '',
       conversation_summary: data.conversation_summary || '',
       followup_date: data.followup_date || null,

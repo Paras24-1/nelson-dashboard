@@ -258,20 +258,20 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
           <button
             onClick={toggleAI}
             className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all duration-300 shadow-sm border flex items-center gap-1.5 ${
-              conversation.ai_mode
-                ? 'bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900/50 dark:text-emerald-400'
-                : 'bg-orange-50 border-orange-100 text-orange-700 dark:bg-orange-950/40 dark:border-orange-900/50 dark:text-orange-400'
+              conversation.ai_mode 
+                ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 shadow-emerald-500/20' 
+                : 'bg-red-500 text-white border-red-400 hover:bg-red-600 shadow-red-500/20'
             }`}
           >
             {conversation.ai_mode ? (
               <>
-                <Bot className="w-3.5 h-3.5 animate-bounce text-emerald-500" />
-                AI Active
+                <Bot className="w-3.5 h-3.5" />
+                AI ACTIVE
               </>
             ) : (
               <>
-                <User className="w-3.5 h-3.5 text-orange-550" />
-                Manual
+                <User className="w-3.5 h-3.5" />
+                AI PAUSED
               </>
             )}
           </button>

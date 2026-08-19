@@ -483,7 +483,20 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
                     </div>
                     <span className="font-bold text-gray-500 dark:text-gray-400">Lead Score</span>
                   </div>
-                  <span className="font-extrabold text-gray-950 dark:text-white">{data.lead_score}/100</span>
+                  <div className="flex items-center gap-2">
+                    {data.lead_temperature && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                        data.lead_temperature === 'HOT' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400' :
+                        data.lead_temperature === 'WARM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                        data.lead_temperature === 'COLD' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                        data.lead_temperature === 'SUPPRESSED' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 border border-red-500' :
+                        'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                      }`}>
+                        {data.lead_temperature}
+                      </span>
+                    )}
+                    <span className="font-extrabold text-gray-950 dark:text-white">{data.lead_score}/100</span>
+                  </div>
                 </div>
                 <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-150/10">
                   <div 
