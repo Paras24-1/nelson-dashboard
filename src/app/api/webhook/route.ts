@@ -29,6 +29,21 @@ async function getNextEmployee(orgId: string): Promise<string | null> {
   return employees[nextIndex].id
 }
 
+// Handle Meta Webhook Verification
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const mode = searchParams.get('hub.mode')
+  const token = searchParams.get('hub.verify_token')
+  const challenge = searchParams.get('hub.challenge')
+
+  // You can set a strict NEXT_PUBLIC_META_VERIFY_TOKEN in env if needed, 
+  // but usually it's fine to just reflect the challenge if mode is subscribe
+  if (mode === 'subscribe' && challenge) {
+    return new NextResponse(challenge, { status: 200 })
+  }
+  return NextResponse.json({ error: 'Invalid verification' }, { status: 403 })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
@@ -50,15 +65,54 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { phone_number, message, direction, name, media_url, media_type, platform } = body
+    
+    // Check if this is a native Meta WhatsApp Webhook Payload
+    let parsedPhone = body.phone_number
+    let parsedMessage = body.message
+    let parsedDirection = body.direction
+    let parsedName = body.name
+    let parsedMediaUrl = body.media_url
+    let parsedMediaType = body.media_type
+    const parsedPlatform = body.platform || 'whatsapp'
 
-    if (!phone_number || !direction) {
+    if (body.object === 'whatsapp_business_account') {
+      const entry = body.entry?.[0]
+      const change = entry?.changes?.[0]?.value
+      if (change?.messages && change.messages.length > 0) {
+        const msg = change.messages[0]
+        parsedPhone = msg.from
+        parsedDirection = 'incoming'
+        parsedName = change.contacts?.[0]?.profile?.name || msg.from
+        
+        if (msg.type === 'text') {
+          parsedMessage = msg.text?.body
+        } else if (msg.type === 'image' || msg.type === 'document' || msg.type === 'audio') {
+          // Native Meta media webhooks just provide an ID. 
+          // Downloading the actual media requires a separate API call with the token.
+          // For now, we'll just log the type.
+          parsedMessage = `[Received ${msg.type}]`
+          parsedMediaType = msg.type
+        }
+      } else if (change?.statuses) {
+        // Message delivery status update (sent, delivered, read) - ignore for now
+        return NextResponse.json({ success: true, status: 'ignored' })
+      }
+    }
+
+    if (!parsedPhone || !parsedDirection) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const contactName = name || phone_number
+    const contactName = parsedName || parsedPhone
     const timestamp   = new Date()
-    const msgText     = message || (media_type ? `[${media_type}]` : '')
+    const msgText     = parsedMessage || (parsedMediaType ? `[${parsedMediaType}]` : '')
+    
+    // Remap for the rest of the function
+    const phone_number = parsedPhone
+    const direction = parsedDirection
+    const media_url = parsedMediaUrl
+    const media_type = parsedMediaType
+    const platform = parsedPlatform
 
     // 1. Check if conversation already exists
     const { data: existing } = await supabaseAdmin
