@@ -87,7 +87,7 @@ Respond in JSON format with exactly these keys:
   "extractedTimeline": "less than 30 days"
 }`
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${tenantAiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${tenantAiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
