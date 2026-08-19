@@ -233,8 +233,8 @@ export async function POST(req: NextRequest) {
         }
         
         // Trigger Async Native WhatsApp AI Chatbot & Scoring Engine
-        // We do not await this to prevent blocking the webhook response
-        fetch(`${req.nextUrl.origin}/api/webhook/async-ai-reply`, {
+        // Async handoff so we don't block the webhook response
+        fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

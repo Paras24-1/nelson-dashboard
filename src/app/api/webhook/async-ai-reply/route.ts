@@ -143,7 +143,7 @@ Respond in JSON format with exactly these keys:
 
     // 5. Send WhatsApp Reply by posting to our own /api/reply endpoint
     if (content.replyMessage) {
-      await fetch(`${req.nextUrl.origin}/api/reply`, {
+      await fetch(`https://voxaiagents.com/api/reply`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
