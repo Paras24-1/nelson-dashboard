@@ -233,8 +233,8 @@ export async function POST(req: NextRequest) {
         }
         
         // Trigger Async Native WhatsApp AI Chatbot & Scoring Engine
-        // Async handoff so we don't block the webhook response
-        fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
+        // We await this so Vercel Serverless does not suspend the process before it finishes
+        await fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
