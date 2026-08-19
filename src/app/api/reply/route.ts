@@ -54,16 +54,52 @@ export async function POST(req: NextRequest) {
       .eq('id', conversation_id)
       .eq('org_id', orgId)
 
-    // 3. Get org's n8n reply webhook URL from settings
+    // 3. Fetch Delivery Settings (Meta Native or n8n Fallback)
     const { data: settings } = await supabaseAdmin
       .from('organization_settings')
-      .select('n8n_reply_webhook_url')
+      .select('n8n_reply_webhook_url, whatsapp_token, whatsapp_phone_id')
       .eq('org_id', orgId)
       .single()
 
-    const n8nUrl = settings?.n8n_reply_webhook_url
-    if (n8nUrl) {
-      await fetch(n8nUrl, {
+    const { whatsapp_token, whatsapp_phone_id, n8n_reply_webhook_url } = settings || {}
+
+    // Priority 1: Native Meta/WhatsApp Cloud API
+    if (whatsapp_token && whatsapp_phone_id) {
+      console.log(`[reply] Sending natively via WhatsApp Cloud API for org: ${orgId}`)
+      
+      const payload: any = {
+        messaging_product: 'whatsapp',
+        to: phone_number.replace('+', ''), // Meta requires phone without +
+        type: media_url ? media_type?.split('/')[0] : 'text'
+      }
+
+      if (payload.type === 'text') {
+        payload.text = { body: message }
+      } else {
+        // e.g. type 'image' or 'document'
+        payload[payload.type] = { link: media_url }
+        if (message) payload[payload.type].caption = message
+      }
+
+      const metaRes = await fetch(`https://graph.facebook.com/v20.0/${whatsapp_phone_id}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${whatsapp_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!metaRes.ok) {
+        const errorText = await metaRes.text()
+        console.error(`[reply] Meta API Error: ${errorText}`)
+        throw new Error(`Meta API Error: ${errorText}`)
+      }
+    } 
+    // Priority 2: Legacy n8n Webhook Fallback
+    else if (n8n_reply_webhook_url) {
+      console.log(`[reply] Sending via n8n fallback for org: ${orgId}`)
+      await fetch(n8n_reply_webhook_url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_number, message, media_url, media_type, direction: 'outgoing', timestamp, platform }),
