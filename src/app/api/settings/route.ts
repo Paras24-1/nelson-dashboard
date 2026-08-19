@@ -34,7 +34,9 @@ export async function PATCH(req: NextRequest) {
       'google_sheet_id',
       'google_sheet_name',
       'google_sheets_api_key',
-      'gemini_api_key'
+      'gemini_api_key',
+      'openai_api_key',
+      'ai_system_prompt'
     ]
 
     const filtered: Record<string, any> = {}

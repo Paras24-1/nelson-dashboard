@@ -14,7 +14,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    if (!OPENAI_API_KEY) {
+    // Fetch tenant AI Settings
+    const { data: orgSettings } = await supabaseAdmin
+      .from('organization_settings')
+      .select('openai_api_key, ai_system_prompt')
+      .eq('org_id', orgId)
+      .maybeSingle()
+
+    const tenantAiKey = orgSettings?.openai_api_key || OPENAI_API_KEY
+    if (!tenantAiKey) {
       console.warn('[async-ai-reply] No OPENAI_API_KEY provided. Skipping AI reply.')
       return NextResponse.json({ error: 'No OPENAI_API_KEY' }, { status: 500 })
     }
@@ -45,7 +53,9 @@ export async function POST(req: NextRequest) {
     const currentScore = lead?.lead_score || 0
 
     // 3. Call OpenAI for Reply & Scoring
-    const systemPrompt = `You are a WhatsApp AI consultant for iWebMagics.
+    const customPromptBase = orgSettings?.ai_system_prompt || 'You are a WhatsApp AI consultant for iWebMagics.'
+    
+    const systemPrompt = `${customPromptBase}
 Context:
 Customer Name: ${lead?.name || 'Unknown'}
 Industry: ${industry}
@@ -81,7 +91,7 @@ Respond in JSON format:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${tenantAiKey}`
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
