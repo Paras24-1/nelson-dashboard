@@ -17,14 +17,14 @@ export async function POST(req: NextRequest) {
     // Fetch tenant AI Settings
     const { data: orgSettings } = await supabaseAdmin
       .from('organization_settings')
-      .select('openai_api_key, ai_system_prompt')
+      .select('gemini_api_key, ai_system_prompt')
       .eq('org_id', orgId)
       .maybeSingle()
 
-    const tenantAiKey = orgSettings?.openai_api_key || OPENAI_API_KEY
+    const tenantAiKey = orgSettings?.gemini_api_key || process.env.GEMINI_API_KEY
     if (!tenantAiKey) {
-      console.warn('[async-ai-reply] No OPENAI_API_KEY provided. Skipping AI reply.')
-      return NextResponse.json({ error: 'No OPENAI_API_KEY' }, { status: 500 })
+      console.warn('[async-ai-reply] No GEMINI_API_KEY provided. Skipping AI reply.')
+      return NextResponse.json({ error: 'No GEMINI_API_KEY' }, { status: 500 })
     }
 
     // 1. Fetch Lead context & metadata
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const websiteStatus = metadata.website_status || 'Unknown'
     const currentScore = lead?.lead_score || 0
 
-    // 3. Call OpenAI for Reply & Scoring
+    // 3. Call Gemini for Reply & Scoring
     const customPromptBase = orgSettings?.ai_system_prompt || 'You are a WhatsApp AI consultant for iWebMagics.'
     
     const systemPrompt = `${customPromptBase}
@@ -79,7 +79,7 @@ Also, evaluate the customer's intent based on this exact matrix and provide a sc
 - No current requirement: -20
 - Explicit NOT INTERESTED: -100
 
-Respond in JSON format:
+Respond in JSON format with exactly these keys:
 {
   "replyMessage": "Your text response to the user",
   "scoreAdjustment": 20,
@@ -87,28 +87,35 @@ Respond in JSON format:
   "extractedTimeline": "less than 30 days"
 }`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${tenantAiKey}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${tenantAiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Recent chat history:\n${chatContext}\n\nAnalyze the customer's last message and generate the JSON response.` }
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `Recent chat history:\n${chatContext}\n\nAnalyze the customer's last message and generate the JSON response.` }]
+          }
         ],
-        response_format: { type: "json_object" }
+        systemInstruction: {
+          role: "system",
+          parts: [{ text: systemPrompt }]
+        },
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI error: ${await response.text()}`)
+      throw new Error(`Gemini error: ${await response.text()}`)
     }
 
     const aiData = await response.json()
-    const content = JSON.parse(aiData.choices[0].message.content)
+    const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+    const content = JSON.parse(rawText)
     
     // 4. Update Lead Score & Temperature natively
     const newScore = currentScore + (content.scoreAdjustment || 0)
