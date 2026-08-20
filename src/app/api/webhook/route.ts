@@ -276,7 +276,31 @@ export async function POST(req: NextRequest) {
       assignedEmployeePhone = empData?.phone || null
     }
 
-    // 7. [iWebMagics State Machine] STOP DRIP Reply Interceptor
+    // 7. [FORWARDING] Check if the tenant has a custom n8n webhook configured
+    // We do this BEFORE any slow AI fetch so n8n triggers instantly without delay
+    if (direction === 'incoming') {
+      try {
+        const { data: orgSettings } = await supabaseAdmin
+          .from('organization_settings')
+          .select('n8n_inbound_webhook_url')
+          .eq('org_id', orgId)
+          .maybeSingle()
+
+        if (orgSettings?.n8n_inbound_webhook_url) {
+          console.log(`[webhook] Forwarding payload to tenant n8n: ${orgSettings.n8n_inbound_webhook_url}`)
+          // Fire and forget, don't await so we don't block
+          fetch(orgSettings.n8n_inbound_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }).catch(err => console.error(`[webhook] Failed to forward to n8n:`, err))
+        }
+      } catch (forwardErr) {
+        console.error('[webhook] Error checking/forwarding to n8n:', forwardErr)
+      }
+    }
+
+    // 8. [iWebMagics State Machine] STOP DRIP Reply Interceptor
     // If we receive an incoming message, pause any active workflows waiting for a delay
     if (direction === 'incoming') {
       try {
@@ -294,7 +318,8 @@ export async function POST(req: NextRequest) {
         }
         
         // Trigger Async Native WhatsApp AI Chatbot & Scoring Engine
-        // We await this so Vercel Serverless does not suspend the process before it finishes
+        // We await this AT THE END so Vercel Serverless does not suspend the process before it finishes
+        // but AFTER forwarding to n8n so n8n isn't delayed by AI generation
         await fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -308,27 +333,6 @@ export async function POST(req: NextRequest) {
 
       } catch (e) {
         console.error('[webhook] State machine interceptor error:', e)
-      }
-      
-      // [FORWARDING] Check if the tenant has a custom n8n webhook configured
-      try {
-        const { data: orgSettings } = await supabaseAdmin
-          .from('organization_settings')
-          .select('n8n_inbound_webhook_url')
-          .eq('org_id', orgId)
-          .maybeSingle()
-
-        if (orgSettings?.n8n_inbound_webhook_url) {
-          console.log(`[webhook] Forwarding payload to tenant n8n: ${orgSettings.n8n_inbound_webhook_url}`)
-          // We fire and forget the forward (with a catch) so it doesn't slow down the main response
-          fetch(orgSettings.n8n_inbound_webhook_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          }).catch(err => console.error(`[webhook] Failed to forward to n8n:`, err))
-        }
-      } catch (forwardErr) {
-        console.error('[webhook] Error checking/forwarding to n8n:', forwardErr)
       }
     }
 
