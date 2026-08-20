@@ -81,9 +81,12 @@ export async function POST(req: NextRequest) {
       if (payload.type === 'text') {
         payload.text = { body: message }
       } else {
-        // e.g. type 'image' or 'document'
+        // e.g. type 'image', 'document', or 'audio'
         payload[payload.type] = { link: media_url }
-        if (message) payload[payload.type].caption = message
+        // Meta WhatsApp API rejects 'caption' on audio messages
+        if (message && payload.type !== 'audio') {
+          payload[payload.type].caption = message
+        }
       }
 
       const metaRes = await fetch(`https://graph.facebook.com/v20.0/${whatsapp_phone_id}/messages`, {
