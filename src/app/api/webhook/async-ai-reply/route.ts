@@ -156,8 +156,13 @@ Respond in JSON format with exactly these keys:
     else if (newScore >= 20) newTemp = 'COLD'
     else newTemp = 'COLD'
 
-    // Save back to DB
-    const newMetadata = { ...metadata, timeline: content.extractedTimeline || metadata.timeline }
+    // Save back to DB. We dynamically merge ALL keys the AI output (like state, industry, etc) into metadata!
+    const filteredAiContent = { ...content }
+    delete filteredAiContent.replyMessage
+    delete filteredAiContent.scoreAdjustment
+    delete filteredAiContent.reasoning
+    
+    const newMetadata = { ...metadata, ...filteredAiContent, timeline: content.extractedTimeline || metadata.timeline }
     
     await supabaseAdmin
       .from('leads')
