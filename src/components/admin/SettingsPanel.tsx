@@ -17,6 +17,8 @@ interface SettingsData {
   google_sheets_api_key: string
   gemini_api_key: string
   ai_system_prompt: string
+  ai_knowledge_base_sheet_id: string
+  ai_knowledge_base_range: string
 }
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
@@ -44,7 +46,9 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
     google_sheet_name: 'LEADS',
     google_sheets_api_key: '',
     gemini_api_key: '',
-    ai_system_prompt: ''
+    ai_system_prompt: '',
+    ai_knowledge_base_sheet_id: '',
+    ai_knowledge_base_range: 'Sheet1!A:Z'
   })
 
   useEffect(() => {
@@ -67,7 +71,9 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
             google_sheet_name: data.google_sheet_name || 'LEADS',
             google_sheets_api_key: data.google_sheets_api_key || '',
             gemini_api_key: data.gemini_api_key || '',
-            ai_system_prompt: data.ai_system_prompt || ''
+            ai_system_prompt: data.ai_system_prompt || '',
+            ai_knowledge_base_sheet_id: data.ai_knowledge_base_sheet_id || '',
+            ai_knowledge_base_range: data.ai_knowledge_base_range || 'Sheet1!A:Z'
           })
         }
       } catch (err) {
@@ -340,7 +346,29 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
                       value={formData.ai_system_prompt}
                       onChange={e => setFormData({ ...formData, ai_system_prompt: e.target.value })}
                       placeholder="You are a WhatsApp AI consultant for iWebMagics..."
-                      className="w-full px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 h-[100px] resize-none disabled:opacity-60"
+                      className="w-full px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 h-[80px] resize-none disabled:opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">AI Knowledge Base (Google Sheet ID)</label>
+                    <input
+                      type="text"
+                      disabled={!isEditable}
+                      value={formData.ai_knowledge_base_sheet_id}
+                      onChange={e => setFormData({ ...formData, ai_knowledge_base_sheet_id: e.target.value })}
+                      placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                      className="w-full px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Knowledge Base Range</label>
+                    <input
+                      type="text"
+                      disabled={!isEditable}
+                      value={formData.ai_knowledge_base_range}
+                      onChange={e => setFormData({ ...formData, ai_knowledge_base_range: e.target.value })}
+                      placeholder="e.g. Sheet1!A:F"
+                      className="w-full px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60"
                     />
                   </div>
                 </div>

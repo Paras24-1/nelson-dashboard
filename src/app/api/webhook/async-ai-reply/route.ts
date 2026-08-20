@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     // Fetch tenant AI Settings
     const { data: orgSettings } = await supabaseAdmin
       .from('organization_settings')
-      .select('gemini_api_key, ai_system_prompt')
+      .select('gemini_api_key, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range, google_sheets_api_key')
       .eq('org_id', orgId)
       .maybeSingle()
 
@@ -55,7 +55,36 @@ export async function POST(req: NextRequest) {
     // 3. Call Gemini for Reply & Scoring
     const customPromptBase = orgSettings?.ai_system_prompt || 'You are a WhatsApp AI consultant for iWebMagics.'
     
-    const systemPrompt = `${customPromptBase}
+    // Optional Knowledge Base from Google Sheets
+    let knowledgeBaseContext = ''
+    if (orgSettings?.ai_knowledge_base_sheet_id) {
+      try {
+        const sheetId = orgSettings.ai_knowledge_base_sheet_id
+        const range = orgSettings.ai_knowledge_base_range || 'Sheet1!A:Z'
+        const apiKey = orgSettings.google_sheets_api_key || process.env.NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY
+        
+        if (apiKey) {
+          const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
+          const sheetRes = await fetch(sheetUrl, { next: { revalidate: 60 } }) // Cache for 60s
+          
+          if (sheetRes.ok) {
+            const sheetData = await sheetRes.json()
+            const rows = sheetData.values || []
+            if (rows.length > 0) {
+              const headers = rows[0].join(' | ')
+              const dataRows = rows.slice(1).map((r: string[]) => r.join(' | ')).join('\n')
+              knowledgeBaseContext = `\n\n--- KNOWLEDGE BASE (CATALOG / LINKS) ---\nUse the following table to answer questions. If the user asks for a demo, link, or price, look it up here:\nHeaders: ${headers}\n${dataRows}\n----------------------------------------\n`
+            }
+          } else {
+            console.warn('[async-ai-reply] Failed to fetch Google Sheet', await sheetRes.text())
+          }
+        }
+      } catch (err) {
+        console.error('[async-ai-reply] Google Sheets error:', err)
+      }
+    }
+
+    const systemPrompt = `${customPromptBase}${knowledgeBaseContext}
 Context:
 Customer Name: ${lead?.name || 'Unknown'}
 Industry: ${industry}
