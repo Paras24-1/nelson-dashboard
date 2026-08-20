@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     // 1. Check if conversation already exists
     const { data: existing } = await supabaseAdmin
       .from('conversations')
-      .select('id, assigned_to')
+      .select('id, assigned_to, unread_count')
       .eq('phone_number', phone_number)
       .eq('org_id', orgId)
       .maybeSingle()
@@ -140,6 +140,9 @@ export async function POST(req: NextRequest) {
           org_id: orgId,
           updated_at: new Date().toISOString(),
           platform: platform || 'whatsapp',
+          ...(direction === 'incoming' 
+            ? { unread_count: (existing?.unread_count || 0) + 1 } 
+            : {}),
           ...(assignedTo
             ? { assigned_to: assignedTo, assignment_status: 'assigned' }
             : {})
