@@ -94,7 +94,49 @@ export async function POST(req: NextRequest) {
 
     const voiceOrgId = orgData.voice_org_id
 
-    // 1. Create the campaign in Voice SaaS DB (Account B)
+    // 1. Validate and Deduplicate within the CSV
+    const validContactsMap = new Map()
+    contacts.forEach((c: any) => {
+      const phone = c.phone_number?.replace(/\D/g, '').slice(-10)
+      if (phone && phone.length >= 7) {
+        // Keep the latest/first occurrence in CSV
+        if (!validContactsMap.has(phone)) {
+          validContactsMap.set(phone, { ...c, phone_number: phone })
+        }
+      }
+    })
+    
+    const uniqueContacts = Array.from(validContactsMap.values())
+
+    if (uniqueContacts.length === 0) {
+      return NextResponse.json({ error: 'No valid phone numbers found in the contacts list.' }, { status: 400 })
+    }
+
+    // 2. Suppression Check against CRM (leads table)
+    const phoneNumbers = uniqueContacts.map(c => c.phone_number)
+    
+    const { data: existingLeads, error: leadsErr } = await supabaseAdmin
+      .from('leads')
+      .select('phone_number, lead_temperature')
+      .eq('org_id', orgId)
+      .in('phone_number', phoneNumbers)
+
+    if (leadsErr) throw leadsErr
+
+    // Filter out SUPPRESSED leads
+    const suppressedPhones = new Set(
+      existingLeads
+        ?.filter(l => l.lead_temperature === 'SUPPRESSED')
+        .map(l => l.phone_number.replace(/\D/g, '').slice(-10)) || []
+    )
+
+    const cleanContacts = uniqueContacts.filter(c => !suppressedPhones.has(c.phone_number))
+
+    if (cleanContacts.length === 0) {
+      return NextResponse.json({ error: 'All contacts in this list are suppressed or opted out.' }, { status: 400 })
+    }
+
+    // 3. Create the campaign in Voice SaaS DB (Account B)
     const { data: campaign, error: campErr } = await supabaseVoiceAdmin
       .from('campaigns')
       .insert({
@@ -108,8 +150,8 @@ export async function POST(req: NextRequest) {
 
     if (campErr) throw campErr
 
-    // 2. Insert contacts associated with the campaign
-    const contactsToInsert = contacts.map((c: any) => ({
+    // 4. Insert clean contacts associated with the campaign
+    const contactsToInsert = cleanContacts.map(c => ({
       campaign_id: campaign.id,
       name: c.name,
       phone_number: c.phone_number,
