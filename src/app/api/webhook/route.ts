@@ -263,6 +263,27 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error('[webhook] State machine interceptor error:', e)
       }
+      
+      // [FORWARDING] Check if the tenant has a custom n8n webhook configured
+      try {
+        const { data: orgSettings } = await supabaseAdmin
+          .from('organization_settings')
+          .select('n8n_webhook_url')
+          .eq('org_id', orgId)
+          .maybeSingle()
+
+        if (orgSettings?.n8n_webhook_url) {
+          console.log(`[webhook] Forwarding payload to tenant n8n: ${orgSettings.n8n_webhook_url}`)
+          // We fire and forget the forward (with a catch) so it doesn't slow down the main response
+          fetch(orgSettings.n8n_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }).catch(err => console.error(`[webhook] Failed to forward to n8n:`, err))
+        }
+      } catch (forwardErr) {
+        console.error('[webhook] Error checking/forwarding to n8n:', forwardErr)
+      }
     }
 
     return NextResponse.json({ 
