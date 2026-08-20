@@ -9,6 +9,7 @@ interface SettingsData {
   whatsapp_token: string
   whatsapp_phone_id: string
   whatsapp_waba_id: string
+  n8n_inbound_webhook_url: string
   n8n_webhook_url: string
   n8n_reply_webhook_url: string
   google_sheet_id: string
@@ -36,6 +37,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
     whatsapp_token: '',
     whatsapp_phone_id: '',
     whatsapp_waba_id: '',
+    n8n_inbound_webhook_url: '',
     n8n_webhook_url: '',
     n8n_reply_webhook_url: '',
     google_sheet_id: '',
@@ -58,6 +60,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
             whatsapp_token: data.whatsapp_token || '',
             whatsapp_phone_id: data.whatsapp_phone_id || '',
             whatsapp_waba_id: data.whatsapp_waba_id || '',
+            n8n_inbound_webhook_url: data.n8n_inbound_webhook_url || '',
             n8n_webhook_url: data.n8n_webhook_url || '',
             n8n_reply_webhook_url: data.n8n_reply_webhook_url || '',
             google_sheet_id: data.google_sheet_id || '',
@@ -282,9 +285,20 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
                     <input
                       type="url"
                       disabled={!isEditable}
+                      value={formData.n8n_inbound_webhook_url}
+                      onChange={e => setFormData({ ...formData, n8n_inbound_webhook_url: e.target.value })}
+                      placeholder="https://n8n.yourdomain.com/inbound"
+                      className="w-full px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">n8n Bulk Campaign Webhook URL</label>
+                    <input
+                      type="url"
+                      disabled={!isEditable}
                       value={formData.n8n_webhook_url}
                       onChange={e => setFormData({ ...formData, n8n_webhook_url: e.target.value })}
-                      placeholder="https://n8n.yourdomain.com/..."
+                      placeholder="https://n8n.yourdomain.com/bulk"
                       className="w-full px-3.5 py-2.5 text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60"
                     />
                   </div>

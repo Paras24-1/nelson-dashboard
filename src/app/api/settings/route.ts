@@ -29,6 +29,7 @@ export async function PATCH(req: NextRequest) {
       'whatsapp_token',
       'whatsapp_phone_id',
       'whatsapp_waba_id',
+      'n8n_inbound_webhook_url',
       'n8n_webhook_url',
       'n8n_reply_webhook_url',
       'google_sheet_id',
