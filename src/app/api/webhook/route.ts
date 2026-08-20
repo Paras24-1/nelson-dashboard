@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
           updated_at: new Date().toISOString(),
           platform: platform || 'whatsapp',
           ...(direction === 'incoming' 
-            ? { unread_count: (existing?.unread_count || 0) + 1 } 
+            ? { unread_count: (existing?.unread_count || 0) + 1, last_incoming_message_at: new Date().toISOString() } 
             : {}),
           ...(assignedTo
             ? { assigned_to: assignedTo, assignment_status: 'assigned' }

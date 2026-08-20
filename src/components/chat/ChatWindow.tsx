@@ -475,75 +475,106 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 
       {/* Input */}
       <div className="px-5 py-4 border-t border-gray-150 dark:border-gray-800/85 bg-white dark:bg-gray-950 shrink-0">
-        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-2.5 shadow-sm transition-all focus-within:ring-2 focus-within:ring-emerald-500 focus-within:bg-white focus-within:border-transparent">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            accept="image/*"
-            className="hidden"
-          />
+        {(() => {
+          const lastIncoming = conversation?.last_incoming_message_at ? new Date(conversation.last_incoming_message_at) : null;
+          const hoursLeft = lastIncoming ? 24 - (new Date().getTime() - lastIncoming.getTime()) / (1000 * 60 * 60) : 24;
+          const isExpired = lastIncoming ? hoursLeft <= 0 : false;
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || sending || !!imageFile}
-            className="p-2 rounded-xl bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750 disabled:opacity-50 border border-gray-150 dark:border-gray-700/50 shadow-sm transition-colors shrink-0"
-            title="Attach image"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
+          if (isExpired) {
+            return (
+              <div className="flex flex-col items-center justify-center p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-2xl text-center">
+                <span className="text-sm font-bold text-red-600 dark:text-red-400">24-Hour Messaging Window Expired</span>
+                <span className="text-xs font-medium text-red-500/80 dark:text-red-400/80 mt-0.5">
+                  The customer must reply before you can send free-form messages. Send a template message to re-engage.
+                </span>
+              </div>
+            );
+          }
 
-          {isRecording ? (
-            <div className="flex-1 flex items-center gap-3 px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded-xl">
-              <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-              <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                Recording... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
-              </span>
-              <div className="flex-1" />
-              <button
-                onClick={stopRecording}
-                className="p-1.5 rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-800/60 text-red-600 dark:text-red-400 transition-colors"
-              >
-                <Square className="w-4 h-4 fill-current" />
-              </button>
-            </div>
-          ) : (
+          return (
             <>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message... (Shift+Enter for new line)"
-                rows={1}
-                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none resize-none leading-relaxed px-2 py-1"
-                style={{ minHeight: '32px', maxHeight: '120px' }}
-              />
-
-              {!input.trim() && !imageFile && (
-                <button
-                  onClick={startRecording}
-                  disabled={sending || uploading}
-                  className="p-2 rounded-xl bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750 hover:text-emerald-500 disabled:opacity-50 border border-gray-150 dark:border-gray-700/50 shadow-sm transition-colors shrink-0"
-                  title="Record Voice Note"
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
+              {hoursLeft > 0 && hoursLeft < 24 && (
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    24h Window Active
+                  </span>
+                  <span className={`text-[10px] font-bold ${hoursLeft < 2 ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}>
+                    {Math.floor(hoursLeft)}h {Math.floor((hoursLeft % 1) * 60)}m left
+                  </span>
+                </div>
               )}
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-2xl p-2.5 shadow-sm transition-all focus-within:ring-2 focus-within:ring-emerald-500 focus-within:bg-white focus-within:border-transparent">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                  className="hidden"
+                />
 
-              <button
-                onClick={handleSend}
-                disabled={(!input.trim() && !imageFile) || sending || uploading}
-                className="p-2.5 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all shrink-0"
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || sending || !!imageFile}
+                  className="p-2 rounded-xl bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750 disabled:opacity-50 border border-gray-150 dark:border-gray-700/50 shadow-sm transition-colors shrink-0"
+                  title="Attach image"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+
+                {isRecording ? (
+                  <div className="flex-1 flex items-center gap-3 px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                    <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                    <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                      Recording... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                    </span>
+                    <div className="flex-1" />
+                    <button
+                      onClick={stopRecording}
+                      className="p-1.5 rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-800/60 text-red-600 dark:text-red-400 transition-colors"
+                    >
+                      <Square className="w-4 h-4 fill-current" />
+                    </button>
+                  </div>
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <>
+                    <textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Type a message... (Shift+Enter for new line)"
+                      rows={1}
+                      className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none resize-none leading-relaxed px-2 py-1"
+                      style={{ minHeight: '32px', maxHeight: '120px' }}
+                    />
+
+                    {!input.trim() && !imageFile && (
+                      <button
+                        onClick={startRecording}
+                        disabled={sending || uploading}
+                        className="p-2 rounded-xl bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750 hover:text-emerald-500 disabled:opacity-50 border border-gray-150 dark:border-gray-700/50 shadow-sm transition-colors shrink-0"
+                        title="Record Voice Note"
+                      >
+                        <Mic className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleSend}
+                      disabled={(!input.trim() && !imageFile) || sending || uploading}
+                      className="p-2.5 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all shrink-0"
+                    >
+                      {uploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </button>
+                  </>
                 )}
-              </button>
+              </div>
             </>
-          )}
-        </div>
+          );
+        })()}
       </div>
     </div>
   )

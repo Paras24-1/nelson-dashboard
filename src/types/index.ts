@@ -14,6 +14,7 @@ export interface Conversation {
   updated_at: string
   platform?: string
   receiver_phone_number?: string
+  last_incoming_message_at?: string
 }
 
 export type Stage =
