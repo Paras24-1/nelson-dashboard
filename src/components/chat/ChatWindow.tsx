@@ -6,7 +6,7 @@ import { useMessages, useSendMessage } from '@/hooks'
 import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 import { formatDistanceToNow } from 'date-fns'
-import { Send, Bot, User, Loader2, Paperclip, X, Tag, MessageSquare, Check, CheckCheck } from 'lucide-react'
+import { Send, Bot, User, Loader2, Paperclip, X, Tag, MessageSquare, Check, CheckCheck, Mic, Square } from 'lucide-react'
 
 function formatMessageDateSeparator(dateString: string): string {
   const date = new Date(dateString)
@@ -66,6 +66,12 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // Audio Recording State
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
   const { messages, loading, bottomRef } = useMessages(conversation?.id || null)
   const { sendMessage, sending } = useSendMessage()
 
@@ -96,6 +102,78 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
     setImagePreview(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+  }
+
+  // Audio Recording Functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+      setRecordingTime(0)
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1)
+      }, 1000)
+    } catch (err) {
+      console.error('Error accessing microphone:', err)
+      alert('Could not access microphone. Please check permissions.')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        audioChunksRef.current = []
+        
+        // Stop all tracks to release microphone
+        mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop())
+        
+        await handleSendAudio(audioBlob)
+      }
+    }
+  }
+
+  const handleSendAudio = async (blob: Blob) => {
+    if (!conversation) return
+    setUploading(true)
+    try {
+      const orgId = profile?.org_id
+      if (!orgId) throw new Error('User organization not found')
+
+      const filename = `${orgId}/${Date.now()}-voicenote.webm`
+      const { data, error } = await supabase.storage
+        .from('chat-media')
+        .upload(filename, blob, { contentType: 'audio/webm', upsert: false })
+
+      if (error) throw error
+
+      const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(filename)
+      const mediaUrl = urlData.publicUrl
+
+      await sendMessage(conversation.phone_number, '', conversation.id, mediaUrl, 'audio/webm', conversation.platform)
+    } catch (err) {
+      console.error('Failed to send audio:', err)
+      alert('Failed to send voice note.')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -326,6 +404,14 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                           />
                         )}
 
+                        {msg.media_url && msg.media_type?.startsWith('audio') && (
+                          <audio
+                            controls
+                            src={msg.media_url}
+                            className="max-w-[200px] sm:max-w-[250px] mb-2 outline-none"
+                          />
+                        )}
+
                         {msg.message && (
                           <p className="whitespace-pre-wrap break-words">{msg.message}</p>
                         )}
@@ -405,27 +491,56 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
             <Paperclip className="w-4 h-4" />
           </button>
 
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Type a message... (Shift+Enter for new line)"
-            rows={1}
-            className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none resize-none leading-relaxed px-2 py-1"
-            style={{ minHeight: '32px', maxHeight: '120px' }}
-          />
+          {isRecording ? (
+            <div className="flex-1 flex items-center gap-3 px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded-xl">
+              <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+              <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                Recording... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+              </span>
+              <div className="flex-1" />
+              <button
+                onClick={stopRecording}
+                className="p-1.5 rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-800/60 text-red-600 dark:text-red-400 transition-colors"
+              >
+                <Square className="w-4 h-4 fill-current" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type a message... (Shift+Enter for new line)"
+                rows={1}
+                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none resize-none leading-relaxed px-2 py-1"
+                style={{ minHeight: '32px', maxHeight: '120px' }}
+              />
 
-          <button
-            onClick={handleSend}
-            disabled={(!input.trim() && !imageFile) || sending || uploading}
-            className="p-2.5 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all shrink-0"
-          >
-            {uploading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </button>
+              {!input.trim() && !imageFile && (
+                <button
+                  onClick={startRecording}
+                  disabled={sending || uploading}
+                  className="p-2 rounded-xl bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750 hover:text-emerald-500 disabled:opacity-50 border border-gray-150 dark:border-gray-700/50 shadow-sm transition-colors shrink-0"
+                  title="Record Voice Note"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              )}
+
+              <button
+                onClick={handleSend}
+                disabled={(!input.trim() && !imageFile) || sending || uploading}
+                className="p-2.5 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all shrink-0"
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

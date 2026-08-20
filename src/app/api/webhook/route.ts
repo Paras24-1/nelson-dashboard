@@ -64,6 +64,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid org' }, { status: 400 })
     }
 
+    const { data: orgSettings } = await supabaseAdmin
+      .from('organization_settings')
+      .select('whatsapp_token, n8n_inbound_webhook_url')
+      .eq('org_id', orgId)
+      .maybeSingle()
+
     const body = await req.json()
     
     // Check if this is a native Meta WhatsApp Webhook Payload
@@ -87,11 +93,51 @@ export async function POST(req: NextRequest) {
         if (msg.type === 'text') {
           parsedMessage = msg.text?.body
         } else if (msg.type === 'image' || msg.type === 'document' || msg.type === 'audio') {
-          // Native Meta media webhooks just provide an ID. 
-          // Downloading the actual media requires a separate API call with the token.
-          // For now, we'll just log the type.
-          parsedMessage = `[Received ${msg.type}]`
           parsedMediaType = msg.type
+          parsedMessage = `[Received ${msg.type}]`
+
+          if (orgSettings?.whatsapp_token) {
+            const mediaId = msg[msg.type]?.id
+            if (mediaId) {
+              try {
+                // 1. Get Media URL
+                const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
+                  headers: { 'Authorization': `Bearer ${orgSettings.whatsapp_token}` }
+                })
+                const metaData = await metaRes.json()
+                
+                if (metaData.url) {
+                  // 2. Download Media Buffer
+                  const mediaRes = await fetch(metaData.url, {
+                    headers: { 'Authorization': `Bearer ${orgSettings.whatsapp_token}` }
+                  })
+                  const buffer = await mediaRes.arrayBuffer()
+                  
+                  // 3. Upload to Supabase
+                  const ext = msg.type === 'audio' ? 'ogg' : msg.type === 'image' ? 'jpg' : 'pdf'
+                  const fileName = `${orgId}/${Date.now()}-${mediaId}.${ext}`
+                  
+                  const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+                    .from('chat-media')
+                    .upload(fileName, buffer, {
+                      contentType: mediaRes.headers.get('content-type') || 'application/octet-stream',
+                      upsert: true
+                    })
+                    
+                  if (!uploadError && uploadData) {
+                    const { data: publicUrlData } = supabaseAdmin.storage
+                      .from('chat-media')
+                      .getPublicUrl(fileName)
+                    parsedMediaUrl = publicUrlData.publicUrl
+                  } else {
+                    console.error('[webhook] Supabase Storage Error:', uploadError)
+                  }
+                }
+              } catch (mediaErr) {
+                console.error('[webhook] Media Download Error:', mediaErr)
+              }
+            }
+          }
         }
       } else if (change?.statuses && change.statuses.length > 0) {
         // Message delivery status update (sent, delivered, read)
