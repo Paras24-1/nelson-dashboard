@@ -428,7 +428,7 @@ function ConversationItem({
       )}
 
       {/* Unread badge */}
-      {conv.unread_count > 0 && !hovered && (
+      {conv.unread_count > 0 && (
         <span className="shrink-0 min-w-[18px] h-4.5 rounded-full bg-emerald-500 text-white text-[9px] font-black flex items-center justify-center px-1 shadow-md animate-pulse">
           {conv.unread_count > 99 ? '99+' : conv.unread_count}
         </span>

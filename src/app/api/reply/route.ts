@@ -54,8 +54,7 @@ export async function POST(req: NextRequest) {
       .from('conversations')
       .update({ 
         last_message: message || (media_type?.startsWith('image') ? '📸 Image' : '📎 Attachment'), 
-        updated_at: timestamp,
-        ai_mode: false
+        updated_at: timestamp
       })
       .eq('id', conversation_id)
       .eq('org_id', orgId)
