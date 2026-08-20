@@ -476,7 +476,8 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
       {/* Input */}
       <div className="px-5 py-4 border-t border-gray-150 dark:border-gray-800/85 bg-white dark:bg-gray-950 shrink-0">
         {(() => {
-          const lastIncoming = conversation?.last_incoming_message_at ? new Date(conversation.last_incoming_message_at) : null;
+          const hasIncomingDate = !!conversation?.last_incoming_message_at;
+          const lastIncoming = hasIncomingDate ? new Date(conversation.last_incoming_message_at!) : null;
           const hoursLeft = lastIncoming ? 24 - (new Date().getTime() - lastIncoming.getTime()) / (1000 * 60 * 60) : 24;
           const isExpired = lastIncoming ? hoursLeft <= 0 : false;
 
@@ -493,13 +494,24 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 
           return (
             <>
-              {hoursLeft > 0 && hoursLeft < 24 && (
+              {hasIncomingDate ? (
+                hoursLeft > 0 && (
+                  <div className="flex justify-between items-center mb-2 px-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      24h Window Active
+                    </span>
+                    <span className={`text-[10px] font-bold ${hoursLeft < 2 ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}>
+                      {Math.floor(hoursLeft)}h {Math.floor((hoursLeft % 1) * 60)}m left
+                    </span>
+                  </div>
+                )
+              ) : (
                 <div className="flex justify-between items-center mb-2 px-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    24h Window Active
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    24h Window Tracking (New)
                   </span>
-                  <span className={`text-[10px] font-bold ${hoursLeft < 2 ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}>
-                    {Math.floor(hoursLeft)}h {Math.floor((hoursLeft % 1) * 60)}m left
+                  <span className="text-[10px] font-bold text-gray-500">
+                    Waiting for next customer reply to start timer...
                   </span>
                 </div>
               )}
