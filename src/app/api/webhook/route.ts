@@ -93,9 +93,21 @@ export async function POST(req: NextRequest) {
           parsedMessage = `[Received ${msg.type}]`
           parsedMediaType = msg.type
         }
-      } else if (change?.statuses) {
-        // Message delivery status update (sent, delivered, read) - ignore for now
-        return NextResponse.json({ success: true, status: 'ignored' })
+      } else if (change?.statuses && change.statuses.length > 0) {
+        // Message delivery status update (sent, delivered, read)
+        const statusObj = change.statuses[0]
+        const messageId = statusObj.id
+        const newStatus = statusObj.status // 'sent', 'delivered', 'read', 'failed'
+
+        if (messageId && newStatus) {
+          await supabaseAdmin
+            .from('messages')
+            .update({ status: newStatus })
+            .eq('provider_message_id', messageId)
+            .eq('org_id', orgId)
+        }
+        
+        return NextResponse.json({ success: true, status: 'processed_status' })
       }
     }
 

@@ -41,6 +41,8 @@ export interface Message {
   media_type?: string | null
   created_at: string
   platform?: string
+  status?: string // 'sent', 'delivered', 'read', 'failed'
+  provider_message_id?: string
 }
 
 export interface Lead {

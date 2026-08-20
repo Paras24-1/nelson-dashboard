@@ -6,7 +6,7 @@ import { useMessages, useSendMessage } from '@/hooks'
 import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 import { formatDistanceToNow } from 'date-fns'
-import { Send, Bot, User, Loader2, Paperclip, X, Tag, MessageSquare } from 'lucide-react'
+import { Send, Bot, User, Loader2, Paperclip, X, Tag, MessageSquare, Check, CheckCheck } from 'lucide-react'
 
 function formatMessageDateSeparator(dateString: string): string {
   const date = new Date(dateString)
@@ -331,9 +331,22 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                         )}
                       </div>
 
-                      <p className={`text-[10px] text-gray-400 mt-1.5 px-1 font-semibold tracking-wide ${msg.direction === 'outgoing' ? 'text-right' : 'text-left'}`}>
-                        {msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <div className={`flex items-center gap-1 text-[10px] text-gray-400 mt-1.5 px-1 font-semibold tracking-wide ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
+                        <span>{msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {msg.direction === 'outgoing' && (
+                          <span className="ml-0.5">
+                            {msg.status === 'read' ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+                            ) : msg.status === 'delivered' ? (
+                              <CheckCheck className="w-3.5 h-3.5" />
+                            ) : msg.status === 'failed' ? (
+                              <X className="w-3.5 h-3.5 text-red-500" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Fragment>

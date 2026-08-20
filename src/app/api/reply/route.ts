@@ -100,6 +100,17 @@ export async function POST(req: NextRequest) {
         console.error(`[reply] Meta API Error: ${errorText}`)
         throw new Error(`Meta API Error: ${errorText}`)
       }
+
+      // Capture provider_message_id to support delivery ticks
+      const metaData = await metaRes.json()
+      const wamid = metaData?.messages?.[0]?.id
+      
+      if (wamid) {
+        await supabaseAdmin
+          .from('messages')
+          .update({ provider_message_id: wamid })
+          .eq('id', msg.id)
+      }
     } 
     // Priority 2: Legacy n8n Webhook Fallback
     else if (n8n_reply_webhook_url) {

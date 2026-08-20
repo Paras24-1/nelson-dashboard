@@ -110,6 +110,8 @@ export async function POST(req: NextRequest) {
     if (leadError) throw leadError
 
     // 6. Insert outgoing template message record
+    const wamid = metaData?.messages?.[0]?.id
+
     const { error: msgError } = await supabaseAdmin
       .from('messages')
       .insert({
@@ -118,7 +120,8 @@ export async function POST(req: NextRequest) {
         phone_number: cleanPhone,
         message: resolvedMessageText,
         direction: 'outgoing',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...(wamid ? { provider_message_id: wamid } : {})
       })
 
     if (msgError) throw msgError
