@@ -168,7 +168,7 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
       const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(filename)
       const mediaUrl = urlData.publicUrl
 
-      await sendMessage(conversation.phone_number, '', conversation.id, mediaUrl, 'audio/webm', conversation.platform)
+      await sendMessage(conversation.id, conversation.phone_number, '', mediaUrl, 'audio/webm')
     } catch (err) {
       console.error('Failed to send audio:', err)
       alert('Failed to send voice note.')
