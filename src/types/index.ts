@@ -13,6 +13,7 @@ export interface Conversation {
   created_at: string
   updated_at: string
   platform?: string
+  receiver_phone_number?: string
 }
 
 export type Stage =

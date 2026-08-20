@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     let parsedName = body.name
     let parsedMediaUrl = body.media_url
     let parsedMediaType = body.media_type
+    let parsedReceiverPhone = body.receiver_phone_number || null
     const parsedPlatform = body.platform || 'whatsapp'
 
     if (body.object === 'whatsapp_business_account') {
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
         const msg = change.messages[0]
         parsedPhone = msg.from
         parsedDirection = 'incoming'
+        parsedReceiverPhone = change.metadata?.display_phone_number || null
         parsedName = change.contacts?.[0]?.profile?.name || msg.from
         
         if (msg.type === 'text') {
@@ -203,6 +205,9 @@ export async function POST(req: NextRequest) {
             : {}),
           ...(assignedTo
             ? { assigned_to: assignedTo, assignment_status: 'assigned' }
+            : {}),
+          ...(parsedReceiverPhone
+            ? { receiver_phone_number: parsedReceiverPhone }
             : {})
         },
         { onConflict: 'phone_number,org_id' }

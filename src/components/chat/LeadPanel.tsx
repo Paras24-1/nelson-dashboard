@@ -467,6 +467,9 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
             </div>
 
             <InfoCard icon={Phone} label="Phone Number" value={data.Phone} />
+            {conversation?.receiver_phone_number && (
+              <InfoCard icon={Target} label="Source API Number" value={conversation.receiver_phone_number} />
+            )}
             <InfoCard icon={User} label="Name" value={data.Name} />
             <InfoCard icon={Target} label="Lead Type" value={data.Lead_Type} badge />
             <InfoCard icon={MapPin} label="City" value={data.city} />
