@@ -11,7 +11,10 @@ import { supabaseAdmin } from '@/lib/supabase'
 
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers()
-  const host = headersList.get('host') || ''
+  let host = headersList.get('x-forwarded-host') || headersList.get('host') || ''
+  
+  // Clean the host (remove port, http://, etc.)
+  host = host.replace('https://', '').replace('http://', '').split(':')[0]
   
   // Default metadata
   let title = 'VOX AI — Intelligent WhatsApp AI Agents'
@@ -23,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const { data: org } = await supabaseAdmin
       .from('organizations')
       .select('brand_title')
-      .eq('custom_domain', host)
+      .ilike('custom_domain', `%${host}%`) // use ilike to be forgiving
       .maybeSingle()
       
     if (org && org.brand_title) {
