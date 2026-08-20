@@ -157,16 +157,20 @@ export function useMessages(conversationId: string | null) {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message])
-          setTimeout(() => {
-            bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-          }, 50)
+          if (payload.eventType === 'INSERT') {
+            setMessages((prev) => [...prev, payload.new as Message])
+            setTimeout(() => {
+              bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+            }, 50)
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages((prev) => prev.map(msg => msg.id === payload.new.id ? payload.new as Message : msg))
+          }
         }
       )
       .subscribe()
