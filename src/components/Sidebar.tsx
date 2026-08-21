@@ -16,6 +16,13 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [privacyUrl, setPrivacyUrl] = useState('/privacy-policy.html')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hostname.includes('10xyourbusiness')) {
+      setPrivacyUrl('https://app.10xyourbusiness.in/privacy-policy.html')
+    }
+  }, [])
   
   const { profile, org, signOut } = useOrg()
   const router = useRouter()
@@ -222,7 +229,7 @@ export default function Sidebar() {
 
           {/* Privacy Policy */}
           <Link
-            href="/privacy-policy.html"
+            href={privacyUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-150 dark:hover:bg-gray-800/50 transition-colors"

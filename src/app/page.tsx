@@ -357,6 +357,13 @@ function Navbar() {
 export default function HomePage() {
   const { scrollYProgress } = useScroll()
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 20 })
+
+  const [privacyUrl, setPrivacyUrl] = useState('/privacy-policy.html')
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hostname.includes('10xyourbusiness')) {
+      setPrivacyUrl('https://app.10xyourbusiness.in/privacy-policy.html')
+    }
+  }, [])
   const [statsInView, setStatsInView] = useState(false)
   const statsRef = useRef<HTMLDivElement | null>(null)
 
@@ -943,7 +950,7 @@ export default function HomePage() {
               <div className="mt-10 flex items-center justify-between gap-6 border-t border-white/10 pt-6 text-xs text-muted-foreground">
                 <div>© {new Date().getFullYear()} VOX AI. All rights reserved.</div>
                 <div className="hidden items-center gap-4 sm:flex">
-                  <Link href="/privacy-policy.html" target="_blank" className="hover:text-foreground">Privacy Policy</Link>
+                  <Link href={privacyUrl} target="_blank" className="hover:text-foreground">Privacy Policy</Link>
                   <a href="#" className="hover:text-foreground">Terms</a>
                   <a href="#" className="hover:text-foreground">Security</a>
                 </div>
