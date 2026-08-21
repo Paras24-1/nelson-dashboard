@@ -297,7 +297,7 @@ function HeroDemoPanel() {
 
 // ─── Navbar ────────────────────────────────────────────────────────────────────
 
-function Navbar() {
+function Navbar({ brandName }: { brandName: string }) {
   const { user, loading } = useOrg()
 
   return (
@@ -391,7 +391,7 @@ export default function HomePage() {
       <motion.div className="fixed left-0 top-0 h-1 w-full origin-left bg-gradient-to-r from-[hsl(var(--primary))] via-[hsl(var(--accent))] to-[hsl(var(--primary))]"
         style={{ scaleX: progress }} aria-hidden />
 
-      <Navbar />
+      <Navbar brandName={brandName} />
 
       <main className="pt-28">
 
@@ -474,7 +474,8 @@ export default function HomePage() {
         {/* ── Three Pillars / Solutions ── */}
         <section id="solutions" className="relative py-20">
           <div className="vox-container">
-            <SectionHeader
+            <SectionHeading
+              eyebrow="Our Three Core Solutions"
               title="The Complete Agentic Stack"
               subtitle={`From the first inbound message to closed deals — ${brandNameShort} builds the full agentic stack for growth-focused businesses.`}
             />
@@ -640,7 +641,8 @@ export default function HomePage() {
         {/* ── Stats ── */}
         <section className="relative py-20" ref={statsRef}>
           <div className="vox-container">
-            <SectionHeader
+            <SectionHeading
+              eyebrow="Results"
               title="Automate Workflows. Reclaim Time."
               subtitle={`How ${brandNameShort} works`}
             />
@@ -682,7 +684,8 @@ export default function HomePage() {
         {/* ── Industries ── */}
         <section id="industries" className="relative py-20">
           <div className="vox-container">
-            <SectionHeader
+            <SectionHeading
+              eyebrow="Industries we serve"
               title="Engineered for High-Ticket Sales"
               subtitle={`${brandNameShort} agents are deployed across industries where speed, qualification, and trust close deals.`}
             />
@@ -862,8 +865,8 @@ export default function HomePage() {
           <div className="vox-container">
             <SectionHeading
               eyebrow="FAQ"
-              title="Questions we get every call"
-              subtitle="Straightforward answers about how VoxAI builds, deploys, and supports your AI systems."
+              title="Frequently Asked Questions"
+              subtitle={`Straightforward answers about how ${brandNameShort} builds, deploys, and supports your AI systems.`}
             />
             <div className="mx-auto mt-10 max-w-3xl vox-glass vox-noise rounded-2xl p-3 sm:p-4">
               {[
