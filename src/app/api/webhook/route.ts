@@ -150,10 +150,10 @@ export async function POST(req: NextRequest) {
         if (messageId && newStatus) {
           const updatePayload: any = { status: newStatus }
           
-          // Debug: Inject the error into the message column so we can read it from the DB
+          // Debug logging without overwriting the actual user/AI message in the database!
           if (newStatus === 'failed' && statusObj.errors) {
-            updatePayload.message = "META_ERROR: " + JSON.stringify(statusObj.errors)
             console.error('[webhook] Meta Message Failed:', JSON.stringify(statusObj.errors))
+            // We NO LONGER inject META_ERROR into the message body so the chat UI stays clean.
           }
 
           await supabaseAdmin
