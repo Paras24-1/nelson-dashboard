@@ -153,6 +153,11 @@ export async function POST(req: NextRequest) {
             .update({ status: newStatus })
             .eq('provider_message_id', messageId)
             .eq('org_id', orgId)
+            
+          // Log errors to Vercel console instead of DB for now
+          if (newStatus === 'failed' && statusObj.errors) {
+            console.error('[webhook] Meta Message Failed:', JSON.stringify(statusObj.errors))
+          }
         }
         
         return NextResponse.json({ success: true, status: 'processed_status' })
