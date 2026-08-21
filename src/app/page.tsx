@@ -306,14 +306,11 @@ function Navbar() {
         <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <a href="#" className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] p-[1px]">
-                <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-black/55">
-                  <Brain className="h-4 w-4 text-white" />
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--accent))] text-white shadow-lg">
+                  <Sparkles className="h-4 w-4" />
                 </div>
-              </div>
-              <div>
-                <div className="font-display text-sm font-semibold tracking-tight">VOX AI</div>
-                <div className="text-xs text-muted-foreground">Agentic AI Studio</div>
+                <div className="font-display text-sm font-semibold tracking-tight">{brandName}</div>
               </div>
             </a>
 
@@ -359,9 +356,14 @@ export default function HomePage() {
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 20 })
 
   const [privacyUrl, setPrivacyUrl] = useState('/privacy-policy.html')
+  const [brandName, setBrandName] = useState('VOX AI')
+  const [brandNameShort, setBrandNameShort] = useState('VoxAI')
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hostname.includes('10xyourbusiness')) {
       setPrivacyUrl('https://app.10xyourbusiness.in/privacy-policy.html')
+      setBrandName('10x Your Business')
+      setBrandNameShort('10x Your Business')
     }
   }, [])
   const [statsInView, setStatsInView] = useState(false)
@@ -416,7 +418,7 @@ export default function HomePage() {
                   Systems for Your Business.
                 </h1>
                 <p className="mt-4 max-w-xl text-balance text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  VoxAI is an agentic AI studio. We design and deploy intelligent WhatsApp agents, Voice AI agents, and custom automation workflows — so your business runs itself.
+                  {brandNameShort} is an agentic AI studio. We design and deploy intelligent WhatsApp agents, Voice AI agents, and custom automation workflows — so your business runs itself.
                 </p>
 
                 {/* Three Pillars inline */}
@@ -472,10 +474,9 @@ export default function HomePage() {
         {/* ── Three Pillars / Solutions ── */}
         <section id="solutions" className="relative py-20">
           <div className="vox-container">
-            <SectionHeading
-              eyebrow="Our Three Core Solutions"
-              title="Everything your business needs to run on AI"
-              subtitle="From the first inbound message to closed deals — VoxAI builds the full agentic stack for growth-focused businesses."
+            <SectionHeader
+              title="The Complete Agentic Stack"
+              subtitle={`From the first inbound message to closed deals — ${brandNameShort} builds the full agentic stack for growth-focused businesses.`}
             />
 
             <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -620,8 +621,8 @@ export default function HomePage() {
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="mt-0.5 h-5 w-5 text-[hsl(var(--accent))]" />
                     <div>
-                      <div className="font-display text-base font-semibold">Built for enterprise trust</div>
-                      <div className="mt-1 text-sm text-muted-foreground">VoxAI emphasizes safety, privacy, and compliance — every system we ship is production-grade.</div>
+                      <div className="font-display font-semibold">Enterprise-Grade Security</div>
+                      <div className="mt-1 text-sm text-muted-foreground">{brandNameShort} emphasizes safety, privacy, and compliance — every system we ship is production-grade.</div>
                     </div>
                   </div>
                 </div>
@@ -639,10 +640,9 @@ export default function HomePage() {
         {/* ── Stats ── */}
         <section className="relative py-20" ref={statsRef}>
           <div className="vox-container">
-            <SectionHeading
-              eyebrow="Results"
-              title="Performance that compounds"
-              subtitle="When your AI agents handle the repetitive work, your team focuses on closing — and your pipeline becomes predictable."
+            <SectionHeader
+              title="Automate Workflows. Reclaim Time."
+              subtitle={`How ${brandNameShort} works`}
             />
             <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {[
@@ -664,20 +664,16 @@ export default function HomePage() {
             </div>
 
             {/* Dashboard screenshots */}
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="vox-glass vox-noise rounded-2xl p-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CircuitBoard className="h-4 w-4 text-[hsl(var(--accent))]" /> n8n Automation
-                </div>
-                <div className="font-display mt-2 text-lg font-semibold">End-to-End Automation Pipeline</div>
-                <img src="/n8n-diagram.png" alt="n8n backend workflow" className="mt-4 aspect-video w-full rounded-xl border border-white/10 object-cover shadow-lg transition-transform duration-300 hover:scale-[1.02]" />
+                <div className="flex items-center gap-3 font-display font-semibold"><LayoutDashboard className="h-5 w-5 text-indigo-500" /> Command Center Dashboard</div>
+                <div className="mt-2 text-sm text-muted-foreground">Monitor all agent conversations, manually step in for human handover, and track AI performance metrics from a unified UI.</div>
+                <img src="/whatsapp-dashboard.png" alt={`${brandNameShort} Dashboard`} className="mt-4 aspect-video w-full rounded-xl border border-white/10 object-cover shadow-lg transition-transform duration-300 hover:scale-[1.02]" />
               </div>
               <div className="vox-glass vox-noise rounded-2xl p-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4 text-[hsl(var(--primary))]" /> AI Dashboard + CRM
-                </div>
-                <div className="font-display mt-2 text-lg font-semibold">Unified Dashboard With Integrated CRM</div>
-                <img src="/whatsapp-dashboard.png" alt="VoxAI Dashboard" className="mt-4 aspect-video w-full rounded-xl border border-white/10 object-cover shadow-lg transition-transform duration-300 hover:scale-[1.02]" />
+                <div className="flex items-center gap-3 font-display font-semibold"><CircuitBoard className="h-5 w-5 text-cyan-500" /> Automation Pipeline</div>
+                <div className="mt-2 text-sm text-muted-foreground">Visualize your entire end-to-end automation logic, from incoming lead triggers to final CRM data sync.</div>
+                <img src="/n8n-diagram.png" alt="n8n backend workflow" className="mt-4 aspect-video w-full rounded-xl border border-white/10 object-cover shadow-lg transition-transform duration-300 hover:scale-[1.02]" />
               </div>
             </div>
           </div>
@@ -686,10 +682,9 @@ export default function HomePage() {
         {/* ── Industries ── */}
         <section id="industries" className="relative py-20">
           <div className="vox-container">
-            <SectionHeading
-              eyebrow="Industries we serve"
-              title="Built for high-intent inbound businesses"
-              subtitle="VoxAI agents are deployed across industries where speed, qualification, and trust close deals."
+            <SectionHeader
+              title="Engineered for High-Ticket Sales"
+              subtitle={`${brandNameShort} agents are deployed across industries where speed, qualification, and trust close deals.`}
             />
             <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {[
@@ -948,7 +943,7 @@ export default function HomePage() {
 
               {/* Footer */}
               <div className="mt-10 flex items-center justify-between gap-6 border-t border-white/10 pt-6 text-xs text-muted-foreground">
-                <div>© {new Date().getFullYear()} VOX AI. All rights reserved.</div>
+                <div>© {new Date().getFullYear()} {brandName}. All rights reserved.</div>
                 <div className="hidden items-center gap-4 sm:flex">
                   <Link href={privacyUrl} target="_blank" className="hover:text-foreground">Privacy Policy</Link>
                   <a href="#" className="hover:text-foreground">Terms</a>
