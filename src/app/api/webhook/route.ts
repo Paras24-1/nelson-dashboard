@@ -148,16 +148,19 @@ export async function POST(req: NextRequest) {
         const newStatus = statusObj.status // 'sent', 'delivered', 'read', 'failed'
 
         if (messageId && newStatus) {
-          await supabaseAdmin
-            .from('messages')
-            .update({ status: newStatus })
-            .eq('provider_message_id', messageId)
-            .eq('org_id', orgId)
-            
-          // Log errors to Vercel console instead of DB for now
+          const updatePayload: any = { status: newStatus }
+          
+          // Debug: Inject the error into the message column so we can read it from the DB
           if (newStatus === 'failed' && statusObj.errors) {
+            updatePayload.message = "META_ERROR: " + JSON.stringify(statusObj.errors)
             console.error('[webhook] Meta Message Failed:', JSON.stringify(statusObj.errors))
           }
+
+          await supabaseAdmin
+            .from('messages')
+            .update(updatePayload)
+            .eq('provider_message_id', messageId)
+            .eq('org_id', orgId)
         }
         
         return NextResponse.json({ success: true, status: 'processed_status' })
