@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
     let parsedMediaUrl = body.media_url
     let parsedMediaType = body.media_type
     let parsedReceiverPhone = body.receiver_phone_number || null
+    let parsedProviderPhoneId = null
     const parsedPlatform = body.platform || 'whatsapp'
 
     if (body.object === 'whatsapp_business_account') {
