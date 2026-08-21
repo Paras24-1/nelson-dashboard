@@ -571,6 +571,11 @@
         a.href = website;
       }
     });
+
+    // Fix the top header logo which is split by a <span> element
+    document.querySelectorAll('.logo').forEach(logo => {
+      logo.innerHTML = brandName;
+    });
   }
 </script>
 </body>
