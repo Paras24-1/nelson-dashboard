@@ -130,7 +130,6 @@ export async function POST(req: NextRequest) {
              template_lang: 'en',
              variables: [leadData.name || 'there', demoLink],
              message_text: `Hello ${leadData.name || 'there'},\n\nThank you for speaking with our assistant from iWebMagics just now!\n\nAs promised, here is the live demo website we built for your business category: 🔗 ${demoLink}\n\nHave a look and let us know what you think. You can reply directly to this message to discuss your project requirements or get a custom quotation.\n\nBest regards, iWebMagics Team`,
-             userId: 'system',
              org_id: orgId
            })
          }).catch(err => console.error('[webhook/voice] WhatsApp handover failed:', err))
