@@ -45,8 +45,7 @@ export async function POST(req: NextRequest) {
       .upsert({
         phone_number: phone,
         org_id: orgId,
-        name: payload.name || payload.contact?.name || phone,
-        updated_at: new Date().toISOString()
+        name: payload.name || payload.contact?.name || phone
       }, { onConflict: 'phone_number,org_id' })
       .select()
       .single()
@@ -57,10 +56,10 @@ export async function POST(req: NextRequest) {
     const { error: updateError } = await supabaseAdmin
       .from('leads')
       .update({
-        conversation_summary: summary || leadData.conversation_summary,
         metadata: {
           ...((leadData.metadata as Record<string, any>) || {}),
           ...customVariables,
+          voice_summary: summary || leadData.metadata?.voice_summary || '',
           voice_duration: duration,
           voice_status: status,
           voice_recording_url: recordingUrl,
@@ -141,6 +140,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, lead_id: leadData.id })
   } catch (err: any) {
     console.error('[webhook/voice]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: typeof err === 'object' ? JSON.stringify(err) : String(err) }, { status: 500 })
   }
 }
