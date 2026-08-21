@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     if (assignedTo) query = query.eq('assigned_to', assignedTo)
     if (assignFilter === 'unassigned') query = query.is('assigned_to', null)
     else if (assignFilter === 'assigned') query = query.not('assigned_to', 'is', null)
+    else if (assignFilter && assignFilter !== 'all') query = query.eq('assigned_to', assignFilter)
     if (search) query = query.or(`phone_number.ilike.%${search}%,name.ilike.%${search}%`)
     if (stage)  query = query.eq('stage', stage)
     if (unread) query = query.gt('unread_count', 0)
