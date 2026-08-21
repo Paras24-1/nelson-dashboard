@@ -216,6 +216,9 @@ export async function POST(req: NextRequest) {
             : {}),
           ...(parsedReceiverPhone
             ? { receiver_phone_number: parsedReceiverPhone }
+            : {}),
+          ...(parsedProviderPhoneId
+            ? { provider_phone_id: parsedProviderPhoneId }
             : {})
         },
         { onConflict: 'phone_number,org_id' }

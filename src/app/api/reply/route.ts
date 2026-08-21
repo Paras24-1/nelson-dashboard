@@ -21,14 +21,15 @@ export async function POST(req: NextRequest) {
 
     const timestamp = new Date().toISOString()
 
-    // Fetch conversation platform and last incoming message time
+    // Fetch conversation platform, last incoming message time, and provider phone ID
     const { data: conv } = await supabaseAdmin
       .from('conversations')
-      .select('platform, last_incoming_message_at')
+      .select('platform, last_incoming_message_at, provider_phone_id')
       .eq('id', conversation_id)
       .eq('org_id', orgId)
       .maybeSingle()
     const platform = conv?.platform || 'whatsapp'
+    const providerPhoneId = conv?.provider_phone_id
     
     // ENFORCE 24 HOUR WINDOW RULE FOR WHATSAPP
     if (platform === 'whatsapp') {
@@ -80,11 +81,15 @@ export async function POST(req: NextRequest) {
       .eq('org_id', orgId)
       .single()
 
-    const { whatsapp_token, whatsapp_phone_id, n8n_reply_webhook_url } = settings || {}
+    const whatsapp_token = settings?.whatsapp_token
+    const n8n_reply_webhook_url = settings?.n8n_reply_webhook_url
+    
+    // Use the specific phone ID that the customer originally messaged, fallback to the default org setting
+    const active_phone_id = providerPhoneId || settings?.whatsapp_phone_id
 
     // Priority 1: Native Meta/WhatsApp Cloud API
-    if (whatsapp_token && whatsapp_phone_id) {
-      console.log(`[reply] Sending natively via WhatsApp Cloud API for org: ${orgId}`)
+    if (whatsapp_token && active_phone_id) {
+      console.log(`[reply] Sending natively via WhatsApp Cloud API for org: ${orgId} using phone ID: ${active_phone_id}`)
       
       let determinedType = media_url ? media_type?.split('/')[0] : 'text'
       
@@ -106,7 +111,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const metaRes = await fetch(`https://graph.facebook.com/v20.0/${whatsapp_phone_id}/messages`, {
+      const metaRes = await fetch(`https://graph.facebook.com/v20.0/${active_phone_id}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${whatsapp_token}`,
