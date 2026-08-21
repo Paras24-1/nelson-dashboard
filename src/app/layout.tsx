@@ -22,6 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
   let icon = '/vox_ai_favicon.svg'
 
   try {
+    // Check specific domains first
+    if (host.includes('10xyourbusiness')) {
+      icon = '/10x_favicon.jpeg'
+    } else if (host.includes('iwebmagics')) {
+      icon = '/iwebmagics_favicon.png' // fallback if we have it
+    }
+
     // Look up custom domain in organizations
     const { data: org } = await supabaseAdmin
       .from('organizations')
