@@ -524,5 +524,54 @@
   <p style="margin-top:8px">© 2025 Vox AI. All rights reserved. &nbsp;·&nbsp; <a href="mailto:voxai4278@gmail.com" style="color:rgba(255,255,255,0.5)">voxai4278@gmail.com</a></p>
 </footer>
 
+<script>
+  if (window.location.hostname.includes('10xyourbusiness')) {
+    const brandName = '10x Your Business';
+    const email = 'hello@10xyourbusiness.in';
+    const website = 'https://app.10xyourbusiness.in';
+    const displayWeb = '10xyourbusiness.in';
+
+    // Update document title
+    document.title = document.title.replace(/Vox AI/g, brandName).replace(/VoxAI/g, brandName);
+
+    // Update text nodes recursively
+    function walk(node) {
+      let child, next;
+      switch (node.nodeType) {
+        case 1:  // Element
+        case 9:  // Document
+        case 11: // Document fragment
+          child = node.firstChild;
+          while (child) {
+            next = child.nextSibling;
+            walk(child);
+            child = next;
+          }
+          break;
+        case 3: // Text node
+          let text = node.nodeValue;
+          if (text.includes('Vox AI') || text.includes('VoxAI') || text.includes('voxai4278@gmail.com') || text.includes('voxaiagents.com')) {
+            node.nodeValue = text
+              .replace(/Vox AI/g, brandName)
+              .replace(/VoxAI/g, brandName)
+              .replace(/voxai4278@gmail\.com/g, email)
+              .replace(/voxaiagents\.com/g, displayWeb);
+          }
+          break;
+      }
+    }
+    walk(document.body);
+
+    // Update hrefs
+    document.querySelectorAll('a').forEach(a => {
+      if (a.href.includes('mailto:voxai4278@gmail.com')) {
+        a.href = 'mailto:' + email;
+      }
+      if (a.href.includes('voxaiagents.com')) {
+        a.href = website;
+      }
+    });
+  }
+</script>
 </body>
 </html>
