@@ -130,6 +130,11 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
     }
   }
 
+  // Check if 24h window is expired
+  const is24hExpired = conversation?.last_incoming_message_at 
+    ? (Date.now() - new Date(conversation.last_incoming_message_at).getTime() > 24 * 60 * 60 * 1000)
+    : true
+
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
@@ -140,8 +145,8 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
       }
 
       mediaRecorderRef.current.onstop = async () => {
-        // Record as webm but pretend it's mp4 to bypass strict WhatsApp API checks
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp4' })
+        // Record as default (usually webm/opus on Chrome) but upload as audio/ogg for WhatsApp
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' })
         audioChunksRef.current = []
         
         // Stop all tracks to release microphone
@@ -159,18 +164,18 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
       const orgId = profile?.org_id
       if (!orgId) throw new Error('User organization not found')
 
-      // Use .mp4 extension which WhatsApp officially supports for voice notes
-      const filename = `${orgId}/${Date.now()}-voicenote.mp4`
+      // Use .ogg extension which WhatsApp natively supports for Voice Notes
+      const filename = `${orgId}/${Date.now()}-voicenote.ogg`
       const { data, error } = await supabase.storage
         .from('chat-media')
-        .upload(filename, blob, { contentType: 'audio/mp4', upsert: false })
+        .upload(filename, blob, { contentType: 'audio/ogg', upsert: false })
 
       if (error) throw error
 
       const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(filename)
       const mediaUrl = urlData.publicUrl
 
-      await sendMessage(conversation.id, conversation.phone_number, '', mediaUrl, 'audio/mp4')
+      await sendMessage(conversation.id, conversation.phone_number, '', mediaUrl, 'audio/ogg')
     } catch (err) {
       console.error('Failed to send audio:', err)
       alert('Failed to send voice note.')

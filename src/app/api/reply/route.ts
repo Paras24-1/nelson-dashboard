@@ -21,14 +21,28 @@ export async function POST(req: NextRequest) {
 
     const timestamp = new Date().toISOString()
 
-    // Fetch conversation platform
+    // Fetch conversation platform and last incoming message time
     const { data: conv } = await supabaseAdmin
       .from('conversations')
-      .select('platform')
+      .select('platform, last_incoming_message_at')
       .eq('id', conversation_id)
       .eq('org_id', orgId)
       .maybeSingle()
     const platform = conv?.platform || 'whatsapp'
+    
+    // ENFORCE 24 HOUR WINDOW RULE FOR WHATSAPP
+    if (platform === 'whatsapp') {
+      if (!conv?.last_incoming_message_at) {
+         return NextResponse.json({ error: '24-hour messaging window is closed. User must send a message first, or use a template.' }, { status: 400 })
+      }
+      
+      const lastIncomingTime = new Date(conv.last_incoming_message_at).getTime()
+      const nowTime = new Date().getTime()
+      
+      if (nowTime - lastIncomingTime > 24 * 60 * 60 * 1000) {
+         return NextResponse.json({ error: '24-hour messaging window has expired. You can only send template messages to this user.' }, { status: 400 })
+      }
+    }
 
     // 1. Save outgoing message
     const { data: msg, error: msgError } = await supabaseAdmin
