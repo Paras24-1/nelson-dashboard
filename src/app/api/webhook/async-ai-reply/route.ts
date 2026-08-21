@@ -34,6 +34,18 @@ export async function POST(req: NextRequest) {
       .eq('phone_number', phone_number)
       .eq('org_id', orgId)
       .maybeSingle()
+
+    // INTERCEPT & STOP AUTOMATED DRIPS
+    // If the user replied, they are engaged! We must immediately cancel any pending automated outbound drip messages.
+    if (lead) {
+      await supabaseAdmin.from('scheduled_drips')
+        .update({ status: 'cancelled' })
+        .eq('lead_id', lead.id)
+        .eq('status', 'pending')
+        .then(({ error }) => {
+           if (error) console.error('[async-ai-reply] Failed to cancel drips:', error)
+        })
+    }
     
     // 2. Fetch last 5 messages for context
     const { data: history } = await supabaseAdmin
