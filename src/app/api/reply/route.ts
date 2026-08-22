@@ -101,12 +101,38 @@ export async function POST(req: NextRequest) {
 
       if (payload.type === 'text') {
         payload.text = { body: message }
+      } else if (payload.type === 'audio') {
+        // Audio files must be uploaded directly to Meta's Media API first
+        // Meta often fails to download audio from external URLs (like Supabase)
+        console.log(`[reply] Uploading audio to Meta Media API first...`)
+        const audioRes = await fetch(media_url)
+        const audioBuffer = await audioRes.arrayBuffer()
+        
+        const formData = new FormData()
+        formData.append('messaging_product', 'whatsapp')
+        formData.append('type', media_type || 'audio/mpeg')
+        formData.append('file', new Blob([audioBuffer], { type: media_type || 'audio/mpeg' }), 'voicenote.mp3')
+
+        const uploadRes = await fetch(`https://graph.facebook.com/v20.0/${active_phone_id}/media`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${whatsapp_token}` },
+          body: formData
+        })
+
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.text()
+          console.error(`[reply] Meta Media Upload Error: ${uploadErr}`)
+          throw new Error(`Meta Media Upload Error: ${uploadErr}`)
+        }
+
+        const uploadData = await uploadRes.json()
+        console.log(`[reply] Audio uploaded to Meta, media_id: ${uploadData.id}`)
+        payload.audio = { id: uploadData.id }
       } else {
-        // e.g. type 'image', 'document', or 'audio'
+        // e.g. type 'image', 'document'
         payload[payload.type] = { link: media_url }
         
-        // Meta WhatsApp API rejects 'caption' on audio messages
-        if (message && payload.type !== 'audio') {
+        if (message) {
           payload[payload.type].caption = message
         }
       }
