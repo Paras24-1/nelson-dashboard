@@ -150,13 +150,27 @@ export async function POST(req: NextRequest) {
         const newStatus = statusObj.status // 'sent', 'delivered', 'read', 'failed'
 
         if (messageId && newStatus) {
-          const updatePayload: any = { status: newStatus }
-          
-          // Debug logging without overwriting the actual user/AI message in the database!
-          if (newStatus === 'failed' && statusObj.errors) {
-            console.error('[webhook] Meta Message Failed:', JSON.stringify(statusObj.errors))
-            // We NO LONGER inject META_ERROR into the message body so the chat UI stays clean.
+          // Never downgrade a status that is already delivered/read to failed
+          // This happens when n8n sends a duplicate message that Meta rejects
+          if (newStatus === 'failed') {
+            const { data: existingMsg } = await supabaseAdmin
+              .from('messages')
+              .select('status')
+              .eq('provider_message_id', messageId)
+              .eq('org_id', orgId)
+              .maybeSingle()
+            
+            if (existingMsg && (existingMsg.status === 'delivered' || existingMsg.status === 'read')) {
+              console.log(`[webhook] Ignoring 'failed' status for message ${messageId} — already ${existingMsg.status}`)
+              return NextResponse.json({ success: true, status: 'ignored_downgrade' })
+            }
+
+            if (statusObj.errors) {
+              console.error('[webhook] Meta Message Failed:', JSON.stringify(statusObj.errors))
+            }
           }
+
+          const updatePayload: any = { status: newStatus }
 
           await supabaseAdmin
             .from('messages')
