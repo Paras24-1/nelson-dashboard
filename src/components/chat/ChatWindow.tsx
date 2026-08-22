@@ -162,18 +162,18 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
       const orgId = profile?.org_id
       if (!orgId) throw new Error('User organization not found')
 
-      // Use .ogg extension which WhatsApp natively supports for Voice Notes
-      const filename = `${orgId}/${Date.now()}-voicenote.ogg`
+      // Use .mp3 extension which WhatsApp natively supports for Voice Notes
+      const filename = `${orgId}/${Date.now()}-voicenote.mp3`
       const { data, error } = await supabase.storage
         .from('chat-media')
-        .upload(filename, blob, { contentType: 'audio/ogg', upsert: false })
+        .upload(filename, blob, { contentType: 'audio/mpeg', upsert: false })
 
       if (error) throw error
 
       const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(filename)
       const mediaUrl = urlData.publicUrl
 
-      await sendMessage(conversation.id, conversation.phone_number, '', mediaUrl, 'audio/ogg')
+      await sendMessage(conversation.id, conversation.phone_number, '', mediaUrl, 'audio/mpeg')
     } catch (err) {
       console.error('Failed to send audio:', err)
       alert('Failed to send voice note.')
