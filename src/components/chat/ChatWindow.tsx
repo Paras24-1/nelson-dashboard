@@ -108,16 +108,12 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
   // Audio Recording Functions
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      mediaRecorderRef.current = mediaRecorder
-      audioChunksRef.current = []
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      if (!mediaRecorderRef.current) {
+        const MicRecorder = (await import('mic-recorder-to-mp3')).default
+        mediaRecorderRef.current = new MicRecorder({ bitRate: 128 })
       }
 
-      mediaRecorder.start()
+      await mediaRecorderRef.current.start()
       setIsRecording(true)
       setRecordingTime(0)
 
@@ -137,23 +133,26 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
       setIsRecording(false)
       
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
 
-      mediaRecorderRef.current.onstop = async () => {
-        // Record as default (usually webm/opus on Chrome) but upload as audio/ogg for WhatsApp
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg' })
-        audioChunksRef.current = []
+      mediaRecorderRef.current.stop().getMp3().then(async ([buffer, blob]: any) => {
+        const audioFile = new File(buffer, 'voicenote.mp3', {
+          type: blob.type || 'audio/mpeg',
+          lastModified: Date.now()
+        })
         
-        // Stop all tracks to release microphone
-        mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop())
+        // Stop the active microphone stream
+        const activeStream = mediaRecorderRef.current?.activeStream
+        if (activeStream) {
+          activeStream.getTracks().forEach((track: any) => track.stop())
+        }
         
-        await handleSendAudio(audioBlob)
-      }
+        await handleSendAudio(audioFile)
+      }).catch((e: any) => console.error(e))
     }
   }
 

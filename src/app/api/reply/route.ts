@@ -92,9 +92,6 @@ export async function POST(req: NextRequest) {
       console.log(`[reply] Sending natively via WhatsApp Cloud API for org: ${orgId} using phone ID: ${active_phone_id}`)
       
       let determinedType = media_url ? media_type?.split('/')[0] : 'text'
-      if (media_url?.includes('-voicenote.')) {
-        determinedType = 'document'
-      }
       
       const payload: any = {
         messaging_product: 'whatsapp',
