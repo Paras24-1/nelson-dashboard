@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
         parsedPhone = msg.from
         parsedDirection = 'incoming'
         parsedReceiverPhone = change.metadata?.display_phone_number || null
+        parsedProviderPhoneId = change.metadata?.phone_number_id || null
         parsedName = change.contacts?.[0]?.profile?.name || msg.from
         
         if (msg.type === 'text') {
