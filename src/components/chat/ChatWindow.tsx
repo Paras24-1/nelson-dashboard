@@ -69,8 +69,7 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
   // Audio Recording State
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+  const mediaRecorderRef = useRef<any>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const { messages, loading, bottomRef } = useMessages(conversation?.id || null)
   const { sendMessage, sending } = useSendMessage()
@@ -113,7 +112,7 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
         mediaRecorderRef.current = new MicRecorder({ bitRate: 128 })
       }
 
-      await mediaRecorderRef.current.start()
+      await mediaRecorderRef.current!.start()
       setIsRecording(true)
       setRecordingTime(0)
 
