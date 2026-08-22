@@ -310,6 +310,7 @@ export async function POST(req: NextRequest) {
 
     // 7. [FORWARDING] Check if the tenant has a custom n8n webhook configured
     // We do this BEFORE any slow AI fetch so n8n triggers instantly without delay
+    let hasN8nInbound = false
     if (direction === 'incoming') {
       try {
         const { data: orgSettings } = await supabaseAdmin
@@ -319,6 +320,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
 
         if (orgSettings?.n8n_inbound_webhook_url) {
+          hasN8nInbound = true
           console.log(`[webhook] Forwarding payload to tenant n8n: ${orgSettings.n8n_inbound_webhook_url}`)
           // Fire and forget, don't await so we don't block
           fetch(orgSettings.n8n_inbound_webhook_url, {
@@ -350,18 +352,21 @@ export async function POST(req: NextRequest) {
         }
         
         // Trigger Async Native WhatsApp AI Chatbot & Scoring Engine
-        // We await this AT THE END so Vercel Serverless does not suspend the process before it finishes
-        // but AFTER forwarding to n8n so n8n isn't delayed by AI generation
-        await fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            orgId, 
-            phone_number, 
-            message: msgText, 
-            conversation_id: conversation.id 
-          })
-        }).catch(err => console.error('[webhook] Failed to trigger async AI reply:', err))
+        // ONLY if n8n is NOT handling this org's inbound messages (to prevent duplicate replies)
+        if (!hasN8nInbound) {
+          await fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              orgId, 
+              phone_number, 
+              message: msgText, 
+              conversation_id: conversation.id 
+            })
+          }).catch(err => console.error('[webhook] Failed to trigger async AI reply:', err))
+        } else {
+          console.log(`[webhook] Skipping native AI reply — n8n is handling inbound for org ${orgId}`)
+        }
 
       } catch (e) {
         console.error('[webhook] State machine interceptor error:', e)
