@@ -47,20 +47,35 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const orgSlug = searchParams.get('org') || ''
+    const orgSlug = searchParams.get('org') || searchParams.get('org_id') || ''
 
-    // Get org by slug
     let orgId: string | null = null
     if (orgSlug) {
       const { data: org } = await supabaseAdmin
         .from('organizations')
         .select('id')
-        .eq('slug', orgSlug)
-        .single()
+        .or(`slug.eq.${orgSlug},id.eq.${orgSlug}`)
+        .maybeSingle()
       orgId = org?.id || null
     }
 
+    const body = await req.json()
+
+    // If orgId not provided in query param, resolve automatically by Meta phone_number_id
+    if (!orgId && body.object === 'whatsapp_business_account') {
+      const phoneId = body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
+      if (phoneId) {
+        const { data: settings } = await supabaseAdmin
+          .from('organization_settings')
+          .select('org_id')
+          .eq('whatsapp_phone_id', phoneId)
+          .maybeSingle()
+        orgId = settings?.org_id || null
+      }
+    }
+
     if (!orgId) {
+      console.warn('[webhook] Could not resolve orgId from request URL or payload phone_number_id')
       return NextResponse.json({ error: 'Invalid org' }, { status: 400 })
     }
 
@@ -69,8 +84,6 @@ export async function POST(req: NextRequest) {
       .select('whatsapp_token, n8n_inbound_webhook_url')
       .eq('org_id', orgId)
       .maybeSingle()
-
-    const body = await req.json()
     
     // Check if this is a native Meta WhatsApp Webhook Payload
     let parsedPhone = body.phone_number
