@@ -26,11 +26,16 @@ export async function POST(req: NextRequest) {
         if (parsed.gemini_api_key) tenantAiKey = parsed.gemini_api_key
       } catch (e) {}
     }
-    if (!tenantAiKey) tenantAiKey = process.env.GEMINI_API_KEY
+    
+    // If tenant key is empty or invalid (not starting with AIzaSy), fallback to system GEMINI_API_KEY
+    if (!tenantAiKey || !tenantAiKey.startsWith('AIzaSy')) {
+      console.warn(`[async-ai-reply] Tenant Gemini key (${tenantAiKey ? tenantAiKey.substring(0, 10) : 'empty'}) is invalid. Falling back to system GEMINI_API_KEY.`)
+      tenantAiKey = process.env.GEMINI_API_KEY || tenantAiKey
+    }
 
     if (!tenantAiKey) {
-      console.warn('[async-ai-reply] No GEMINI_API_KEY provided. Skipping AI reply.')
-      return NextResponse.json({ error: 'No GEMINI_API_KEY' }, { status: 500 })
+      console.warn('[async-ai-reply] No valid GEMINI_API_KEY found. Skipping AI reply.')
+      return NextResponse.json({ error: 'No valid GEMINI_API_KEY' }, { status: 500 })
     }
 
     // 1. Fetch Lead context & metadata
