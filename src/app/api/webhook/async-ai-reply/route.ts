@@ -78,6 +78,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fallback to org owner/admin phone if unassigned or no phone on assigned employee
+    if (!assignedEmployeePhone && orgId) {
+      const { data: orgUsers } = await supabaseAdmin
+        .from('users')
+        .select('name, email, avatar, phone_number, role')
+        .eq('org_id', orgId)
+        .limit(10)
+      if (orgUsers && orgUsers.length > 0) {
+        const userWithPhone = orgUsers.find(u => (u as any).phone_number || (u.avatar && u.avatar.startsWith('phone:')))
+        if (userWithPhone) {
+          assignedEmployeePhone = (userWithPhone as any).phone_number || (userWithPhone.avatar && userWithPhone.avatar.startsWith('phone:') ? userWithPhone.avatar.replace('phone:', '') : '')
+          if (assignedEmployeeName === 'Unassigned') {
+            assignedEmployeeName = userWithPhone.name || userWithPhone.email
+          }
+        }
+      }
+    }
+
     // INTERCEPT & STOP AUTOMATED DRIPS
     // If the user replied, they are engaged! We must immediately cancel any pending automated outbound drip messages.
     if (lead) {
@@ -124,7 +142,7 @@ export async function POST(req: NextRequest) {
       .replace(/\{\{phone_number\}\}/g, phone_number)
       .replace(/\{\{assigned_employee\}\}/g, assignedEmployeeName)
       .replace(/\{\{assigned_employee_name\}\}/g, assignedEmployeeName)
-      .replace(/\{\{assigned_employee_phone\}\}/g, assignedEmployeePhone || 'N/A')
+      .replace(/\{\{assigned_employee_phone\}\}/g, assignedEmployeePhone || '')
       .replace(/\{\{stage\}\}/g, lead?.lead_temperature || 'COLD')
     
     // Optional Knowledge Base from Google Sheets
