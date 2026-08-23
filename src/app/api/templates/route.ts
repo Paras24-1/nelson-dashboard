@@ -109,9 +109,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Fetch approved message templates from Meta WABA
+    // 2. Fetch all message templates from Meta WABA (APPROVED, PENDING, REJECTED)
     const templatesRes = await fetch(
-      `https://graph.facebook.com/v19.0/${wabaId}/message_templates?status=APPROVED&limit=50`,
+      `https://graph.facebook.com/v20.0/${wabaId}/message_templates?limit=100`,
       {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store'
