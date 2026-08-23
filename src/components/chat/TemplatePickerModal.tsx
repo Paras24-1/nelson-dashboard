@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Search, FileText, Check, AlertCircle, Loader2, Send, Eye } from 'lucide-react'
+import { X, Search, FileText, Check, AlertCircle, Loader2, Send, Eye, Plus, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
+import CreateTemplateModal from '@/components/chat/CreateTemplateModal'
 
 interface Template {
   id: string
@@ -38,6 +39,7 @@ export default function TemplatePickerModal({
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
   
   // Variables & Header Media input states
   const [variableValues, setVariableValues] = useState<{ [key: string]: string }>({})
@@ -179,12 +181,21 @@ export default function TemplatePickerModal({
               <p className="text-xs text-slate-400">Select & preview templates to bypass the 24h window limit</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Meta Template</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
@@ -379,6 +390,15 @@ export default function TemplatePickerModal({
 
         </div>
       </div>
+      
+      {/* Create Meta Template Sub-Modal */}
+      <CreateTemplateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          fetchTemplates()
+        }}
+      />
     </div>
   )
 }
