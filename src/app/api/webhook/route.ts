@@ -411,7 +411,7 @@ export async function POST(req: NextRequest) {
         if (!isHybridN8n) {
           const origin = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://voxaiagents.com'
           console.log(`[webhook] Executing Native Dashboard AI reply for org ${orgId} at ${origin}`)
-          fetch(`${origin}/api/webhook/async-ai-reply`, {
+          await fetch(`${origin}/api/webhook/async-ai-reply`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
