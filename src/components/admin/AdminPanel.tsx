@@ -5,6 +5,8 @@ import { X, UserPlus, Trash2, Shield, Phone, Mail, Check, Edit2, RefreshCw } fro
 import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 
+import { createPortal } from 'react-dom'
+
 interface User {
   id: string
   email: string
@@ -16,6 +18,7 @@ interface User {
 }
 
 export default function AdminPanel({ onClose }: { onClose: () => void }) {
+  const [mounted, setMounted] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -33,6 +36,11 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const { org } = useOrg()
+
+  useEffect(() => {
+    setMounted(true)
+    fetchUsers()
+  }, [])
 
   const getToken = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -54,8 +62,6 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
       setLoading(false)
     }
   }
-
-  useEffect(() => { fetchUsers() }, [])
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,8 +151,10 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl text-slate-100">
         
         {/* Header */}
@@ -349,6 +357,7 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

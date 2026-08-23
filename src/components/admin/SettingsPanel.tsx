@@ -5,6 +5,8 @@ import { X, Settings, Database, Cpu, User, Mail, Shield, Save, RefreshCw, Key, B
 import { supabase } from '@/lib/supabaseClient'
 import { useOrg } from '@/contexts/OrgContext'
 
+import { createPortal } from 'react-dom'
+
 interface SettingsData {
   whatsapp_token: string
   whatsapp_phone_id: string
@@ -22,6 +24,7 @@ interface SettingsData {
 }
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const [mounted, setMounted] = useState(false)
   const { profile, org, user } = useOrg()
   const isAdmin = profile?.role === 'admin' || profile?.role === 'owner'
 
@@ -52,6 +55,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
   })
 
   useEffect(() => {
+    setMounted(true)
     const fetchSettings = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -126,8 +130,10 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
   const initials = (profile?.name || user?.email || 'U')
     .split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl text-slate-100">
         
         {/* Header */}
@@ -327,6 +333,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
