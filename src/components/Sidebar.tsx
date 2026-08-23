@@ -81,7 +81,7 @@ export default function Sidebar() {
       name: 'Comments',
       href: '/comments',
       icon: MessageCircle,
-      visible: true
+      visible: Boolean(org?.has_comments_crm)
     },
     {
       name: 'Followups',
@@ -111,13 +111,13 @@ export default function Sidebar() {
       name: 'Orders & Status',
       href: '/orders',
       icon: ShoppingBag,
-      visible: true
+      visible: Boolean(org?.has_orders_crm)
     },
     {
       name: 'Email Inbox',
       href: '/emails',
       icon: Mail,
-      visible: true
+      visible: Boolean(org?.has_emails_crm)
     },
     {
       name: 'Bulk Message',
