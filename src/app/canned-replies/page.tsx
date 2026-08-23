@@ -67,21 +67,19 @@ export default function CannedRepliesPage() {
   )
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
-      <Sidebar />
-
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Header */}
-        <header className="px-8 py-5 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <MessageSquare className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Canned Replies & Shortcuts</h1>
-              <p className="text-xs text-slate-400">Manage quick `/` shortcuts for your team to send instant replies to leads</p>
-            </div>
+    <div className="h-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
+      {/* Top Header */}
+      <header className="px-8 py-5 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <Sidebar />
+          <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <MessageSquare className="w-6 h-6" />
           </div>
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Canned Replies & Shortcuts</h1>
+            <p className="text-xs text-slate-400">Manage quick `/` shortcuts for your team to send instant replies to leads</p>
+          </div>
+        </div>
 
           <button
             onClick={() => {
@@ -219,7 +217,6 @@ export default function CannedRepliesPage() {
           )}
 
         </div>
-      </main>
 
       {/* Canned Replies Modal */}
       <CannedRepliesModal
