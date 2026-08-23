@@ -365,8 +365,24 @@ export default function BotBrainPage() {
                       <button
                         key={tag}
                         type="button"
-                        onClick={() => setSystemPrompt((prev) => prev + ` ${tag}`)}
-                        className="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-[11px] font-mono text-emerald-400 transition-colors"
+                        onClick={() => {
+                          const textarea = document.getElementById('systemPromptTextarea') as HTMLTextAreaElement | null
+                          if (textarea) {
+                            const start = textarea.selectionStart || 0
+                            const end = textarea.selectionEnd || 0
+                            const textBefore = systemPrompt.substring(0, start)
+                            const textAfter = systemPrompt.substring(end)
+                            const newText = `${textBefore}${tag}${textAfter}`
+                            setSystemPrompt(newText)
+                            setTimeout(() => {
+                              textarea.focus()
+                              textarea.setSelectionRange(start + tag.length, start + tag.length)
+                            }, 10)
+                          } else {
+                            setSystemPrompt((prev) => prev + ` ${tag}`)
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-lg text-[11px] font-mono text-emerald-400 hover:border-emerald-500/50 transition-all active:scale-95"
                       >
                         + {tag}
                       </button>
@@ -375,7 +391,8 @@ export default function BotBrainPage() {
 
                   {/* Textarea */}
                   <textarea
-                    rows={6}
+                    id="systemPromptTextarea"
+                    rows={8}
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     placeholder="Enter the AI agent system prompt instructions..."
