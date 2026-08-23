@@ -82,13 +82,13 @@ export async function POST(req: NextRequest) {
     if (!assignedEmployeePhone && orgId) {
       const { data: orgUsers } = await supabaseAdmin
         .from('users')
-        .select('name, email, avatar, phone_number, role')
+        .select('name, email, avatar, role')
         .eq('org_id', orgId)
-        .limit(10)
+        .limit(20)
       if (orgUsers && orgUsers.length > 0) {
-        const userWithPhone = orgUsers.find(u => (u as any).phone_number || (u.avatar && u.avatar.startsWith('phone:')))
+        const userWithPhone = orgUsers.find(u => (u as any).phone_number || (u.avatar && typeof u.avatar === 'string' && u.avatar.startsWith('phone:')))
         if (userWithPhone) {
-          assignedEmployeePhone = (userWithPhone as any).phone_number || (userWithPhone.avatar && userWithPhone.avatar.startsWith('phone:') ? userWithPhone.avatar.replace('phone:', '') : '')
+          assignedEmployeePhone = (userWithPhone as any).phone_number || (userWithPhone.avatar && userWithPhone.avatar.startsWith('phone:') ? userWithPhone.avatar.replace('phone:', '').trim() : '')
           if (assignedEmployeeName === 'Unassigned') {
             assignedEmployeeName = userWithPhone.name || userWithPhone.email
           }

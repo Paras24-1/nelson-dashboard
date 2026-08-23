@@ -312,27 +312,27 @@ export async function POST(req: NextRequest) {
     if (assignedTo) {
       const { data: empData } = await supabaseAdmin
         .from('users')
-        .select('name, email, avatar, phone_number')
+        .select('name, email, avatar, role')
         .eq('id', assignedTo)
         .eq('org_id', orgId)
         .maybeSingle()
       if (empData) {
         assignedEmployeeName = empData.name || empData.email
-        assignedEmployeePhone = (empData as any).phone_number || (empData.avatar && empData.avatar.startsWith('phone:') ? empData.avatar.replace('phone:', '') : null)
+        assignedEmployeePhone = (empData as any).phone_number || (empData.avatar && empData.avatar.startsWith('phone:') ? empData.avatar.replace('phone:', '').trim() : null)
       }
     }
 
-    // If unassigned or assigned employee has no phone, fallback to org owner/admin phone
+    // If unassigned or assigned employee has no phone, fallback to org team member with phone
     if (!assignedEmployeePhone && orgId) {
       const { data: orgUsers } = await supabaseAdmin
         .from('users')
-        .select('name, email, avatar, phone_number, role')
+        .select('name, email, avatar, role')
         .eq('org_id', orgId)
-        .limit(10)
+        .limit(20)
       if (orgUsers && orgUsers.length > 0) {
-        const userWithPhone = orgUsers.find(u => (u as any).phone_number || (u.avatar && u.avatar.startsWith('phone:')))
+        const userWithPhone = orgUsers.find(u => (u as any).phone_number || (u.avatar && typeof u.avatar === 'string' && u.avatar.startsWith('phone:')))
         if (userWithPhone) {
-          assignedEmployeePhone = (userWithPhone as any).phone_number || (userWithPhone.avatar && userWithPhone.avatar.startsWith('phone:') ? userWithPhone.avatar.replace('phone:', '') : null)
+          assignedEmployeePhone = (userWithPhone as any).phone_number || (userWithPhone.avatar && userWithPhone.avatar.startsWith('phone:') ? userWithPhone.avatar.replace('phone:', '').trim() : null)
           if (!assignedEmployeeName) {
             assignedEmployeeName = userWithPhone.name || userWithPhone.email
           }
