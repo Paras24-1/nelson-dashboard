@@ -361,7 +361,7 @@ export default function BotBrainPage() {
                   {/* Variable insertion buttons */}
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11px] text-slate-500 font-bold uppercase">Insert Variables:</span>
-                    {['{{lead_name}}', '{{phone_number}}', '{{assigned_employee}}', '{{knowledge_base}}', '{{stage}}'].map((tag) => (
+                    {['{{lead_name}}', '{{phone_number}}', '{{assigned_employee}}', '{{assigned_employee_phone}}', '{{knowledge_base}}', '{{stage}}'].map((tag) => (
                       <button
                         key={tag}
                         type="button"

@@ -46,16 +46,18 @@ export async function POST(req: NextRequest) {
       .eq('org_id', orgId)
       .maybeSingle()
 
-    // Fetch assigned employee name if assigned
+    // Fetch assigned employee name & phone if assigned
     let assignedEmployeeName = 'Unassigned'
+    let assignedEmployeePhone = ''
     if (lead?.assigned_to) {
       const { data: emp } = await supabaseAdmin
         .from('users')
-        .select('name, email')
+        .select('name, email, phone_number')
         .eq('id', lead.assigned_to)
         .maybeSingle()
       if (emp) {
         assignedEmployeeName = emp.name || emp.email
+        assignedEmployeePhone = emp.phone_number || ''
       }
     } else if (conversation_id) {
       const { data: conv } = await supabaseAdmin
@@ -66,11 +68,12 @@ export async function POST(req: NextRequest) {
       if (conv?.assigned_to) {
         const { data: emp } = await supabaseAdmin
           .from('users')
-          .select('name, email')
+          .select('name, email, phone_number')
           .eq('id', conv.assigned_to)
           .maybeSingle()
         if (emp) {
           assignedEmployeeName = emp.name || emp.email
+          assignedEmployeePhone = emp.phone_number || ''
         }
       }
     }
@@ -121,6 +124,7 @@ export async function POST(req: NextRequest) {
       .replace(/\{\{phone_number\}\}/g, phone_number)
       .replace(/\{\{assigned_employee\}\}/g, assignedEmployeeName)
       .replace(/\{\{assigned_employee_name\}\}/g, assignedEmployeeName)
+      .replace(/\{\{assigned_employee_phone\}\}/g, assignedEmployeePhone || 'N/A')
       .replace(/\{\{stage\}\}/g, lead?.lead_temperature || 'COLD')
     
     // Optional Knowledge Base from Google Sheets

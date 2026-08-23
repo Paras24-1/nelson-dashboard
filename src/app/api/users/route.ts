@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const orgId = await getOrgId(req)
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { email, password, name, role } = await req.json()
+    const { email, password, name, role, phone_number } = await req.json()
 
     // Get org's max_users limit
     const { data: org } = await supabaseAdmin
@@ -56,11 +56,22 @@ export async function POST(req: NextRequest) {
     })
     if (authError) throw authError
 
-    // Insert into users table with org_id
+    // Insert into users table with org_id and optional phone_number
+    const insertPayload: any = { id: authData.user.id, org_id: orgId, email, name, role }
+    if (phone_number) insertPayload.phone_number = phone_number
+
     const { error: profileError } = await supabaseAdmin
       .from('users')
-      .insert({ id: authData.user.id, org_id: orgId, email, name, role })
-    if (profileError) throw profileError
+      .insert(insertPayload)
+    if (profileError) {
+      // If phone_number column doesn't exist yet, retry without phone_number
+      if (profileError.code === 'PGRST204') {
+        delete insertPayload.phone_number
+        await supabaseAdmin.from('users').insert(insertPayload)
+      } else {
+        throw profileError
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
@@ -106,7 +117,7 @@ export async function PATCH(req: NextRequest) {
     const orgId = await getOrgId(req)
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { userId, is_active } = await req.json()
+    const { userId, is_active, phone_number } = await req.json()
 
     // Make sure user belongs to this org
     const { data: user } = await supabaseAdmin
@@ -119,11 +130,15 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    const updatePayload: any = {}
+    if (typeof is_active === 'boolean') updatePayload.is_active = is_active
+    if (phone_number !== undefined) updatePayload.phone_number = phone_number || null
+
     const { error } = await supabaseAdmin
       .from('users')
-      .update({ is_active })
+      .update(updatePayload)
       .eq('id', userId)
-    if (error) throw error
+    if (error && error.code !== 'PGRST204') throw error
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
