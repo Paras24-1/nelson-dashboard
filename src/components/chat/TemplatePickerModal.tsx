@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Search, FileText, Check, AlertCircle, Loader2, Send, Eye } from 'lucide-react'
+import { supabase } from '@/lib/supabaseClient'
 
 interface Template {
   id: string
@@ -53,7 +54,12 @@ export default function TemplatePickerModal({
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/templates')
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+
+      const res = await fetch('/api/templates', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (!res.ok) {
         const errData = await res.json()
         throw new Error(errData.error || 'Failed to load templates')

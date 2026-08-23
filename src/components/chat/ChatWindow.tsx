@@ -623,7 +623,7 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                             : 'bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 text-gray-850 dark:text-gray-100 rounded-2xl rounded-tl-none'
                         }`}
                       >
-                        {msg.media_url && msg.media_type?.startsWith('image') && (
+                        {msg.media_url && (msg.media_type?.startsWith('image') || /\.(png|jpg|jpeg|gif|webp)($|\?)/i.test(msg.media_url)) && (
                           <img
                             src={msg.media_url}
                             alt="Media attachment"
@@ -631,12 +631,39 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                           />
                         )}
 
-                        {msg.media_url && msg.media_type?.startsWith('audio') && (
+                        {msg.media_url && (msg.media_type?.startsWith('video') || /\.(mp4|webm|mov|mkv)($|\?)/i.test(msg.media_url)) && (
+                          <video
+                            controls
+                            src={msg.media_url}
+                            className="rounded-xl mb-2 max-w-full max-h-72 border border-gray-100 dark:border-gray-800"
+                          />
+                        )}
+
+                        {msg.media_url && (msg.media_type?.startsWith('audio') || /\.(mp3|wav|ogg|m4a)($|\?)/i.test(msg.media_url)) && (
                           <audio
                             controls
                             src={msg.media_url}
                             className="max-w-[200px] sm:max-w-[250px] mb-2 outline-none"
                           />
+                        )}
+
+                        {msg.media_url && (msg.media_type?.includes('pdf') || msg.media_type?.includes('document') || msg.media_type === 'document' || /\.(pdf|doc|docx|xls|xlsx|txt)($|\?)/i.test(msg.media_url)) && (
+                          <a
+                            href={msg.media_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 mb-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-700/60 text-white transition-all group"
+                          >
+                            <div className="p-2.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-white truncate group-hover:underline">
+                                {(msg as any).metadata?.filename || msg.media_url.split('/').pop()?.split('?')[0] || 'Document'}
+                              </p>
+                              <p className="text-[10px] text-amber-400 font-semibold uppercase mt-0.5">Click to view / download document</p>
+                            </div>
+                          </a>
                         )}
 
                         {msg.message && (

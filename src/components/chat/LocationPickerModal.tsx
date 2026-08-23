@@ -35,15 +35,37 @@ export default function LocationPickerModal({
     }
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(6))
-        setLongitude(pos.coords.longitude.toFixed(6))
-        setLocating(false)
+      async (pos) => {
+        const lat = pos.coords.latitude.toFixed(6)
+        const lng = pos.coords.longitude.toFixed(6)
+        setLatitude(lat)
+        setLongitude(lng)
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.display_name) {
+              setAddress(data.display_name)
+              const placeName = data.address?.amenity || data.address?.shop || data.address?.building || data.address?.suburb || data.address?.city || 'My Location'
+              setName(placeName)
+            }
+          }
+        } catch (geocodeErr) {
+          console.warn('Reverse geocode warning:', geocodeErr)
+        } finally {
+          setLocating(false)
+        }
       },
       (err) => {
         console.error('Geolocation error:', err)
-        alert('Could not get your current location. Please enter manually.')
+        alert(`Geolocation error (${err.message || 'Permission denied/Timeout'}). Please check browser location permissions or enter coordinates manually.`)
         setLocating(false)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       }
     )
   }
