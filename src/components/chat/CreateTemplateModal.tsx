@@ -38,17 +38,17 @@ export default function CreateTemplateModal({ isOpen, onClose, onSuccess }: Crea
     return unique.sort((a, b) => parseInt(a) - parseInt(b))
   }, [bodyText])
 
-  if (!isOpen) return null
-
   // Substitute sample values into preview body
   const previewBody = useMemo(() => {
-    let result = bodyText
+    let result = bodyText || ''
     detectedVars.forEach(num => {
       const sample = sampleValues[num] || `{{${num}}}`
       result = result.replace(new RegExp(`{{${num}}}`, 'g'), sample)
     })
     return result
   }, [bodyText, detectedVars, sampleValues])
+
+  if (!isOpen) return null
 
   const handleAddVariableTag = () => {
     const nextNum = (detectedVars.length + 1).toString()
