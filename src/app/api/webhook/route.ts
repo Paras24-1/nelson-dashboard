@@ -410,8 +410,9 @@ export async function POST(req: NextRequest) {
         // Trigger Async Native WhatsApp AI Chatbot
         // ONLY if n8n is NOT handling this org's inbound messages (to prevent duplicate replies)
         if (!isHybridN8n) {
-          console.log(`[webhook] Executing Native Dashboard AI reply for org ${orgId}`)
-          await fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
+          const origin = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://voxaiagents.com'
+          console.log(`[webhook] Executing Native Dashboard AI reply for org ${orgId} at ${origin}`)
+          fetch(`${origin}/api/webhook/async-ai-reply`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

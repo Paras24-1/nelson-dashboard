@@ -211,7 +211,9 @@ Respond in JSON format with exactly these keys:
 
     // 5. Send WhatsApp Reply by posting to our own /api/reply endpoint
     if (content.replyMessage) {
-      await fetch(`https://voxaiagents.com/api/reply`, {
+      const origin = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://voxaiagents.com'
+      console.log(`[async-ai-reply] Dispatching AI reply to ${origin}/api/reply...`)
+      await fetch(`${origin}/api/reply`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -223,7 +225,7 @@ Respond in JSON format with exactly these keys:
           org_id: orgId,
           message: content.replyMessage
         })
-      })
+      }).catch(err => console.error('[async-ai-reply] Error calling /api/reply:', err))
     }
 
     // 6. If HOT, Trigger Human Handover Task natively
