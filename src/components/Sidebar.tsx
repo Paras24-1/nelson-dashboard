@@ -138,42 +138,41 @@ export default function Sidebar() {
       {/* Hamburger Menu Trigger Button */}
       <button
         onClick={toggleSidebar}
-        className="p-2 rounded-xl bg-gray-50 dark:bg-gray-850 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-150 dark:border-gray-700/50 transition-all shadow-sm"
+        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all shadow-sm shrink-0"
         title="Open navigation menu"
       >
-        <Menu className="w-4.5 h-4.5 text-gray-600 dark:text-gray-350" />
+        <Menu className="w-5 h-5" />
       </button>
 
       {/* Slide-out Sidebar Drawer Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998] transition-opacity"
           onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar Panel */}
       <div className={`
-        fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-gray-900 border-r border-gray-250 dark:border-gray-800 z-50 
-        transform transition-transform duration-300 ease-in-out flex flex-col justify-between
+        fixed top-0 left-0 h-screen w-64 bg-slate-900 border-r border-slate-800 text-slate-100 z-[9999]
+        transform transition-transform duration-300 ease-in-out flex flex-col justify-between shadow-2xl overflow-hidden
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         
-        {/* Top Section */}
-        <div className="flex-grow overflow-y-auto">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-emerald-600 dark:bg-emerald-800 text-white">
-            <span className="font-bold text-sm">{org?.name || 'Navigation Menu'}</span>
-            <button 
-              onClick={closeSidebar}
-              className="p-1 rounded-lg hover:bg-emerald-755 dark:hover:bg-emerald-950 transition-colors"
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
-          </div>
+        {/* Top Header */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-emerald-600 text-white shrink-0">
+          <span className="font-bold text-sm truncate pr-2">{org?.name || 'Navigation Menu'}</span>
+          <button 
+            onClick={closeSidebar}
+            className="p-1 rounded-lg hover:bg-emerald-700 text-white transition-colors shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-          {/* Nav Items */}
-          <nav className="p-4 space-y-1">
+        {/* Middle Section: Nav Items (Scrollable) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          <nav className="space-y-1">
             {navItems.filter(item => item.visible).map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -184,15 +183,15 @@ export default function Sidebar() {
                   href={item.href}
                   onClick={closeSidebar}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all
                     ${isActive 
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' 
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold' 
+                      : 'text-slate-300 hover:bg-slate-800/70 hover:text-white border border-transparent'
                     }
                   `}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.name}</span>
+                  <Icon className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span className="truncate">{item.name}</span>
                 </Link>
               )
             })}
@@ -204,9 +203,9 @@ export default function Sidebar() {
                   closeSidebar()
                   setShowAdmin(true)
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/70 hover:text-white transition-all border border-transparent"
               >
-                <Users className="w-4 h-4" />
+                <Users className="w-4 h-4 shrink-0 text-emerald-400" />
                 <span>Team</span>
               </button>
             )}
@@ -214,14 +213,14 @@ export default function Sidebar() {
         </div>
 
         {/* Bottom Section */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2 bg-gray-50 dark:bg-gray-950">
+        <div className="p-4 border-t border-slate-800 space-y-2 bg-slate-950 shrink-0">
           
           {/* Theme Toggle */}
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-150 dark:hover:bg-gray-800/50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
           >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-blue-400" />}
             <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
 
@@ -232,9 +231,9 @@ export default function Sidebar() {
                 closeSidebar()
                 setShowSettings(true)
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-150 dark:hover:bg-gray-800/50 transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-4 h-4 text-slate-400" />
               <span>Settings</span>
             </button>
           )}
@@ -244,18 +243,18 @@ export default function Sidebar() {
             href={privacyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-150 dark:hover:bg-gray-800/50 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
           >
-            <Shield className="w-4 h-4" />
+            <Shield className="w-4 h-4 text-slate-400" />
             <span>Privacy Policy</span>
           </Link>
 
           {/* Sign Out */}
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4 text-red-400" />
             <span>Sign Out</span>
           </button>
         </div>
