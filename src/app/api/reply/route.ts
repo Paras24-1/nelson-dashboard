@@ -13,13 +13,26 @@ export async function POST(req: NextRequest) {
 
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { conversation_id, phone_number, message, media_url, media_type } = body
+    const { 
+      conversation_id, 
+      phone_number, 
+      message, 
+      media_url, 
+      media_type, 
+      type, 
+      template_name, 
+      template_language, 
+      template_components,
+      filename,
+      location_data
+    } = body
 
     if (!conversation_id || !phone_number) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     const timestamp = new Date().toISOString()
+    const isTemplate = type === 'template' || !!template_name
 
     // Fetch conversation platform, last incoming message time, and provider phone ID
     const { data: conv } = await supabaseAdmin
@@ -31,8 +44,8 @@ export async function POST(req: NextRequest) {
     const platform = conv?.platform || 'whatsapp'
     const providerPhoneId = conv?.provider_phone_id
     
-    // ENFORCE 24 HOUR WINDOW RULE FOR WHATSAPP
-    if (platform === 'whatsapp') {
+    // ENFORCE 24 HOUR WINDOW RULE FOR WHATSAPP (TEMPLATES BYPASS THIS RULE)
+    if (platform === 'whatsapp' && !isTemplate) {
       if (!conv?.last_incoming_message_at) {
          return NextResponse.json({ error: '24-hour messaging window is closed. User must send a message first, or use a template.' }, { status: 400 })
       }
@@ -91,7 +104,9 @@ export async function POST(req: NextRequest) {
     if (whatsapp_token && active_phone_id) {
       console.log(`[reply] Sending natively via WhatsApp Cloud API for org: ${orgId} using phone ID: ${active_phone_id}`)
       
-      let determinedType = media_url ? media_type?.split('/')[0] : 'text'
+      let determinedType = type || (media_url ? (media_type?.includes('pdf') || media_type?.includes('document') ? 'document' : media_type?.split('/')[0]) : 'text')
+      if (isTemplate) determinedType = 'template'
+      if (type === 'location' || location_data) determinedType = 'location'
       
       const payload: any = {
         messaging_product: 'whatsapp',
@@ -99,11 +114,23 @@ export async function POST(req: NextRequest) {
         type: determinedType
       }
 
-      if (payload.type === 'text') {
+      if (payload.type === 'template') {
+        payload.template = {
+          name: template_name,
+          language: { code: template_language || 'en' },
+          components: template_components || []
+        }
+      } else if (payload.type === 'location') {
+        const loc = location_data || {}
+        payload.location = {
+          latitude: String(loc.latitude || '28.6139'),
+          longitude: String(loc.longitude || '77.2090'),
+          name: loc.name || 'Location',
+          address: loc.address || ''
+        }
+      } else if (payload.type === 'text') {
         payload.text = { body: message }
       } else if (payload.type === 'audio') {
-        // Audio files must be uploaded directly to Meta's Media API first
-        // Meta often fails to download audio from external URLs (like Supabase)
         console.log(`[reply] Uploading audio to Meta Media API first...`)
         const audioRes = await fetch(media_url)
         const audioBuffer = await audioRes.arrayBuffer()
@@ -128,13 +155,16 @@ export async function POST(req: NextRequest) {
         const uploadData = await uploadRes.json()
         console.log(`[reply] Audio uploaded to Meta, media_id: ${uploadData.id}`)
         payload.audio = { id: uploadData.id }
-      } else {
-        // e.g. type 'image', 'document'
-        payload[payload.type] = { link: media_url }
-        
-        if (message) {
-          payload[payload.type].caption = message
+      } else if (payload.type === 'document') {
+        payload.document = { 
+          link: media_url,
+          filename: filename || 'Document.pdf'
         }
+        if (message) payload.document.caption = message
+      } else {
+        // e.g. type 'image', 'video'
+        payload[payload.type] = { link: media_url }
+        if (message) payload[payload.type].caption = message
       }
 
       const metaRes = await fetch(`https://graph.facebook.com/v20.0/${active_phone_id}/messages`, {

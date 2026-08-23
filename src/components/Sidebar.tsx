@@ -60,6 +60,12 @@ export default function Sidebar() {
       visible: true
     },
     {
+      name: 'Canned Replies',
+      href: '/canned-replies',
+      icon: MessageCircle,
+      visible: true
+    },
+    {
       name: 'Voice AI',
       href: '/voice',
       icon: PhoneCall,

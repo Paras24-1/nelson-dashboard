@@ -198,9 +198,17 @@ export function useSendMessage() {
       phoneNumber: string,
       message: string,
       mediaUrl?: string | null,
-      mediaType?: string | null
+      mediaType?: string | null,
+      extraOptions?: {
+        type?: string
+        template_name?: string
+        template_language?: string
+        template_components?: any[]
+        filename?: string
+        location_data?: any
+      }
     ) => {
-      if (!message.trim() && !mediaUrl) return false
+      if (!message.trim() && !mediaUrl && !extraOptions?.template_name && !extraOptions?.location_data) return false
       setSending(true)
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -218,6 +226,7 @@ export function useSendMessage() {
             message: message.trim(),
             media_url: mediaUrl,
             media_type: mediaType,
+            ...extraOptions
           }),
         })
         return res.ok
