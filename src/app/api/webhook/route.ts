@@ -312,12 +312,14 @@ export async function POST(req: NextRequest) {
     if (assignedTo) {
       const { data: empData } = await supabaseAdmin
         .from('users')
-        .select('name, phone')
+        .select('name, email, avatar, phone_number')
         .eq('id', assignedTo)
         .eq('org_id', orgId)
         .maybeSingle()
-      assignedEmployeeName = empData?.name || null
-      assignedEmployeePhone = empData?.phone || null
+      if (empData) {
+        assignedEmployeeName = empData.name || empData.email
+        assignedEmployeePhone = (empData as any).phone_number || (empData.avatar && empData.avatar.startsWith('phone:') ? empData.avatar.replace('phone:', '') : null)
+      }
     }
 
     // 7. [BOT BRAIN & HYBRID ROUTING] Check tenant AI Engine mode and settings
@@ -349,9 +351,19 @@ export async function POST(req: NextRequest) {
           
           const kbMarkdown = parsedPromptObj.cached_kb?.markdown || ''
           const kbJson = parsedPromptObj.cached_kb?.json || []
-          const systemPrompt = parsedPromptObj.system_prompt || 'You are a helpful AI assistant.'
+          const rawSystemPrompt = parsedPromptObj.system_prompt || 'You are a helpful AI assistant.'
           const geminiApiKey = orgSettings.gemini_api_key || process.env.GEMINI_API_KEY || ''
           const openaiApiKey = orgSettings.openai_api_key || process.env.OPENAI_API_KEY || ''
+
+          // Replace prompt template variables so n8n receives the fully rendered system prompt!
+          const processedSystemPrompt = rawSystemPrompt
+            .replace(/\{\{lead_name\}\}/g, contactName || 'Customer')
+            .replace(/\{\{phone_number\}\}/g, phone_number || '')
+            .replace(/\{\{assigned_employee\}\}/g, assignedEmployeeName || 'Unassigned')
+            .replace(/\{\{assigned_employee_name\}\}/g, assignedEmployeeName || 'Unassigned')
+            .replace(/\{\{assigned_employee_phone\}\}/g, assignedEmployeePhone || 'N/A')
+            .replace(/\{\{stage\}\}/g, 'COLD')
+            .replace(/\{\{knowledge_base\}\}/g, kbMarkdown || '')
 
           // Enriched Hybrid Payload
           const enrichedPayload = {
@@ -363,11 +375,16 @@ export async function POST(req: NextRequest) {
             lead: {
               phone_number,
               name: contactName,
-              assigned_to: assignedTo
+              assigned_to: assignedTo,
+              assigned_employee_name: assignedEmployeeName,
+              assigned_employee_phone: assignedEmployeePhone
             },
             bot_brain: {
               engine_mode: 'hybrid_n8n',
-              system_prompt: systemPrompt,
+              system_prompt: processedSystemPrompt,
+              raw_system_prompt: rawSystemPrompt,
+              assigned_employee_name: assignedEmployeeName,
+              assigned_employee_phone: assignedEmployeePhone,
               gemini_api_key: geminiApiKey,
               openai_api_key: openaiApiKey,
               knowledge_base_markdown: kbMarkdown,
