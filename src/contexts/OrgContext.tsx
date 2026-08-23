@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { User } from '@supabase/supabase-js'
 
+import SubscriptionGuardModal from '@/components/SubscriptionGuardModal'
+
 interface UserProfile {
   id: string
   org_id: string
@@ -18,6 +20,7 @@ interface Organization {
   slug: string
   logo_url?: string
   plan: string
+  subscription_status?: string
   has_voice_ai?: boolean
   has_orders_crm?: boolean
   has_comments_crm?: boolean
@@ -120,6 +123,8 @@ export default function OrgProvider({ children }: { children: React.ReactNode })
   }
 
 
+  const isSubscriptionInactive = !loading && !!user && !!org && Boolean(org.subscription_status && ['inactive', 'expired', 'suspended'].includes(org.subscription_status.toLowerCase()))
+
   return (
     <OrgContext.Provider value={{
       user,
@@ -131,6 +136,13 @@ export default function OrgProvider({ children }: { children: React.ReactNode })
       signIn,
       signOut,
     }}>
+      {isSubscriptionInactive && (
+        <SubscriptionGuardModal
+          orgName={org?.name}
+          orgPlan={org?.plan}
+          onSignOut={signOut}
+        />
+      )}
       {children}
     </OrgContext.Provider>
   )
