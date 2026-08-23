@@ -51,11 +51,10 @@ export async function POST(req: NextRequest) {
 
     let orgId: string | null = null
     if (orgSlug) {
-      const { data: org } = await supabaseAdmin
-        .from('organizations')
-        .select('id')
-        .or(`slug.eq.${orgSlug},id.eq.${orgSlug}`)
-        .maybeSingle()
+      const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(orgSlug)
+      const { data: org } = await (isUuid
+        ? supabaseAdmin.from('organizations').select('id').eq('id', orgSlug).maybeSingle()
+        : supabaseAdmin.from('organizations').select('id').eq('slug', orgSlug).maybeSingle())
       orgId = org?.id || null
     }
 
