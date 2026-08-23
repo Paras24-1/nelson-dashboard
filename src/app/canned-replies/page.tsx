@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import CannedRepliesModal, { CannedReplyItem } from '@/components/chat/CannedRepliesModal'
 import { Plus, Search, MessageSquare, Trash2, Edit3, Image as ImageIcon, MapPin, Type, FileText, Loader2, Sparkles } from 'lucide-react'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function CannedRepliesPage() {
   const [replies, setReplies] = useState<CannedReplyItem[]>([])
@@ -12,6 +13,11 @@ export default function CannedRepliesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<CannedReplyItem | null>(null)
 
+  const getToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || ''
+  }
+
   useEffect(() => {
     fetchCannedReplies()
   }, [])
@@ -19,7 +25,10 @@ export default function CannedRepliesPage() {
   const fetchCannedReplies = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/canned-replies')
+      const token = await getToken()
+      const res = await fetch('/api/canned-replies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (res.ok) {
         const data = await res.json()
         setReplies(data)
@@ -33,9 +42,13 @@ export default function CannedRepliesPage() {
 
   const handleSaveReply = async (item: CannedReplyItem) => {
     const method = item.id ? 'PUT' : 'POST'
+    const token = await getToken()
     const res = await fetch('/api/canned-replies', {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify(item)
     })
 
@@ -51,7 +64,11 @@ export default function CannedRepliesPage() {
     if (!confirm('Are you sure you want to delete this canned reply?')) return
 
     try {
-      const res = await fetch(`/api/canned-replies?id=${id}`, { method: 'DELETE' })
+      const token = await getToken()
+      const res = await fetch(`/api/canned-replies?id=${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (!res.ok) throw new Error('Failed to delete')
       setReplies((prev) => prev.filter((r) => r.id !== id))
     } catch (err: any) {

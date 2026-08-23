@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
+import { supabase } from '@/lib/supabaseClient'
 import { 
   Brain, Cpu, Database, RefreshCw, Save, Sparkles, Check, AlertCircle, 
   ExternalLink, FileSpreadsheet, Key, Send, Bot, User, Loader2, Code2, Layers, Table
@@ -33,6 +34,11 @@ export default function BotBrainPage() {
   ])
   const [testingAi, setTestingAi] = useState(false)
 
+  const getToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || ''
+  }
+
   useEffect(() => {
     fetchSettings()
   }, [])
@@ -40,7 +46,10 @@ export default function BotBrainPage() {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/bot-brain')
+      const token = await getToken()
+      const res = await fetch('/api/bot-brain', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (res.ok) {
         const data = await res.json()
         setEngineMode(data.engine_mode || 'native')
@@ -68,9 +77,13 @@ export default function BotBrainPage() {
     }
     setSyncing(true)
     try {
+      const token = await getToken()
       const res = await fetch('/api/bot-brain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           action: 'sync_sheet',
           sheet_id: googleSheetId,
@@ -94,9 +107,13 @@ export default function BotBrainPage() {
   const handleSaveSettings = async () => {
     setSaving(true)
     try {
+      const token = await getToken()
       const res = await fetch('/api/bot-brain', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           engine_mode: engineMode,
           ai_provider: aiProvider,

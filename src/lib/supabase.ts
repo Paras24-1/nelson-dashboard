@@ -19,26 +19,6 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 // Helper: get current user's org_id from session
 export async function getOrgId(req: Request): Promise<string | null> {
   try {
-    const cookieHeader = req.headers.get('cookie') || ''
-    const cookieStore = {
-      get: (name: string) => {
-        const match = cookieHeader.match(new RegExp(`${name}=([^;]+)`))
-        return match ? { value: decodeURIComponent(match[1]) } : undefined
-      }
-    }
-
-    const client = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          cookie: cookieHeader
-        }
-      }
-    })
-
     const authHeader = req.headers.get('authorization')
     let userId: string | null = null
 
@@ -51,10 +31,33 @@ export async function getOrgId(req: Request): Promise<string | null> {
     if (!userId) {
       // Try from cookie session
       const cookieStr = req.headers.get('cookie') || ''
-      // Get the specific project ID from supabaseUrl
       const projectId = supabaseUrl.replace('https://', '').split('.')[0]
-      const tokenMatch = cookieStr.match(new RegExp(`sb-${projectId}-auth-token=([^;]+)`))
-      if (tokenMatch) {
+      
+      // Check standard cookie
+      let tokenMatch = cookieStr.match(new RegExp(`sb-${projectId}-auth-token=([^;]+)`))
+      
+      // If chunked cookie exists (sb-xxx-auth-token.0, sb-xxx-auth-token.1)
+      if (!tokenMatch) {
+        const chunks: string[] = []
+        let idx = 0
+        while (true) {
+          const chunkMatch = cookieStr.match(new RegExp(`sb-${projectId}-auth-token\\.${idx}=([^;]+)`))
+          if (!chunkMatch) break
+          chunks.push(decodeURIComponent(chunkMatch[1]))
+          idx++
+        }
+        if (chunks.length > 0) {
+          try {
+            const combined = chunks.join('')
+            const parsed = JSON.parse(combined)
+            const accessToken = parsed.access_token || parsed[0]?.access_token
+            if (accessToken) {
+              const { data } = await supabaseAdmin.auth.getUser(accessToken)
+              userId = data.user?.id || null
+            }
+          } catch {}
+        }
+      } else {
         const token = decodeURIComponent(tokenMatch[1])
         try {
           const parsed = JSON.parse(token)
