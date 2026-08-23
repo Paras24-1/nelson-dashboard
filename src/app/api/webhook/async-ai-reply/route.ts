@@ -52,12 +52,12 @@ export async function POST(req: NextRequest) {
     if (lead?.assigned_to) {
       const { data: emp } = await supabaseAdmin
         .from('users')
-        .select('name, email, phone_number')
+        .select('name, email, avatar')
         .eq('id', lead.assigned_to)
         .maybeSingle()
       if (emp) {
         assignedEmployeeName = emp.name || emp.email
-        assignedEmployeePhone = emp.phone_number || ''
+        assignedEmployeePhone = (emp as any).phone_number || (emp.avatar && emp.avatar.startsWith('phone:') ? emp.avatar.replace('phone:', '') : '')
       }
     } else if (conversation_id) {
       const { data: conv } = await supabaseAdmin
@@ -68,12 +68,12 @@ export async function POST(req: NextRequest) {
       if (conv?.assigned_to) {
         const { data: emp } = await supabaseAdmin
           .from('users')
-          .select('name, email, phone_number')
+          .select('name, email, avatar')
           .eq('id', conv.assigned_to)
           .maybeSingle()
         if (emp) {
           assignedEmployeeName = emp.name || emp.email
-          assignedEmployeePhone = emp.phone_number || ''
+          assignedEmployeePhone = (emp as any).phone_number || (emp.avatar && emp.avatar.startsWith('phone:') ? emp.avatar.replace('phone:', '') : '')
         }
       }
     }

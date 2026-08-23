@@ -13,7 +13,13 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return NextResponse.json(data || [])
+
+    const formattedData = (data || []).map(u => ({
+      ...u,
+      phone_number: u.phone_number || (u.avatar && u.avatar.startsWith('phone:') ? u.avatar.replace('phone:', '') : '')
+    }))
+
+    return NextResponse.json(formattedData)
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
@@ -57,14 +63,22 @@ export async function POST(req: NextRequest) {
     if (authError) throw authError
 
     // Insert into users table with org_id and optional phone_number
-    const insertPayload: any = { id: authData.user.id, org_id: orgId, email, name, role }
+    const insertPayload: any = { 
+      id: authData.user.id, 
+      org_id: orgId, 
+      email, 
+      name, 
+      role,
+      avatar: phone_number ? `phone:${phone_number}` : null
+    }
     if (phone_number) insertPayload.phone_number = phone_number
 
     const { error: profileError } = await supabaseAdmin
       .from('users')
       .insert(insertPayload)
+      
     if (profileError) {
-      // If phone_number column doesn't exist yet, retry without phone_number
+      // If phone_number column doesn't exist in DB schema, fallback to storing in avatar column
       if (profileError.code === 'PGRST204') {
         delete insertPayload.phone_number
         await supabaseAdmin.from('users').insert(insertPayload)
@@ -132,13 +146,23 @@ export async function PATCH(req: NextRequest) {
 
     const updatePayload: any = {}
     if (typeof is_active === 'boolean') updatePayload.is_active = is_active
-    if (phone_number !== undefined) updatePayload.phone_number = phone_number || null
+    if (phone_number !== undefined) {
+      updatePayload.phone_number = phone_number || null
+      updatePayload.avatar = phone_number ? `phone:${phone_number}` : null
+    }
 
     const { error } = await supabaseAdmin
       .from('users')
       .update(updatePayload)
       .eq('id', userId)
-    if (error && error.code !== 'PGRST204') throw error
+
+    if (error && error.code === 'PGRST204') {
+      // If phone_number column missing, update avatar column
+      delete updatePayload.phone_number
+      await supabaseAdmin.from('users').update(updatePayload).eq('id', userId)
+    } else if (error) {
+      throw error
+    }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
