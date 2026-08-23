@@ -134,7 +134,23 @@ Respond in JSON format with exactly these keys:
   "extractedTimeline": "less than 30 days"
 }`
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${tenantAiKey}`, {
+    // Parse active AI model name from settings
+    let selectedModel = 'gemini-2.5-flash'
+    try {
+      if (customPromptBase && customPromptBase.startsWith('{')) {
+        const parsed = JSON.parse(customPromptBase)
+        if (parsed.ai_model_name) selectedModel = parsed.ai_model_name
+      }
+    } catch (e) {}
+
+    // Auto-migrate deprecated models to working gemini-2.5-flash
+    if (selectedModel === 'gemini-1.5-flash' || selectedModel === 'gemini-flash-lite-latest') {
+      selectedModel = 'gemini-2.5-flash'
+    }
+
+    console.log(`[async-ai-reply] Calling Gemini model "${selectedModel}"...`)
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${tenantAiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

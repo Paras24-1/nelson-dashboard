@@ -11,7 +11,7 @@ import {
 export default function BotBrainPage() {
   const [engineMode, setEngineMode] = useState<'native' | 'hybrid_n8n'>('native')
   const [aiProvider, setAiProvider] = useState('gemini')
-  const [aiModelName, setAiModelName] = useState('gemini-1.5-flash')
+  const [aiModelName, setAiModelName] = useState('gemini-2.5-flash')
   const [systemPrompt, setSystemPrompt] = useState(
     'You are a helpful and polite WhatsApp AI sales consultant for Kataria Herbal Remedies.\n\nUse the Knowledge Base price list below to answer user queries accurately. Keep answers concise.'
   )
@@ -54,7 +54,8 @@ export default function BotBrainPage() {
         const data = await res.json()
         setEngineMode(data.engine_mode || 'native')
         setAiProvider(data.ai_provider || 'gemini')
-        setAiModelName(data.ai_model_name || 'gemini-1.5-flash')
+        const model = data.ai_model_name === 'gemini-1.5-flash' ? 'gemini-2.5-flash' : (data.ai_model_name || 'gemini-2.5-flash')
+        setAiModelName(model)
         if (data.system_prompt) setSystemPrompt(data.system_prompt)
         setGoogleSheetId(data.google_sheet_id || '')
         setGoogleSheetName(data.google_sheet_name || 'Sheet1')
@@ -347,7 +348,11 @@ export default function BotBrainPage() {
                         onChange={(e) => setAiModelName(e.target.value)}
                         className="px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg text-xs text-emerald-400 font-semibold focus:outline-none"
                       >
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Latest)</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (High Intelligence)</option>
+                        <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
                         <option value="gpt-4o-mini">OpenAI GPT-4o-mini</option>
                       </select>
                     </div>

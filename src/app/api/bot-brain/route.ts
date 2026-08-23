@@ -101,10 +101,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const currentModel = parsedPromptObj.ai_model_name === 'gemini-1.5-flash' ? 'gemini-2.5-flash' : (parsedPromptObj.ai_model_name || 'gemini-2.5-flash')
+
     return NextResponse.json({
       engine_mode: parsedPromptObj.engine_mode || (settings?.n8n_inbound_webhook_url ? 'hybrid_n8n' : 'native'),
       ai_provider: parsedPromptObj.ai_provider || 'gemini',
-      ai_model_name: parsedPromptObj.ai_model_name || 'gemini-1.5-flash',
+      ai_model_name: currentModel,
       system_prompt: parsedPromptObj.system_prompt || settings?.ai_system_prompt || 'You are an intelligent WhatsApp AI assistant.',
       google_sheet_id: settings?.ai_knowledge_base_sheet_id || settings?.google_sheet_id || '',
       google_sheet_name: settings?.ai_knowledge_base_range || settings?.google_sheet_name || 'Sheet1',
@@ -199,7 +201,7 @@ export async function POST(req: NextRequest) {
 
     promptObj.engine_mode = engine_mode || 'native'
     promptObj.ai_provider = ai_provider || 'gemini'
-    promptObj.ai_model_name = ai_model_name || 'gemini-1.5-flash'
+    promptObj.ai_model_name = ai_model_name === 'gemini-1.5-flash' ? 'gemini-2.5-flash' : (ai_model_name || 'gemini-2.5-flash')
     promptObj.system_prompt = system_prompt || ''
     if (cached_kb) promptObj.cached_kb = cached_kb
 
