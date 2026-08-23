@@ -394,18 +394,15 @@ export async function POST(req: NextRequest) {
     if (direction === 'incoming') {
       try {
         const { error: stopDripError } = await supabaseAdmin
-          .from('workflow_instances')
+          .from('scheduled_drips')
           .update({ status: 'paused', updated_at: new Date().toISOString() })
           .eq('phone_number', phone_number)
-          .eq('org_id', orgId)
           .eq('status', 'pending')
 
-        if (stopDripError) {
-          console.error('[webhook] Failed to stop drip:', stopDripError)
-        } else {
-          console.log(`[webhook] STOP DRIP executed for ${phone_number}`)
+        if (stopDripError && stopDripError.code !== 'PGRST205') {
+          console.warn('[webhook] Failed to stop drip:', stopDripError.message)
         }
-        
+
         // Trigger Async Native WhatsApp AI Chatbot
         // ONLY if n8n is NOT handling this org's inbound messages (to prevent duplicate replies)
         if (!isHybridN8n) {
@@ -424,7 +421,6 @@ export async function POST(req: NextRequest) {
         } else {
           console.log(`[webhook] Skipping native AI reply — n8n is handling inbound for org ${orgId}`)
         }
-
       } catch (e) {
         console.error('[webhook] State machine interceptor error:', e)
       }

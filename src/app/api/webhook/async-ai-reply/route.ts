@@ -49,13 +49,15 @@ export async function POST(req: NextRequest) {
     // INTERCEPT & STOP AUTOMATED DRIPS
     // If the user replied, they are engaged! We must immediately cancel any pending automated outbound drip messages.
     if (lead) {
-      await supabaseAdmin.from('scheduled_drips')
-        .update({ status: 'cancelled' })
-        .eq('lead_id', lead.id)
-        .eq('status', 'pending')
-        .then(({ error }) => {
-           if (error) console.error('[async-ai-reply] Failed to cancel drips:', error)
-        })
+      try {
+        await supabaseAdmin.from('scheduled_drips')
+          .update({ status: 'cancelled' })
+          .eq('lead_id', lead.id)
+          .eq('status', 'pending')
+          .then(({ error }) => {
+             if (error && error.code !== 'PGRST205') console.error('[async-ai-reply] Failed to cancel drips:', error)
+          })
+      } catch (e) {}
     }
     
     // 2. Fetch last 5 messages for context
@@ -140,7 +142,7 @@ Respond in JSON format with exactly these keys:
 }`
 
     // Parse active AI model name from settings
-    let selectedModel = 'gemini-2.5-flash'
+    let selectedModel = 'gemini-2.0-flash'
     try {
       if (customPromptBase && customPromptBase.startsWith('{')) {
         const parsed = JSON.parse(customPromptBase)
@@ -148,9 +150,14 @@ Respond in JSON format with exactly these keys:
       }
     } catch (e) {}
 
-    // Auto-migrate deprecated models to working gemini-2.5-flash
-    if (selectedModel === 'gemini-1.5-flash' || selectedModel === 'gemini-flash-lite-latest') {
-      selectedModel = 'gemini-2.5-flash'
+    // Auto-migrate invalid/deprecated models to working gemini-2.0-flash
+    if (
+      selectedModel === 'gemini-2.5-flash' || 
+      selectedModel === 'gemini-1.5-flash' || 
+      selectedModel === 'gemini-flash-lite-latest' ||
+      !selectedModel.startsWith('gemini-')
+    ) {
+      selectedModel = 'gemini-2.0-flash'
     }
 
     console.log(`[async-ai-reply] Calling Gemini model "${selectedModel}"...`)

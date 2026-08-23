@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
 
     promptObj.engine_mode = engine_mode || 'native'
     promptObj.ai_provider = ai_provider || 'gemini'
-    promptObj.ai_model_name = ai_model_name === 'gemini-1.5-flash' ? 'gemini-2.5-flash' : (ai_model_name || 'gemini-2.5-flash')
+    promptObj.ai_model_name = (ai_model_name === 'gemini-1.5-flash' || ai_model_name === 'gemini-2.5-flash') ? 'gemini-2.0-flash' : (ai_model_name || 'gemini-2.0-flash')
     promptObj.system_prompt = system_prompt || ''
     if (cached_kb) promptObj.cached_kb = cached_kb
 

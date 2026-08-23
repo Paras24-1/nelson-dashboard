@@ -11,7 +11,7 @@ import {
 export default function BotBrainPage() {
   const [engineMode, setEngineMode] = useState<'native' | 'hybrid_n8n'>('native')
   const [aiProvider, setAiProvider] = useState('gemini')
-  const [aiModelName, setAiModelName] = useState('gemini-2.5-flash')
+  const [aiModelName, setAiModelName] = useState('gemini-2.0-flash')
   const [systemPrompt, setSystemPrompt] = useState(
     'You are a helpful and polite WhatsApp AI sales consultant for Kataria Herbal Remedies.\n\nUse the Knowledge Base price list below to answer user queries accurately. Keep answers concise.'
   )
