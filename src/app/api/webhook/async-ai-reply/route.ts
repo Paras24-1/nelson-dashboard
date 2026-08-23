@@ -41,10 +41,39 @@ export async function POST(req: NextRequest) {
     // 1. Fetch Lead context & metadata
     const { data: lead } = await supabaseAdmin
       .from('leads')
-      .select('id, metadata, lead_score, lead_temperature, industry, name')
+      .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to')
       .eq('phone_number', phone_number)
       .eq('org_id', orgId)
       .maybeSingle()
+
+    // Fetch assigned employee name if assigned
+    let assignedEmployeeName = 'Unassigned'
+    if (lead?.assigned_to) {
+      const { data: emp } = await supabaseAdmin
+        .from('users')
+        .select('name, email')
+        .eq('id', lead.assigned_to)
+        .maybeSingle()
+      if (emp) {
+        assignedEmployeeName = emp.name || emp.email
+      }
+    } else if (conversation_id) {
+      const { data: conv } = await supabaseAdmin
+        .from('conversations')
+        .select('assigned_to')
+        .eq('id', conversation_id)
+        .maybeSingle()
+      if (conv?.assigned_to) {
+        const { data: emp } = await supabaseAdmin
+          .from('users')
+          .select('name, email')
+          .eq('id', conv.assigned_to)
+          .maybeSingle()
+        if (emp) {
+          assignedEmployeeName = emp.name || emp.email
+        }
+      }
+    }
 
     // INTERCEPT & STOP AUTOMATED DRIPS
     // If the user replied, they are engaged! We must immediately cancel any pending automated outbound drip messages.
@@ -78,7 +107,21 @@ export async function POST(req: NextRequest) {
     const currentScore = lead?.lead_score || 0
 
     // 3. Call Gemini for Reply & Scoring
-    const customPromptBase = orgSettings?.ai_system_prompt || 'You are a WhatsApp AI consultant for iWebMagics.'
+    let rawPromptBase = orgSettings?.ai_system_prompt || 'You are a WhatsApp AI consultant for iWebMagics.'
+    if (rawPromptBase.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(rawPromptBase)
+        if (parsed.system_prompt) rawPromptBase = parsed.system_prompt
+      } catch (e) {}
+    }
+
+    // Replace system prompt template variables
+    const customPromptBase = rawPromptBase
+      .replace(/\{\{lead_name\}\}/g, lead?.name || 'Customer')
+      .replace(/\{\{phone_number\}\}/g, phone_number)
+      .replace(/\{\{assigned_employee\}\}/g, assignedEmployeeName)
+      .replace(/\{\{assigned_employee_name\}\}/g, assignedEmployeeName)
+      .replace(/\{\{stage\}\}/g, lead?.lead_temperature || 'COLD')
     
     // Optional Knowledge Base from Google Sheets
     let knowledgeBaseContext = ''
@@ -112,6 +155,8 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `${customPromptBase}${knowledgeBaseContext}
 Context:
 Customer Name: ${lead?.name || 'Unknown'}
+Phone Number: ${phone_number}
+Assigned Employee: ${assignedEmployeeName}
 Industry: ${industry}
 Website Status: ${websiteStatus}
 Voice AI Summary: ${metadata.voice_summary || 'N/A'}
