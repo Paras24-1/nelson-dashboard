@@ -14,14 +14,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // Fetch tenant AI Settings
     const { data: orgSettings } = await supabaseAdmin
       .from('organization_settings')
       .select('gemini_api_key, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range, google_sheets_api_key')
       .eq('org_id', orgId)
       .maybeSingle()
+    let tenantAiKey = orgSettings?.gemini_api_key
+    if (!tenantAiKey && orgSettings?.ai_system_prompt?.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(orgSettings.ai_system_prompt)
+        if (parsed.gemini_api_key) tenantAiKey = parsed.gemini_api_key
+      } catch (e) {}
+    }
+    if (!tenantAiKey) tenantAiKey = process.env.GEMINI_API_KEY
 
-    const tenantAiKey = orgSettings?.gemini_api_key || process.env.GEMINI_API_KEY
     if (!tenantAiKey) {
       console.warn('[async-ai-reply] No GEMINI_API_KEY provided. Skipping AI reply.')
       return NextResponse.json({ error: 'No GEMINI_API_KEY' }, { status: 500 })

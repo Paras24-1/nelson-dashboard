@@ -314,7 +314,7 @@ export async function POST(req: NextRequest) {
       try {
         const { data: orgSettings } = await supabaseAdmin
           .from('organization_settings')
-          .select('n8n_inbound_webhook_url, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range')
+          .select('n8n_inbound_webhook_url, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range, gemini_api_key, openai_api_key')
           .eq('org_id', orgId)
           .maybeSingle()
 
@@ -338,12 +338,16 @@ export async function POST(req: NextRequest) {
           const kbMarkdown = parsedPromptObj.cached_kb?.markdown || ''
           const kbJson = parsedPromptObj.cached_kb?.json || []
           const systemPrompt = parsedPromptObj.system_prompt || 'You are a helpful AI assistant.'
+          const geminiApiKey = orgSettings.gemini_api_key || process.env.GEMINI_API_KEY || ''
+          const openaiApiKey = orgSettings.openai_api_key || process.env.OPENAI_API_KEY || ''
 
           // Enriched Hybrid Payload
           const enrichedPayload = {
             ...body,
             org_id: orgId,
             conversation_id: conversation?.id,
+            gemini_api_key: geminiApiKey,
+            openai_api_key: openaiApiKey,
             lead: {
               phone_number,
               name: contactName,
@@ -352,6 +356,8 @@ export async function POST(req: NextRequest) {
             bot_brain: {
               engine_mode: 'hybrid_n8n',
               system_prompt: systemPrompt,
+              gemini_api_key: geminiApiKey,
+              openai_api_key: openaiApiKey,
               knowledge_base_markdown: kbMarkdown,
               knowledge_base_json: kbJson,
               google_sheet_id: orgSettings.ai_knowledge_base_sheet_id || '',
