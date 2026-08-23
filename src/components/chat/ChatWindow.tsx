@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, Fragment } from 'react'
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react'
 import { Conversation } from '@/types'
 import { useMessages, useSendMessage } from '@/hooks'
 import { supabase } from '@/lib/supabaseClient'
@@ -83,14 +83,25 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
   const [selectedCannedIdx, setSelectedCannedIdx] = useState(0)
 
   // Fetch Canned Replies for Org
-  useEffect(() => {
-    fetch('/api/canned-replies')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setCannedReplies(data)
+  const fetchCannedReplies = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+      const res = await fetch('/api/canned-replies', {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
-      .catch((err) => console.error('Fetch canned replies error:', err))
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) setCannedReplies(data)
+      }
+    } catch (err) {
+      console.error('Fetch canned replies error:', err)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchCannedReplies()
+  }, [fetchCannedReplies, conversation?.id])
   
   // Audio Recording State
   const [isRecording, setIsRecording] = useState(false)
@@ -420,6 +431,9 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
     setInput(val)
 
     if (val.startsWith('/') || val.includes(' /')) {
+      if (cannedReplies.length === 0) {
+        fetchCannedReplies()
+      }
       const slashIndex = val.lastIndexOf('/')
       const searchPart = val.substring(slashIndex + 1).toLowerCase()
       setCannedSearch(searchPart)
