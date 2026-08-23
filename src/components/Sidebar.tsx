@@ -9,7 +9,7 @@ import AdminPanel from '@/components/admin/AdminPanel'
 import SettingsPanel from '@/components/admin/SettingsPanel'
 import { 
   Menu, X, BarChart2, MessageSquare, Calendar, Users, 
-  Send, Sun, Moon, Settings, LogOut, Package, PhoneCall, ShoppingBag, Mail, Shield, MessageCircle, Globe, GitBranch
+  Send, Sun, Moon, Settings, LogOut, Package, PhoneCall, ShoppingBag, Mail, Shield, MessageCircle, Globe, GitBranch, Brain
 } from 'lucide-react'
 
 export default function Sidebar() {
@@ -63,6 +63,12 @@ export default function Sidebar() {
       name: 'Canned Replies',
       href: '/canned-replies',
       icon: MessageCircle,
+      visible: true
+    },
+    {
+      name: 'Bot Brain',
+      href: '/bot-brain',
+      icon: Brain,
       visible: true
     },
     {

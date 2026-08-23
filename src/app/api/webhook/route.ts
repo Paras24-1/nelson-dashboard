@@ -308,25 +308,62 @@ export async function POST(req: NextRequest) {
       assignedEmployeePhone = empData?.phone || null
     }
 
-    // 7. [FORWARDING] Check if the tenant has a custom n8n webhook configured
-    // We do this BEFORE any slow AI fetch so n8n triggers instantly without delay
-    let hasN8nInbound = false
+    // 7. [BOT BRAIN & HYBRID ROUTING] Check tenant AI Engine mode and settings
+    let isHybridN8n = false
     if (direction === 'incoming') {
       try {
         const { data: orgSettings } = await supabaseAdmin
           .from('organization_settings')
-          .select('n8n_inbound_webhook_url')
+          .select('n8n_inbound_webhook_url, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range')
           .eq('org_id', orgId)
           .maybeSingle()
 
-        if (orgSettings?.n8n_inbound_webhook_url) {
-          hasN8nInbound = true
-          console.log(`[webhook] Forwarding payload to tenant n8n: ${orgSettings.n8n_inbound_webhook_url}`)
-          // Fire and forget, don't await so we don't block
+        let parsedPromptObj: any = {}
+        if (orgSettings?.ai_system_prompt) {
+          try {
+            if (orgSettings.ai_system_prompt.startsWith('{')) {
+              parsedPromptObj = JSON.parse(orgSettings.ai_system_prompt)
+            }
+          } catch (e) {
+            parsedPromptObj = { system_prompt: orgSettings.ai_system_prompt }
+          }
+        }
+
+        const engineMode = parsedPromptObj.engine_mode || (orgSettings?.n8n_inbound_webhook_url ? 'hybrid_n8n' : 'native')
+        isHybridN8n = engineMode === 'hybrid_n8n' && !!orgSettings?.n8n_inbound_webhook_url
+
+        if (isHybridN8n && orgSettings?.n8n_inbound_webhook_url) {
+          console.log(`[webhook] Forwarding Enriched Bot Brain Payload to tenant n8n: ${orgSettings.n8n_inbound_webhook_url}`)
+          
+          const kbMarkdown = parsedPromptObj.cached_kb?.markdown || ''
+          const kbJson = parsedPromptObj.cached_kb?.json || []
+          const systemPrompt = parsedPromptObj.system_prompt || 'You are a helpful AI assistant.'
+
+          // Enriched Hybrid Payload
+          const enrichedPayload = {
+            ...body,
+            org_id: orgId,
+            conversation_id: conversation?.id,
+            lead: {
+              phone_number,
+              name: contactName,
+              assigned_to: assignedTo
+            },
+            bot_brain: {
+              engine_mode: 'hybrid_n8n',
+              system_prompt: systemPrompt,
+              knowledge_base_markdown: kbMarkdown,
+              knowledge_base_json: kbJson,
+              google_sheet_id: orgSettings.ai_knowledge_base_sheet_id || '',
+              google_sheet_range: orgSettings.ai_knowledge_base_range || 'Sheet1'
+            }
+          }
+
+          // Fire and forget to n8n
           fetch(orgSettings.n8n_inbound_webhook_url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            body: JSON.stringify(enrichedPayload)
           }).catch(err => console.error(`[webhook] Failed to forward to n8n:`, err))
         }
       } catch (forwardErr) {
@@ -343,7 +380,7 @@ export async function POST(req: NextRequest) {
           .update({ status: 'paused', updated_at: new Date().toISOString() })
           .eq('phone_number', phone_number)
           .eq('org_id', orgId)
-          .eq('status', 'pending') // Only stop if it's waiting in a delay node
+          .eq('status', 'pending')
 
         if (stopDripError) {
           console.error('[webhook] Failed to stop drip:', stopDripError)
@@ -351,9 +388,10 @@ export async function POST(req: NextRequest) {
           console.log(`[webhook] STOP DRIP executed for ${phone_number}`)
         }
         
-        // Trigger Async Native WhatsApp AI Chatbot & Scoring Engine
+        // Trigger Async Native WhatsApp AI Chatbot
         // ONLY if n8n is NOT handling this org's inbound messages (to prevent duplicate replies)
-        if (!hasN8nInbound) {
+        if (!isHybridN8n) {
+          console.log(`[webhook] Executing Native Dashboard AI reply for org ${orgId}`)
           await fetch(`https://voxaiagents.com/api/webhook/async-ai-reply`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
