@@ -13,9 +13,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useOrg } from "@/contexts/OrgContext"
 
-const WHATSAPP_DEMO = "wa.me/918360599157?text=Hi!%20I%20want%20to%20test%20Vox%20AI."
+const WHATSAPP_DEMO = "wa.me/917015551637?text=Hi!%20I%20want%20to%20test%20Vox%20AI."
 const VOICE_DEMO = "tel:+918071583309"
-const CALENDLY = "https://wa.me/918360599157?text=Hello%20VoxAI%20Team!%20I%20would%20like%20to%20discuss%20custom%20pricing%20options%20for%20my%20business."
+const CALENDLY = "https://wa.me/917015551637?text=Hello%20VoxAI%20Team!%20I%20would%20like%20to%20discuss%20custom%20pricing%20options%20for%20my%20business."
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
