@@ -455,14 +455,23 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
         {data.Phone ? (
           <>
-            {/* Quick Actions (Call Button) */}
-            <div className="flex gap-2">
+            {/* Quick Actions (Call & WhatsApp Buttons) */}
+            <div className="flex flex-col gap-2">
               <a
                 href={`tel:${data.Phone}`}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-md transition-all hover:shadow"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
               >
                 <Phone className="w-3.5 h-3.5" />
                 Call Lead
+              </a>
+              <a
+                href={`https://wa.me/${(data.Phone || '').replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                WhatsApp Lead
               </a>
             </div>
 
