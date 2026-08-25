@@ -666,8 +666,10 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                           </a>
                         )}
 
-                        {msg.message && (
-                          <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                        {(msg.message || !msg.media_url) && (
+                          <p className="whitespace-pre-wrap break-words">
+                            {msg.message || '[Message]'}
+                          </p>
                         )}
                       </div>
 

@@ -108,9 +108,33 @@ export async function POST(req: NextRequest) {
         
         if (msg.type === 'text') {
           parsedMessage = msg.text?.body
-        } else if (msg.type === 'image' || msg.type === 'document' || msg.type === 'audio') {
+        } else if (msg.type === 'interactive') {
+          const interactive = msg.interactive
+          if (interactive?.type === 'button_reply') {
+            parsedMessage = interactive.button_reply?.title || interactive.button_reply?.id || '[Button Response]'
+          } else if (interactive?.type === 'list_reply') {
+            parsedMessage = interactive.list_reply?.title || interactive.list_reply?.description || '[List Selection]'
+          } else {
+            parsedMessage = '[Interactive Response]'
+          }
+        } else if (msg.type === 'button') {
+          parsedMessage = msg.button?.text || msg.button?.payload || '[Button Response]'
+        } else if (msg.type === 'location') {
+          const loc = msg.location
+          const locDetails = loc?.name || loc?.address || (loc?.latitude && loc?.longitude ? `${loc.latitude}, ${loc.longitude}` : '')
+          parsedMessage = locDetails ? `[Location: ${locDetails}]` : '[Location Shared]'
+        } else if (msg.type === 'contacts') {
+          const cName = msg.contacts?.[0]?.name?.formatted_name
+          const cPhone = msg.contacts?.[0]?.phones?.[0]?.phone
+          parsedMessage = `[Contact: ${cName || cPhone || 'Shared Contact'}]`
+        } else if (msg.type === 'reaction') {
+          parsedMessage = `[Reaction: ${msg.reaction?.emoji || '👍'}]`
+        } else if (msg.type === 'sticker') {
+          parsedMediaType = 'sticker'
+          parsedMessage = '[Sticker]'
+        } else if (msg.type === 'image' || msg.type === 'document' || msg.type === 'audio' || msg.type === 'video') {
           parsedMediaType = msg.type
-          parsedMessage = `[Received ${msg.type}]`
+          parsedMessage = msg.type === 'document' && msg.document?.filename ? `[Document: ${msg.document.filename}]` : `[Received ${msg.type}]`
 
           if (orgSettings?.whatsapp_token) {
             const mediaId = msg[msg.type]?.id
@@ -130,7 +154,7 @@ export async function POST(req: NextRequest) {
                   const buffer = await mediaRes.arrayBuffer()
                   
                   // 3. Upload to Supabase
-                  const ext = msg.type === 'audio' ? 'ogg' : msg.type === 'image' ? 'jpg' : 'pdf'
+                  const ext = msg.type === 'audio' ? 'ogg' : msg.type === 'image' ? 'jpg' : msg.type === 'video' ? 'mp4' : 'pdf'
                   const fileName = `${orgId}/${Date.now()}-${mediaId}.${ext}`
                   
                   const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
@@ -154,6 +178,8 @@ export async function POST(req: NextRequest) {
               }
             }
           }
+        } else {
+          parsedMessage = msg.text?.body || msg.button?.text || msg.interactive?.button_reply?.title || `[${msg.type || 'Message'}]`
         }
       } else if (change?.statuses && change.statuses.length > 0) {
         // Message delivery status update (sent, delivered, read)
@@ -201,7 +227,7 @@ export async function POST(req: NextRequest) {
 
     const contactName = parsedName || parsedPhone
     const timestamp   = new Date()
-    const msgText     = parsedMessage || (parsedMediaType ? `[${parsedMediaType}]` : '')
+    const msgText     = (parsedMessage && parsedMessage.trim()) ? parsedMessage : (parsedMediaType ? `[Received ${parsedMediaType}]` : '[Message]')
     
     // Remap for the rest of the function
     const phone_number = parsedPhone
