@@ -666,11 +666,28 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                           </a>
                         )}
 
-                        {(msg.message || !msg.media_url) && (
-                          <p className="whitespace-pre-wrap break-words">
-                            {msg.message || '[Message]'}
-                          </p>
-                        )}
+                        {(() => {
+                          const isPlaceholder = !msg.message || msg.message === '[Message]' || msg.message.trim() === ''
+                          const isMediaPlaceholder = ['[Received image]', '[Received audio]', '[Received document]', '[Received video]', '[Received sticker]', '[Sticker]'].includes(msg.message?.trim() || '')
+
+                          if (msg.media_url) {
+                            if (msg.message && !isMediaPlaceholder && !isPlaceholder) {
+                              return <p className="whitespace-pre-wrap break-words mt-1">{msg.message}</p>
+                            }
+                            return null
+                          }
+
+                          if (isPlaceholder) {
+                            return (
+                              <p className="whitespace-pre-wrap break-words italic text-xs opacity-90 flex items-center gap-1.5 py-0.5">
+                                <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                <span>{msg.direction === 'incoming' ? 'Incoming Message' : 'Outgoing Message'}</span>
+                              </p>
+                            )
+                          }
+
+                          return <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                        })()}
                       </div>
 
                       <div className={`flex items-center gap-1 text-[10px] text-gray-400 mt-1.5 px-1 font-semibold tracking-wide ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}>

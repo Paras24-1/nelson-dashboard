@@ -106,7 +106,15 @@ export async function POST(req: NextRequest) {
         parsedProviderPhoneId = change.metadata?.phone_number_id || null
         parsedName = change.contacts?.[0]?.profile?.name || msg.from
         
-        if (msg.type === 'text') {
+        if (msg.referral) {
+          const headline = msg.referral.headline || msg.referral.body || msg.referral.source_url
+          const referralText = headline ? `[Ad Referral: ${headline}]` : '[Ad Lead]'
+          if (msg.type === 'text' && msg.text?.body) {
+            parsedMessage = `${msg.text.body}\n${referralText}`
+          } else {
+            parsedMessage = referralText
+          }
+        } else if (msg.type === 'text') {
           parsedMessage = msg.text?.body
         } else if (msg.type === 'interactive') {
           const interactive = msg.interactive
