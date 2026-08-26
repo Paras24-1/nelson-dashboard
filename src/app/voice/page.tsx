@@ -38,7 +38,9 @@ import {
   TrendingUp,
   Target,
   Award,
-  Mic
+  Mic,
+  Download,
+  Calendar
 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -110,6 +112,10 @@ interface VoiceOverviewTabProps {
   percentUsed: number
   timeRange: string
   setTimeRange: (range: string) => void
+  startDate: string
+  setStartDate: (date: string) => void
+  endDate: string
+  setEndDate: (date: string) => void
   search: string
   setSearch: (search: string) => void
   filteredLogs: CallLog[]
@@ -119,6 +125,7 @@ interface VoiceOverviewTabProps {
   formatDuration: (seconds: number) => string
   getStatusBadge: (status: string) => React.ReactNode
   fetchDashboardData: () => Promise<void>
+  handleExportCSV: () => void
 }
 
 export default function VoicePage() {
@@ -281,6 +288,8 @@ function VoiceDashboardContent() {
   const [activeTab, setActiveTab] = useState('overview')
   const [showTestCallModal, setShowTestCallModal] = useState(false)
   const [timeRange, setTimeRange] = useState('7d')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [search, setSearch] = useState('')
   const [stats, setStats] = useState<Stats | null>(null)
   const [logs, setLogs] = useState<CallLog[]>([])
@@ -302,7 +311,7 @@ function VoiceDashboardContent() {
       setStats(statsData)
 
       // 2. Fetch Call Logs
-      const logsRes = await fetch('/api/voice/logs?limit=50', {
+      const logsRes = await fetch('/api/voice/logs?limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const logsData = await logsRes.json()
@@ -320,13 +329,71 @@ function VoiceDashboardContent() {
     fetchDashboardData()
   }, [fetchDashboardData])
 
-  const filteredLogs = logs.filter((l: CallLog) =>
-    (l.agents?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    l.id.toLowerCase().includes(search.toLowerCase()) ||
-    (l.transcript || '').toLowerCase().includes(search.toLowerCase()) ||
-    (l.from_phone_number || '').includes(search) ||
-    (l.to_phone_number || '').includes(search)
-  )
+  const filteredLogs = logs.filter((l: CallLog) => {
+    const matchesSearch =
+      (l.agents?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      l.id.toLowerCase().includes(search.toLowerCase()) ||
+      (l.transcript || '').toLowerCase().includes(search.toLowerCase()) ||
+      (l.from_phone_number || '').includes(search) ||
+      (l.to_phone_number || '').includes(search) ||
+      (l.status || '').toLowerCase().includes(search.toLowerCase())
+
+    const logTimestamp = l.created_at
+    if (!logTimestamp) return matchesSearch
+
+    const logDate = new Date(logTimestamp)
+
+    if (startDate) {
+      const start = new Date(startDate)
+      start.setHours(0, 0, 0, 0)
+      if (logDate < start) return false
+    }
+
+    if (endDate) {
+      const end = new Date(endDate)
+      end.setHours(23, 59, 59, 999)
+      if (logDate > end) return false
+    }
+
+    return matchesSearch
+  })
+
+  const handleExportCSV = () => {
+    if (filteredLogs.length === 0) return
+    const headers = ['Call ID', 'Status', 'Date Time', 'From Phone', 'To Phone', 'Agent Name', 'Duration', 'Cost (INR)', 'Transcript']
+    const csvRows = [
+      headers.join(','),
+      ...filteredLogs.map((l) => {
+        const logDate = new Date(l.created_at || '').toLocaleString()
+        const agentName = l.agents?.name || 'Voice Agent'
+        const status = l.status || 'ended'
+        const duration = formatDuration(l.duration_seconds || 0)
+        const cost = `₹${(l.cost || 0).toFixed(2)}`
+        const transcript = (l.transcript || '').replace(/"/g, '""').replace(/\n/g, ' ')
+
+        return [
+          `"${l.id}"`,
+          `"${status}"`,
+          `"${logDate}"`,
+          `"${l.from_phone_number || ''}"`,
+          `"${l.to_phone_number || ''}"`,
+          `"${agentName}"`,
+          `"${duration}"`,
+          `"${cost}"`,
+          `"${transcript}"`
+        ].join(',')
+      })
+    ]
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `voice_call_logs_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   const percentUsed = stats ? Math.min((stats.totalMinutes / stats.minutesLimit) * 100, 100) : 0
 
@@ -427,6 +494,10 @@ function VoiceDashboardContent() {
           percentUsed={percentUsed}
           timeRange={timeRange}
           setTimeRange={setTimeRange}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
           search={search}
           setSearch={setSearch}
           filteredLogs={filteredLogs}
@@ -436,6 +507,7 @@ function VoiceDashboardContent() {
           formatDuration={formatDuration}
           getStatusBadge={getStatusBadge}
           fetchDashboardData={fetchDashboardData}
+          handleExportCSV={handleExportCSV}
         />
       ) : activeTab === 'campaigns' ? (
         <VoiceCampaignsTab />
@@ -454,6 +526,10 @@ function VoiceDashboardContent() {
   percentUsed,
   timeRange,
   setTimeRange,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
   search,
   setSearch,
   filteredLogs,
@@ -462,7 +538,8 @@ function VoiceDashboardContent() {
   logs,
   formatDuration,
   getStatusBadge,
-  fetchDashboardData
+  fetchDashboardData,
+  handleExportCSV
 }: VoiceOverviewTabProps) {
   const { org } = useOrg()
 
@@ -577,36 +654,96 @@ function VoiceDashboardContent() {
 
       {/* Call History Table */}
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 select-none">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 select-none">
           <div>
-            <h2 className="text-sm font-extrabold text-gray-955 dark:text-white tracking-tight uppercase tracking-wide">Call History</h2>
+            <h2 className="text-sm font-extrabold text-gray-955 dark:text-white tracking-tight uppercase tracking-wide flex items-center gap-2">
+              <span>Call History</span>
+              {filteredLogs.length !== logs.length && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20 lowercase">
+                  ({filteredLogs.length} of {logs.length} calls)
+                </span>
+              )}
+            </h2>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Historical records for outbound & inbound dialogs</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Quick Presets */}
             <div className="flex rounded-xl bg-white dark:bg-gray-900 p-1 border border-gray-150 dark:border-gray-800 shadow-sm">
               {['24h', '7d', '30d'].map((r) => (
                 <button
                   key={r}
-                  onClick={() => setTimeRange(r)}
-                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${timeRange === r ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                  onClick={() => {
+                    setTimeRange(r)
+                    setStartDate('')
+                    setEndDate('')
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 ${timeRange === r && !startDate && !endDate ? 'bg-gray-50 dark:bg-gray-800 text-emerald-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                 >
                   {r}
                 </button>
               ))}
             </div>
+
+            {/* Custom Date Range Picker */}
+            <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-3 py-1.5 rounded-xl border border-gray-150 dark:border-gray-800 shadow-sm text-xs">
+              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent text-[11px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                title="Start Date"
+              />
+              <span className="text-gray-400 text-[10px] font-bold">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent text-[11px] font-bold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                title="End Date"
+              />
+              {(startDate || endDate) && (
+                <button
+                  onClick={() => {
+                    setStartDate('')
+                    setEndDate('')
+                  }}
+                  className="p-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-red-500 transition-colors ml-0.5"
+                  title="Clear Date Filter"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Export CSV Button */}
+            <button
+              onClick={handleExportCSV}
+              disabled={filteredLogs.length === 0}
+              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 uppercase tracking-wider cursor-pointer"
+              title="Export Call Logs to CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+
+            {/* Refresh Button */}
             <button
               onClick={fetchDashboardData}
               className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 hover:border-gray-250 dark:hover:border-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all flex items-center gap-2 text-xs font-bold shadow-sm"
+              title="Refresh Call Logs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden md:inline">Refresh</span>
             </button>
-            <div className="w-full sm:max-w-xs relative">
+
+            {/* Search Input */}
+            <div className="w-full sm:w-auto sm:min-w-[200px] relative">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by phone, status, transcript..."
+                placeholder="Search phone, status, transcript..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-850 dark:text-gray-250 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
