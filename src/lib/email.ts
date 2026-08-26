@@ -1,149 +1,145 @@
 import nodemailer from 'nodemailer'
 
-interface EmailPayload {
-  customerName: string
-  customerEmail: string
-  referenceNumber: string
-  status: string
-  items: string
-  totalAmount: number
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.SMTP_USER || 'voxai4278@gmail.com',
+    pass: process.env.SMTP_PASS || 'kuliulufzwdibrct'
+  }
+})
+
+interface SendBookingEmailOptions {
+  to: string
+  subject: string
+  recipientName: string
+  eventTitle: string
+  bookingDate: string
+  startTime: string
+  meetingLink: string
+  notes?: string
+  isAdmin?: boolean
+  leadPhone?: string
+  leadEmail?: string
 }
 
-import { STATUS_TITLES, STATUS_COLORS } from './order-constants'
+export async function sendBookingEmail(options: SendBookingEmailOptions) {
+  try {
+    const { to, subject, recipientName, eventTitle, bookingDate, startTime, meetingLink, notes, isAdmin, leadPhone, leadEmail } = options
 
-
-/**
- * Main notification dispatcher. Triggers both SMTP direct mail and n8n webhook if configured.
- */
-export async function sendOrderStatusNotification(
-  payload: EmailPayload,
-  n8nWebhookUrl?: string | null
-) {
-  const { customerName, customerEmail, referenceNumber, status, items, totalAmount } = payload
-  const friendlyStatus = STATUS_TITLES[status] || status
-  const statusColor = STATUS_COLORS[status] || '#10b981'
-
-  console.log(`[Notification Engine] Triggering alerts for Order: ${referenceNumber} (${friendlyStatus})`)
-
-  // 1. Trigger n8n webhook if linked
-  if (n8nWebhookUrl) {
-    try {
-      console.log(`[Notification Engine] Forwarding event to n8n Webhook: ${n8nWebhookUrl}`)
-      await fetch(n8nWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: 'order_status_updated',
-          referenceNumber,
-          customerName,
-          customerEmail,
-          status,
-          friendlyStatus,
-          items,
-          totalAmount,
-          timestamp: new Date().toISOString()
-        })
-      })
-    } catch (webhookErr) {
-      console.error('[Notification Engine] Failed to dispatch n8n webhook notification:', webhookErr)
-    }
-  }
-
-  // 2. Direct SMTP Email
-  const smtpHost = process.env.SMTP_HOST
-  const smtpPort = Number(process.env.SMTP_PORT) || 587
-  const smtpUser = process.env.SMTP_USER
-  const smtpPass = process.env.SMTP_PASSWORD
-  const smtpFrom = process.env.SMTP_FROM || '"Orders Team" <no-reply@voxaiagents.com>'
-
-  const subject = `Order Status Update: ${referenceNumber} - ${friendlyStatus}`
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f9fafb; margin: 0; padding: 20px; color: #1f2937; }
-        .card { max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px border #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-        .header { background: #111827; padding: 32px 24px; text-align: center; }
-        .logo { font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-        .content { padding: 32px 24px; }
-        .status-badge { display: inline-block; padding: 6px 16px; border-radius: 9999px; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #ffffff; margin-bottom: 20px; }
-        h2 { font-size: 20px; font-weight: 700; color: #111827; margin-top: 0; }
-        p { line-height: 1.6; font-size: 14px; color: #4b5563; }
-        .order-details { margin: 24px 0; padding: 20px; background: #f3f4f6; border-radius: 12px; }
-        .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
-        .detail-row:last-child { margin-bottom: 0; border-top: 1px solid #e5e7eb; padding-top: 8px; font-weight: 700; font-size: 14px; color: #111827; }
-        .footer { background: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="header">
-          <div class="logo">ORDER NOTIFICATION</div>
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0f172a; color: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b;">
+        <div style="background-color: #1e293b; padding: 24px; text-align: center; border-bottom: 1px solid #334155;">
+          <h2 style="margin: 0; color: #10b981; font-size: 20px; font-weight: 800;">🗓️ ${isAdmin ? 'New Booking Alert' : 'Booking Confirmed!'}</h2>
+          <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 13px;">VoxAI Appointment Scheduler</p>
         </div>
-        <div class="content">
-          <span class="status-badge" style="background-color: ${statusColor}">${friendlyStatus}</span>
-          <h2>Hello ${customerName},</h2>
-          <p>The status of your order <strong>${referenceNumber}</strong> has been updated to <strong>${friendlyStatus}</strong>.</p>
-          
-          <div class="order-details">
-            <div class="detail-row">
-              <span>Items Ordered:</span>
-              <strong>${items}</strong>
-            </div>
-            <div class="detail-row">
-              <span>Total Amount:</span>
-              <strong>₹${totalAmount.toFixed(2)}</strong>
-            </div>
+
+        <div style="padding: 28px;">
+          <p style="font-size: 14px; color: #cbd5e1; margin-top: 0;">Hello <strong>${recipientName}</strong>,</p>
+
+          <p style="font-size: 14px; color: #94a3b8; line-height: 1.5;">
+            ${isAdmin 
+              ? `A new meeting has been booked on your calendar:` 
+              : `Your appointment for <strong>${eventTitle}</strong> has been successfully confirmed.`}
+          </p>
+
+          <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #334155;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr>
+                <td style="padding: 8px 0; color: #94a3b8; width: 120px;">Meeting Title:</td>
+                <td style="padding: 8px 0; color: #ffffff; font-weight: bold;">${eventTitle}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #94a3b8;">Date:</td>
+                <td style="padding: 8px 0; color: #10b981; font-weight: bold;">${bookingDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #94a3b8;">Time Slot:</td>
+                <td style="padding: 8px 0; color: #10b981; font-weight: bold;">${startTime}</td>
+              </tr>
+              ${isAdmin ? `
+              <tr>
+                <td style="padding: 8px 0; color: #94a3b8;">Attendee Phone:</td>
+                <td style="padding: 8px 0; color: #ffffff; font-family: monospace;">${leadPhone || ''}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #94a3b8;">Attendee Email:</td>
+                <td style="padding: 8px 0; color: #ffffff;">${leadEmail || ''}</td>
+              </tr>
+              ` : ''}
+              ${notes ? `
+              <tr>
+                <td style="padding: 8px 0; color: #94a3b8;">Notes / Agenda:</td>
+                <td style="padding: 8px 0; color: #cbd5e1; font-style: italic;">${notes}</td>
+              </tr>
+              ` : ''}
+            </table>
           </div>
-          
-          <p>If you have any questions regarding your delivery status, please reply to this email or contact support.</p>
+
+          <div style="text-align: center; margin-top: 28px;">
+            <a href="${meetingLink.startsWith('http') ? meetingLink : 'https://' + meetingLink}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 28px; font-size: 13px; font-weight: bold; border-radius: 10px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+              📹 Join Google Meet / Call Link
+            </a>
+          </div>
         </div>
-        <div class="footer">
-          &copy; ${new Date().getFullYear()} VoxAI Dashboard. All rights reserved.
+
+        <div style="background-color: #020617; padding: 16px; text-align: center; border-top: 1px solid #1e293b; font-size: 11px; color: #64748b;">
+          VoxAI Automated Calendar Scheduler • Sent via voxai4278@gmail.com
         </div>
       </div>
-    </body>
-    </html>
-  `
+    `
 
-  if (smtpHost && smtpUser && smtpPass) {
-    try {
-      console.log(`[Notification Engine] Initializing SMTP connection to: ${smtpHost}:${smtpPort}`)
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465, // true for 465, false for other ports
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      })
+    const textContent = `Hello ${recipientName},\n\n` +
+      `${isAdmin ? 'New appointment booked:' : `Your meeting "${eventTitle}" is confirmed!`}\n\n` +
+      `Date: ${bookingDate}\n` +
+      `Time: ${startTime}\n` +
+      `Meeting Link: ${meetingLink}\n` +
+      (notes ? `Notes: ${notes}\n` : '') +
+      `\nThank you!`
 
-      const mailOptions = {
-        from: smtpFrom,
-        to: customerEmail,
-        subject,
-        html: htmlContent,
-      }
+    const info = await transporter.sendMail({
+      from: '"VoxAI Calendar" <voxai4278@gmail.com>',
+      to,
+      subject,
+      text: textContent,
+      html: htmlContent
+    })
 
-      const info = await transporter.sendMail(mailOptions)
-      console.log(`[Notification Engine] Email dispatched successfully! MessageID: ${info.messageId}`)
-      return { success: true, messageId: info.messageId }
-    } catch (smtpErr) {
-      console.error('[Notification Engine] SMTP transmission failed:', smtpErr)
-      return { success: false, error: String(smtpErr) }
-    }
-  } else {
-    // Fail-safe mock logging
-    console.log('\n--- ✉️ [MOCK EMAIL SENT] ---')
-    console.log(`To: ${customerEmail}`)
-    console.log(`Subject: ${subject}`)
-    console.log(`Status Color: ${statusColor}`)
-    console.log(`Content:\nHello ${customerName},\nYour order ${referenceNumber} status is now: ${friendlyStatus}.\nItems: ${items}\nTotal: ₹${totalAmount}\n--------------------------\n`)
-    console.log('[Notification Engine] SMTP credentials are not configured in .env.local. Email logged to server console.')
-    return { success: true, logged: true }
+    console.log(`[SMTP Email] Sent to ${to} (Message ID: ${info.messageId})`)
+    return { success: true, messageId: info.messageId }
+  } catch (err: any) {
+    console.error(`[SMTP Email Error] Failed to send email to ${options.to}:`, err)
+    return { success: false, error: err.message }
+  }
+}
+
+export async function sendOrderStatusNotification(order: any, newStatus: string) {
+  try {
+    if (!order?.customer_email) return
+    const info = await transporter.sendMail({
+      from: '"VoxAI Orders" <voxai4278@gmail.com>',
+      to: order.customer_email,
+      subject: `Order Update #${order.id || ''}: ${newStatus.toUpperCase()}`,
+      html: `<p>Your order status has been updated to: <strong>${newStatus}</strong></p>`
+    })
+    return { success: true, messageId: info.messageId }
+  } catch (err: any) {
+    console.error('[SMTP Email Error] Failed to send order status notification:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+export async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html?: string; text?: string }) {
+  try {
+    const info = await transporter.sendMail({
+      from: '"VoxAI System" <voxai4278@gmail.com>',
+      to,
+      subject,
+      text: text || '',
+      html: html || `<p>${text || ''}</p>`
+    })
+    return { success: true, messageId: info.messageId }
+  } catch (err: any) {
+    console.error('[SMTP Email Error] Failed to send generic email:', err)
+    return { success: false, error: err.message }
   }
 }

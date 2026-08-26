@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendBookingEmail } from '@/lib/email'
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -272,12 +273,42 @@ export async function POST(request: Request) {
 
       const adminEmails = adminUsers?.map(u => u.email).filter(Boolean) || []
 
-      // 2. Insert Lead Confirmation Email Record into emails table
+      // 2. Deliver Real Gmail SMTP Email to Lead
+      await sendBookingEmail({
+        to: attendee_email,
+        subject: `🗓️ Meeting Confirmed: ${eventTitle} on ${booking_date} at ${start_time}`,
+        recipientName: attendee_name,
+        eventTitle,
+        bookingDate: booking_date,
+        startTime: start_time,
+        meetingLink: meeting_link,
+        notes: notes || '',
+        isAdmin: false
+      })
+
+      // 3. Deliver Real Gmail SMTP Email to Admin(s)
+      for (const adminEmail of adminEmails) {
+        await sendBookingEmail({
+          to: adminEmail,
+          subject: `🔔 New Meeting Booked: ${attendee_name} (${booking_date} @ ${start_time})`,
+          recipientName: 'Admin',
+          eventTitle,
+          bookingDate: booking_date,
+          startTime: start_time,
+          meetingLink: meeting_link,
+          notes: notes || '',
+          isAdmin: true,
+          leadPhone: attendee_phone,
+          leadEmail: attendee_email
+        })
+      }
+
+      // Also log ticket in Supabase emails table
       try {
         await supabase.from('emails').insert({
           org_id,
           message_id: 'cal_lead_' + Date.now(),
-          from_email: 'notifications@voxaiagents.com',
+          from_email: 'voxai4278@gmail.com',
           from_name: 'VoxAI Booking System',
           to_email: attendee_email,
           subject: `🗓️ Meeting Confirmed: ${eventTitle} on ${booking_date} at ${start_time}`,
@@ -285,22 +316,6 @@ export async function POST(request: Request) {
           status: 'sent'
         })
       } catch (e) {}
-
-      // 3. Insert Admin Notification Email Record into emails table
-      for (const adminEmail of adminEmails) {
-        try {
-          await supabase.from('emails').insert({
-            org_id,
-            message_id: 'cal_admin_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-            from_email: 'notifications@voxaiagents.com',
-            from_name: 'VoxAI Booking Alert',
-            to_email: adminEmail,
-            subject: `🔔 New Meeting Booked: ${attendee_name} (${booking_date} @ ${start_time})`,
-            body_text: `A new appointment has been scheduled!\n\nAttendee: ${attendee_name}\nEmail: ${attendee_email}\nPhone: ${attendee_phone}\nMeeting Title: ${eventTitle}\nDate: ${booking_date}\nTime: ${start_time}\nJoin Link: ${meeting_link}\nNotes: ${notes || 'None'}`,
-            status: 'sent'
-          })
-        } catch (e) {}
-      }
 
       // 4. Send WhatsApp Notification to Lead if WhatsApp API configured
       const { data: orgSettings } = await supabase
