@@ -26,3 +26,44 @@
 
  ✓ Starting...
  ✓ Ready in 2.2s
+ ○ Compiling /api/webhook/voice ...
+ ✓ Compiled /api/webhook/voice in 949ms (98 modules)
+[webhook/voice] {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'updated_at' column of 'leads' in the schema cache"
+}
+ POST /api/webhook/voice 500 in 1407ms
+ ✓ Compiled in 248ms (98 modules)
+[webhook/voice] {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'updated_at' column of 'leads' in the schema cache"
+}
+ POST /api/webhook/voice 500 in 252ms
+ ✓ Compiled in 124ms (98 modules)
+[webhook/voice] {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'conversation_summary' column of 'leads' in the schema cache"
+}
+ POST /api/webhook/voice 500 in 361ms
+ ✓ Compiled in 148ms (98 modules)
+ POST /api/webhook/voice 200 in 1312ms
+ POST /api/webhook/voice 200 in 927ms
+ ✓ Compiled in 305ms
+ ✓ Compiled in 932ms (203 modules)
+ ✓ Compiled in 275ms (203 modules)
+ ✓ Compiled in 54ms (203 modules)
+ ✓ Compiled in 100ms (203 modules)
+ ✓ Compiled in 46ms (203 modules)
+ ✓ Compiled in 234ms (203 modules)
+ ✓ Compiled in 304ms (203 modules)
+ ✓ Compiled in 37ms (203 modules)
+ ✓ Compiled in 45ms (203 modules)
+ ✓ Compiled in 55ms (203 modules)
+ ✓ Compiled in 66ms (203 modules)
+ ✓ Compiled in 59ms (203 modules)

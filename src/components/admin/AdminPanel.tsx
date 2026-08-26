@@ -354,6 +354,40 @@ export default function AdminPanel({ onClose }: { onClose: () => void }) {
               ))
             )}
           </div>
+
+          {/* Tenant Feature Permissions Section */}
+          <div className="pt-4 border-t border-slate-800 space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tenant Feature Modules</h3>
+            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-xs">
+                  📅
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">Booking Calendar Access</p>
+                  <p className="text-[11px] text-slate-400">Enable/disable scheduler & website embed for this tenant</p>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  const targetState = !org?.has_calendar
+                  try {
+                    await fetch('/api/admin/toggle-calendar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ org_id: org?.id, has_calendar: targetState })
+                    })
+                    window.location.reload()
+                  } catch (e) {}
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${org?.has_calendar ? 'bg-emerald-500' : 'bg-slate-800'}`}
+                title={org?.has_calendar ? 'Click to revoke access' : 'Click to grant access'}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${org?.has_calendar ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
         </div>
 
       </div>

@@ -90,6 +90,12 @@ export default function Sidebar() {
       visible: Boolean(org?.has_comments_crm)
     },
     {
+      name: 'Booking Calendar',
+      href: '/calendar',
+      icon: Calendar,
+      visible: true
+    },
+    {
       name: 'Followups',
       href: '/followups',
       icon: Calendar,

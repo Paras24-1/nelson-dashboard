@@ -25,6 +25,7 @@ interface Organization {
   has_orders_crm?: boolean
   has_comments_crm?: boolean
   has_emails_crm?: boolean
+  has_calendar?: boolean
 }
 
 interface OrgContextType {
