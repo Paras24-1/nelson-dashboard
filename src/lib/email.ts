@@ -1,10 +1,18 @@
 import nodemailer from 'nodemailer'
 
+const SMTP_USER = process.env.SMTP_USER || 'voxai4278@gmail.com'
+const SMTP_PASS = process.env.SMTP_PASS || 'kuliulufzwdibrct'
+
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.SMTP_USER || 'voxai4278@gmail.com',
-    pass: process.env.SMTP_PASS || 'kuliulufzwdibrct'
+    user: SMTP_USER,
+    pass: SMTP_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 })
 
@@ -25,6 +33,11 @@ interface SendBookingEmailOptions {
 export async function sendBookingEmail(options: SendBookingEmailOptions) {
   try {
     const { to, subject, recipientName, eventTitle, bookingDate, startTime, meetingLink, notes, isAdmin, leadPhone, leadEmail } = options
+
+    if (!to || !to.includes('@')) {
+      console.warn('[SMTP Email] Skipping email: invalid recipient address:', to)
+      return { success: false, error: 'Invalid recipient email' }
+    }
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0f172a; color: #f8fafc; border-radius: 16px; overflow: hidden; border: 1px solid #1e293b;">
@@ -83,7 +96,7 @@ export async function sendBookingEmail(options: SendBookingEmailOptions) {
         </div>
 
         <div style="background-color: #020617; padding: 16px; text-align: center; border-top: 1px solid #1e293b; font-size: 11px; color: #64748b;">
-          VoxAI Automated Calendar Scheduler • Sent via voxai4278@gmail.com
+          VoxAI Automated Calendar Scheduler • Sent via ${SMTP_USER}
         </div>
       </div>
     `
@@ -97,18 +110,18 @@ export async function sendBookingEmail(options: SendBookingEmailOptions) {
       `\nThank you!`
 
     const info = await transporter.sendMail({
-      from: '"VoxAI Calendar" <voxai4278@gmail.com>',
+      from: `"VoxAI Calendar" <${SMTP_USER}>`,
       to,
       subject,
       text: textContent,
       html: htmlContent
     })
 
-    console.log(`[SMTP Email] Sent to ${to} (Message ID: ${info.messageId})`)
+    console.log(`[SMTP Email SUCCESS] Sent to ${to} (Message ID: ${info.messageId})`)
     return { success: true, messageId: info.messageId }
   } catch (err: any) {
-    console.error(`[SMTP Email Error] Failed to send email to ${options.to}:`, err)
-    return { success: false, error: err.message }
+    console.error(`[SMTP Email ERROR] Failed to send email to ${options.to}:`, err)
+    return { success: false, error: err.message || 'SMTP delivery failed' }
   }
 }
 
@@ -116,7 +129,7 @@ export async function sendOrderStatusNotification(order: any, newStatus: string)
   try {
     if (!order?.customer_email) return
     const info = await transporter.sendMail({
-      from: '"VoxAI Orders" <voxai4278@gmail.com>',
+      from: `"VoxAI Orders" <${SMTP_USER}>`,
       to: order.customer_email,
       subject: `Order Update #${order.id || ''}: ${newStatus.toUpperCase()}`,
       html: `<p>Your order status has been updated to: <strong>${newStatus}</strong></p>`
@@ -131,7 +144,7 @@ export async function sendOrderStatusNotification(order: any, newStatus: string)
 export async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html?: string; text?: string }) {
   try {
     const info = await transporter.sendMail({
-      from: '"VoxAI System" <voxai4278@gmail.com>',
+      from: `"VoxAI System" <${SMTP_USER}>`,
       to,
       subject,
       text: text || '',

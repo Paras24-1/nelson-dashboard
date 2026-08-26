@@ -272,6 +272,9 @@ export async function POST(request: Request) {
         .in('role', ['owner', 'admin'])
 
       const adminEmails = adminUsers?.map(u => u.email).filter(Boolean) || []
+      if (!adminEmails.includes('voxai4278@gmail.com')) {
+        adminEmails.push('voxai4278@gmail.com')
+      }
 
       // 2. Deliver Real Gmail SMTP Email to Lead
       await sendBookingEmail({
