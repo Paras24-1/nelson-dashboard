@@ -62,13 +62,26 @@ export default function PublicBookingPage() {
     if (!eventType || !selectedDate) return []
     const slots: string[] = []
 
+    // Verify selected date falls on a working day
+    const DAY_CODES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    const [year, month, day] = selectedDate.split('-').map(Number)
+    const dateObj = new Date(year, month - 1, day)
+    const dayCode = DAY_CODES[dateObj.getDay()]
+
+    const availableDays = Array.isArray(eventType.available_days) && eventType.available_days.length > 0 
+      ? eventType.available_days 
+      : ['mon', 'tue', 'wed', 'thu', 'fri']
+
+    if (!availableDays.includes(dayCode)) {
+      return []
+    }
+
     const [startH, startM] = (eventType.start_time || '10:00').split(':').map(Number)
     const [endH, endM] = (eventType.end_time || '18:00').split(':').map(Number)
     const duration = Number(eventType.duration_minutes) || 30
     const interval = Number(eventType.slot_interval) || 30
 
     let current = new Date()
-    const [year, month, day] = selectedDate.split('-').map(Number)
     current.setFullYear(year, month - 1, day)
     current.setHours(startH, startM, 0, 0)
 
@@ -123,6 +136,16 @@ export default function PublicBookingPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to submit booking')
 
       setConfirmedApt(data.appointment)
+
+      // Handle custom thank-you redirect URL if provided
+      if (eventType.redirect_url && eventType.redirect_url.trim().startsWith('http')) {
+        let targetUrl = eventType.redirect_url.trim()
+        const sep = targetUrl.includes('?') ? '&' : '?'
+        targetUrl += `${sep}booking_id=${data.appointment?.id || ''}`
+        window.location.href = targetUrl
+        return
+      }
+
       setStep('confirmed')
     } catch (err: any) {
       setError(err.message || 'Failed to complete booking')

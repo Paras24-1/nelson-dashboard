@@ -539,7 +539,7 @@ export default function CalendarDashboardPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveEvent} className="space-y-6">
+            <div className="space-y-6">
 
               {/* STEP 1: CALENDAR DETAILS */}
               {wizardStep === 1 && (
@@ -597,7 +597,7 @@ export default function CalendarDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Location / Meeting Provider</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Location / Meeting Provider *</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
                         { id: 'google_meet', label: 'Google Meet', icon: Video },
@@ -623,15 +623,28 @@ export default function CalendarDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Custom Google Meet / Zoom Link (Optional)</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      {formData.location_type === 'google_meet' && 'Google Meet Link * (Mandatory)'}
+                      {formData.location_type === 'zoom' && 'Zoom Meeting Link * (Mandatory)'}
+                      {formData.location_type === 'phone_call' && 'Host Phone Number * (Mandatory)'}
+                      {formData.location_type === 'in_person' && 'Physical Location / Address * (Mandatory)'}
+                    </label>
                     <input
-                      type="url"
-                      placeholder="https://meet.google.com/abc-defg-hij"
-                      value={formData.location_url}
+                      type="text"
+                      required
+                      placeholder={
+                        formData.location_type === 'google_meet' ? 'https://meet.google.com/abc-defg-hij' :
+                        formData.location_type === 'zoom' ? 'https://zoom.us/j/123456789' :
+                        formData.location_type === 'phone_call' ? '+91 9876543210' :
+                        'Suite 101, 10X Business Tower, Sector 62, Noida'
+                      }
+                      value={formData.location_url || ''}
                       onChange={e => setFormData({ ...formData, location_url: e.target.value })}
                       className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                     />
-                    <p className="text-[10px] text-slate-500 mt-1">If left blank, a dedicated Google Meet room will be generated automatically upon booking.</p>
+                    <p className="text-[10px] text-amber-400 font-semibold mt-1">
+                      * Required: Please enter the {formData.location_type.replace('_', ' ')} details before proceeding.
+                    </p>
                   </div>
 
                   <div>
@@ -653,7 +666,7 @@ export default function CalendarDashboardPage() {
                   <h4 className="text-sm font-bold text-white">2. Schedule & Availability</h4>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-2">Available Working Days</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-2">Available Working Days *</label>
                     <div className="flex flex-wrap gap-2">
                       {[
                         { id: 'mon', label: 'Mon' },
@@ -765,7 +778,7 @@ export default function CalendarDashboardPage() {
               {/* STEP 4: REVIEW & SAVE */}
               {wizardStep === 4 && (
                 <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-white">4. Review & Create</h4>
+                  <h4 className="text-sm font-bold text-white">4. Review & Create Calendar</h4>
 
                   <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 text-xs">
                     <div className="flex justify-between border-b border-slate-800 pb-2">
@@ -775,6 +788,10 @@ export default function CalendarDashboardPage() {
                     <div className="flex justify-between border-b border-slate-800 pb-2">
                       <span className="text-slate-400">Slug / URL:</span>
                       <span className="font-mono text-emerald-400">/book/{formData.slug}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-800 pb-2">
+                      <span className="text-slate-400">Location Details:</span>
+                      <span className="font-bold text-white">{formData.location_type} ({formData.location_url})</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-800 pb-2">
                       <span className="text-slate-400">Duration:</span>
@@ -792,7 +809,7 @@ export default function CalendarDashboardPage() {
                 </div>
               )}
 
-              {/* Wizard Navigation Buttons */}
+              {/* Wizard Navigation Controls */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-800">
                 {wizardStep > 1 ? (
                   <button
@@ -804,19 +821,63 @@ export default function CalendarDashboardPage() {
                   </button>
                 ) : <div />}
 
-                {wizardStep < 4 ? (
+                {wizardStep === 1 && (
                   <button
                     type="button"
-                    disabled={!formData.title}
-                    onClick={() => setWizardStep(prev => prev + 1)}
+                    disabled={!formData.title.trim() || !formData.slug.trim() || !formData.location_url?.trim()}
+                    onClick={() => setWizardStep(2)}
                     className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition-all"
                   >
                     Next Step
                   </button>
-                ) : (
+                )}
+
+                {wizardStep === 2 && (
                   <button
-                    type="submit"
+                    type="button"
+                    disabled={formData.available_days.length === 0}
+                    onClick={() => setWizardStep(3)}
+                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition-all"
+                  >
+                    Next Step
+                  </button>
+                )}
+
+                {wizardStep === 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(4)}
+                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition-all"
+                  >
+                    Review & Continue
+                  </button>
+                )}
+
+                {wizardStep === 4 && (
+                  <button
+                    type="button"
                     disabled={saving}
+                    onClick={async () => {
+                      if (!org?.id) return
+                      setSaving(true)
+                      setSaveError('')
+                      try {
+                        const res = await fetch('/api/calendar/events', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ ...formData, org_id: org.id })
+                        })
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(data.error || 'Failed to save calendar')
+                        await fetchCalendarData()
+                        setActiveTab('events')
+                        setWizardStep(1)
+                      } catch (err: any) {
+                        setSaveError(err.message || 'Failed to save calendar')
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
                     className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-2"
                   >
                     {saving ? (
@@ -828,7 +889,7 @@ export default function CalendarDashboardPage() {
                 )}
               </div>
 
-            </form>
+            </div>
           </div>
         )}
 

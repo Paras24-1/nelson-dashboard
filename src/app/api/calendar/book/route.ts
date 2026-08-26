@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'All booking fields are required' }, { status: 400 })
     }
 
-    // --- BUG FIX: REJECT PAST DATES & SLOTS ---
+    // --- REJECT PAST DATES & TIME SLOTS ---
     const todayStr = new Date().toISOString().split('T')[0]
     if (booking_date < todayStr) {
       return NextResponse.json({ error: 'Cannot book an appointment for a past date' }, { status: 400 })
@@ -120,17 +120,45 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin()
 
-    // Fetch Event Type details to resolve exact Location URL & Title
+    // Fetch Event Type details to validate working days & working hours
     let eventTitle = 'Scheduled Meeting'
     let customLocationUrl = ''
+    let availableDays: string[] = ['mon', 'tue', 'wed', 'thu', 'fri']
+    let startTimeStr = '10:00'
+    let endTimeStr = '18:00'
 
     const { data: dbEvt } = await supabase.from('event_types').select('*').eq('id', event_type_id).maybeSingle()
     if (dbEvt) {
       eventTitle = dbEvt.title || eventTitle
       customLocationUrl = dbEvt.location_url || ''
+      if (Array.isArray(dbEvt.available_days)) availableDays = dbEvt.available_days
+      if (dbEvt.start_time) startTimeStr = dbEvt.start_time
+      if (dbEvt.end_time) endTimeStr = dbEvt.end_time
     }
 
-    // --- BUG FIX: PROPER GOOGLE MEET URL GENERATION ---
+    // --- STRICT DAY OF WEEK WORKING DAYS CHECK ---
+    const DAY_CODES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    const bookingDateObj = new Date(booking_date + 'T00:00:00')
+    const dayCode = DAY_CODES[bookingDateObj.getDay()]
+
+    if (availableDays.length > 0 && !availableDays.includes(dayCode)) {
+      return NextResponse.json({ error: `Selected date (${booking_date}) falls on a non-working day (${dayCode.toUpperCase()})` }, { status: 400 })
+    }
+
+    // --- STRICT WORKING HOURS BOUNDS CHECK ---
+    const [startH, startM] = startTimeStr.split(':').map(Number)
+    const [endH, endM] = endTimeStr.split(':').map(Number)
+    const [bookH, bookM] = start_time.split(':').map(Number)
+
+    const slotMinutes = bookH * 60 + bookM
+    const startMinutes = startH * 60 + startM
+    const endMinutes = endH * 60 + endM
+
+    if (slotMinutes < startMinutes || slotMinutes >= endMinutes) {
+      return NextResponse.json({ error: `Selected time (${start_time}) is outside operating hours (${startTimeStr} - ${endTimeStr})` }, { status: 400 })
+    }
+
+    // --- PROPER GOOGLE MEET / LOCATION LINK RESOLUTION ---
     let meeting_link = customLocationUrl
     if (!meeting_link || !meeting_link.startsWith('http')) {
       meeting_link = generateCleanMeetLink()
@@ -152,7 +180,7 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString()
     }
 
-    // Try inserting into DB
+    // Insert into DB
     const { data: inserted, error: insertErr } = await supabase
       .from('booking_appointments')
       .insert({
@@ -233,7 +261,7 @@ export async function POST(request: Request) {
       }
     } catch (e) {}
 
-    // --- REQUIREMENT: SEND EMAIL TO LEAD AND ADMIN ---
+    // --- EMAIL DISPATCH (LEAD & ADMIN) ---
     try {
       // 1. Resolve Admin Emails for this organization
       const { data: adminUsers } = await supabase
@@ -244,7 +272,7 @@ export async function POST(request: Request) {
 
       const adminEmails = adminUsers?.map(u => u.email).filter(Boolean) || []
 
-      // 2. Insert Lead Confirmation Email Record
+      // 2. Insert Lead Confirmation Email Record into emails table
       try {
         await supabase.from('emails').insert({
           org_id,
@@ -253,12 +281,12 @@ export async function POST(request: Request) {
           from_name: 'VoxAI Booking System',
           to_email: attendee_email,
           subject: `🗓️ Meeting Confirmed: ${eventTitle} on ${booking_date} at ${start_time}`,
-          body_text: `Hello ${attendee_name},\n\nYour meeting "${eventTitle}" has been successfully scheduled!\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Video Link: ${meeting_link}\n\nWe look forward to speaking with you!`,
+          body_text: `Hello ${attendee_name},\n\nYour meeting "${eventTitle}" has been successfully scheduled!\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Join Link: ${meeting_link}\n\nWe look forward to speaking with you!`,
           status: 'sent'
         })
       } catch (e) {}
 
-      // 3. Insert Admin Notification Email Record
+      // 3. Insert Admin Notification Email Record into emails table
       for (const adminEmail of adminEmails) {
         try {
           await supabase.from('emails').insert({
@@ -274,31 +302,13 @@ export async function POST(request: Request) {
         } catch (e) {}
       }
 
-      // 4. Send Webhook Payload for External Email Delivery (if N8N / Email server configured)
+      // 4. Send WhatsApp Notification to Lead if WhatsApp API configured
       const { data: orgSettings } = await supabase
         .from('organization_settings')
-        .select('n8n_inbound_webhook_url, n8n_webhook_url, whatsapp_token, whatsapp_phone_id')
+        .select('whatsapp_token, whatsapp_phone_id')
         .eq('org_id', org_id)
         .maybeSingle()
 
-      const emailWebhook = orgSettings?.n8n_inbound_webhook_url || orgSettings?.n8n_webhook_url
-      if (emailWebhook) {
-        await fetch(emailWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_type: 'calendar_booking_created',
-            event_title: eventTitle,
-            booking_date,
-            start_time,
-            meeting_link,
-            lead: { name: attendee_name, email: attendee_email, phone: attendee_phone, notes: notes || '' },
-            admin_emails: adminEmails
-          })
-        }).catch(() => {})
-      }
-
-      // 5. Send WhatsApp Notification to Lead if token configured
       if (orgSettings?.whatsapp_token && orgSettings?.whatsapp_phone_id) {
         const messageText = `Hello ${attendee_name}! 👋\nYour appointment for "${eventTitle}" has been successfully scheduled.\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Meeting Link: ${meeting_link}\n\nThank you for scheduling with us!`
         
