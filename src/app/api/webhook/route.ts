@@ -144,45 +144,55 @@ export async function POST(req: NextRequest) {
           parsedMediaType = msg.type
           parsedMessage = msg.type === 'document' && msg.document?.filename ? `[Document: ${msg.document.filename}]` : `[Received ${msg.type}]`
 
-          if (orgSettings?.whatsapp_token) {
-            const mediaId = msg[msg.type]?.id
-            if (mediaId) {
+          const tokensToTry = Array.from(new Set([
+            orgSettings?.whatsapp_token,
+            process.env.WHATSAPP_TOKEN,
+            process.env.WHATSAPP_API_TOKEN,
+            process.env.META_ACCESS_TOKEN
+          ].filter(Boolean))) as string[]
+
+          const mediaId = msg[msg.type]?.id
+          if (mediaId && tokensToTry.length > 0) {
+            for (const token of tokensToTry) {
               try {
                 // 1. Get Media URL
                 const metaRes = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
-                  headers: { 'Authorization': `Bearer ${orgSettings.whatsapp_token}` }
+                  headers: { 'Authorization': `Bearer ${token}` }
                 })
                 const metaData = await metaRes.json()
                 
                 if (metaData.url) {
                   // 2. Download Media Buffer
                   const mediaRes = await fetch(metaData.url, {
-                    headers: { 'Authorization': `Bearer ${orgSettings.whatsapp_token}` }
+                    headers: { 'Authorization': `Bearer ${token}` }
                   })
-                  const buffer = await mediaRes.arrayBuffer()
-                  
-                  // 3. Upload to Supabase
-                  const ext = msg.type === 'audio' ? 'ogg' : msg.type === 'image' ? 'jpg' : msg.type === 'video' ? 'mp4' : 'pdf'
-                  const fileName = `${orgId}/${Date.now()}-${mediaId}.${ext}`
-                  
-                  const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-                    .from('chat-media')
-                    .upload(fileName, buffer, {
-                      contentType: mediaRes.headers.get('content-type') || 'application/octet-stream',
-                      upsert: true
-                    })
+                  if (mediaRes.ok) {
+                    const buffer = await mediaRes.arrayBuffer()
                     
-                  if (!uploadError && uploadData) {
-                    const { data: publicUrlData } = supabaseAdmin.storage
+                    // 3. Upload to Supabase Storage
+                    const ext = msg.type === 'audio' ? 'ogg' : msg.type === 'image' ? 'jpg' : msg.type === 'video' ? 'mp4' : 'pdf'
+                    const fileName = `${orgId}/${Date.now()}-${mediaId}.${ext}`
+                    
+                    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
                       .from('chat-media')
-                      .getPublicUrl(fileName)
-                    parsedMediaUrl = publicUrlData.publicUrl
-                  } else {
-                    console.error('[webhook] Supabase Storage Error:', uploadError)
+                      .upload(fileName, buffer, {
+                        contentType: mediaRes.headers.get('content-type') || 'application/octet-stream',
+                        upsert: true
+                      })
+                      
+                    if (!uploadError && uploadData) {
+                      const { data: publicUrlData } = supabaseAdmin.storage
+                        .from('chat-media')
+                        .getPublicUrl(fileName)
+                      parsedMediaUrl = publicUrlData.publicUrl
+                      break
+                    } else {
+                      console.error('[webhook] Supabase Storage Error:', uploadError)
+                    }
                   }
                 }
               } catch (mediaErr) {
-                console.error('[webhook] Media Download Error:', mediaErr)
+                console.error('[webhook] Media Download Attempt Error:', mediaErr)
               }
             }
           }

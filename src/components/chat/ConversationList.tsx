@@ -375,7 +375,15 @@ function ConversationItem({
           {conv.phone_number}
         </p>
         <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate leading-relaxed">
-          {conv.last_message || 'No messages yet'}
+          {(() => {
+            const msg = conv.last_message || ''
+            if (msg === '[Received image]' || msg.includes('image')) return '📷 Image'
+            if (msg === '[Received audio]' || msg.includes('audio')) return '🎵 Audio note'
+            if (msg === '[Received video]' || msg.includes('video')) return '🎥 Video'
+            if (msg === '[Received document]' || msg.includes('document')) return '📄 Document'
+            if (msg === '[Message]') return '💬 Message'
+            return msg || 'No messages yet'
+          })()}
         </p>
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${STAGE_COLORS[conv.stage as Stage] || STAGE_COLORS.new}`}>

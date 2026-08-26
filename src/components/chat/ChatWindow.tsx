@@ -677,6 +677,22 @@ hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
                             return null
                           }
 
+                          if (isMediaPlaceholder || msg.media_type) {
+                            const mediaKind = msg.media_type || (msg.message?.includes('image') ? 'image' : msg.message?.includes('audio') ? 'audio' : msg.message?.includes('video') ? 'video' : 'document')
+                            return (
+                              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-800/30 dark:bg-slate-900/50 border border-slate-700/40 my-0.5 select-none">
+                                {mediaKind === 'image' && <ImageIcon className="w-4 h-4 text-emerald-400 shrink-0" />}
+                                {mediaKind === 'audio' && <Mic className="w-4 h-4 text-amber-400 shrink-0" />}
+                                {mediaKind === 'video' && <Video className="w-4 h-4 text-blue-400 shrink-0" />}
+                                {mediaKind === 'document' && <FileText className="w-4 h-4 text-amber-400 shrink-0" />}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-bold capitalize text-slate-200">{mediaKind} Attachment</p>
+                                  <p className="text-[10px] text-slate-400">Media file processing or unavailable</p>
+                                </div>
+                              </div>
+                            )
+                          }
+
                           if (isPlaceholder) {
                             return (
                               <p className="whitespace-pre-wrap break-words italic text-xs opacity-90 flex items-center gap-1.5 py-0.5">
