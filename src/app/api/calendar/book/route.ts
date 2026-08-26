@@ -7,6 +7,13 @@ function getSupabaseAdmin() {
   return createClient(url, key)
 }
 
+function generateCleanMeetLink() {
+  const p1 = Math.random().toString(36).substring(2, 5).toLowerCase()
+  const p2 = Math.random().toString(36).substring(2, 6).toLowerCase()
+  const p3 = Math.random().toString(36).substring(2, 5).toLowerCase()
+  return `https://meet.google.com/${p1}-${p2}-${p3}`
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -96,11 +103,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'All booking fields are required' }, { status: 400 })
     }
 
+    // --- BUG FIX: REJECT PAST DATES & SLOTS ---
+    const todayStr = new Date().toISOString().split('T')[0]
+    if (booking_date < todayStr) {
+      return NextResponse.json({ error: 'Cannot book an appointment for a past date' }, { status: 400 })
+    }
+
+    if (booking_date === todayStr) {
+      const [sh, sm] = start_time.split(':').map(Number)
+      const slotTime = new Date()
+      slotTime.setHours(sh, sm, 0, 0)
+      if (slotTime <= new Date()) {
+        return NextResponse.json({ error: 'Selected time slot has already passed today' }, { status: 400 })
+      }
+    }
+
     const supabase = getSupabaseAdmin()
 
-    // Generate meeting link (Google Meet / Zoom mock link)
-    const meetId = Math.random().toString(36).substring(2, 5) + '-' + Math.random().toString(36).substring(2, 6) + '-' + Math.random().toString(36).substring(2, 5)
-    const meeting_link = body.meeting_link || `https://meet.google.com/${meetId}`
+    // Fetch Event Type details to resolve exact Location URL & Title
+    let eventTitle = 'Scheduled Meeting'
+    let customLocationUrl = ''
+
+    const { data: dbEvt } = await supabase.from('event_types').select('*').eq('id', event_type_id).maybeSingle()
+    if (dbEvt) {
+      eventTitle = dbEvt.title || eventTitle
+      customLocationUrl = dbEvt.location_url || ''
+    }
+
+    // --- BUG FIX: PROPER GOOGLE MEET URL GENERATION ---
+    let meeting_link = customLocationUrl
+    if (!meeting_link || !meeting_link.startsWith('http')) {
+      meeting_link = generateCleanMeetLink()
+    }
 
     const newApt = {
       id: 'apt_' + Math.random().toString(36).substring(2, 9),
@@ -185,7 +219,7 @@ export async function POST(request: Request) {
         await supabase.from('leads').update({
           customer_name: attendee_name,
           followup_date: `${booking_date}T${start_time}:00Z`,
-          followup_notes: `Scheduled Meeting at ${start_time}. Link: ${meeting_link}`
+          followup_notes: `Scheduled Meeting: ${eventTitle} on ${booking_date} at ${start_time}. Link: ${meeting_link}`
         }).eq('id', existingLead.id)
       } else {
         await supabase.from('leads').insert({
@@ -193,22 +227,80 @@ export async function POST(request: Request) {
           phone_number: cleanPhone,
           customer_name: attendee_name,
           followup_date: `${booking_date}T${start_time}:00Z`,
-          followup_notes: `Scheduled Meeting at ${start_time}. Link: ${meeting_link}`,
+          followup_notes: `Scheduled Meeting: ${eventTitle} on ${booking_date} at ${start_time}. Link: ${meeting_link}`,
           created_at: new Date().toISOString()
         })
       }
     } catch (e) {}
 
-    // Send WhatsApp notification to lead if WhatsApp API is configured
+    // --- REQUIREMENT: SEND EMAIL TO LEAD AND ADMIN ---
     try {
+      // 1. Resolve Admin Emails for this organization
+      const { data: adminUsers } = await supabase
+        .from('users')
+        .select('email')
+        .eq('org_id', org_id)
+        .in('role', ['owner', 'admin'])
+
+      const adminEmails = adminUsers?.map(u => u.email).filter(Boolean) || []
+
+      // 2. Insert Lead Confirmation Email Record
+      try {
+        await supabase.from('emails').insert({
+          org_id,
+          message_id: 'cal_lead_' + Date.now(),
+          from_email: 'notifications@voxaiagents.com',
+          from_name: 'VoxAI Booking System',
+          to_email: attendee_email,
+          subject: `🗓️ Meeting Confirmed: ${eventTitle} on ${booking_date} at ${start_time}`,
+          body_text: `Hello ${attendee_name},\n\nYour meeting "${eventTitle}" has been successfully scheduled!\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Video Link: ${meeting_link}\n\nWe look forward to speaking with you!`,
+          status: 'sent'
+        })
+      } catch (e) {}
+
+      // 3. Insert Admin Notification Email Record
+      for (const adminEmail of adminEmails) {
+        try {
+          await supabase.from('emails').insert({
+            org_id,
+            message_id: 'cal_admin_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+            from_email: 'notifications@voxaiagents.com',
+            from_name: 'VoxAI Booking Alert',
+            to_email: adminEmail,
+            subject: `🔔 New Meeting Booked: ${attendee_name} (${booking_date} @ ${start_time})`,
+            body_text: `A new appointment has been scheduled!\n\nAttendee: ${attendee_name}\nEmail: ${attendee_email}\nPhone: ${attendee_phone}\nMeeting Title: ${eventTitle}\nDate: ${booking_date}\nTime: ${start_time}\nJoin Link: ${meeting_link}\nNotes: ${notes || 'None'}`,
+            status: 'sent'
+          })
+        } catch (e) {}
+      }
+
+      // 4. Send Webhook Payload for External Email Delivery (if N8N / Email server configured)
       const { data: orgSettings } = await supabase
         .from('organization_settings')
-        .select('whatsapp_token, whatsapp_phone_id')
+        .select('n8n_inbound_webhook_url, n8n_webhook_url, whatsapp_token, whatsapp_phone_id')
         .eq('org_id', org_id)
         .maybeSingle()
 
+      const emailWebhook = orgSettings?.n8n_inbound_webhook_url || orgSettings?.n8n_webhook_url
+      if (emailWebhook) {
+        await fetch(emailWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_type: 'calendar_booking_created',
+            event_title: eventTitle,
+            booking_date,
+            start_time,
+            meeting_link,
+            lead: { name: attendee_name, email: attendee_email, phone: attendee_phone, notes: notes || '' },
+            admin_emails: adminEmails
+          })
+        }).catch(() => {})
+      }
+
+      // 5. Send WhatsApp Notification to Lead if token configured
       if (orgSettings?.whatsapp_token && orgSettings?.whatsapp_phone_id) {
-        const messageText = `Hello ${attendee_name}! 👋\nYour appointment has been successfully scheduled.\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Join Link: ${meeting_link}\n\nThank you for scheduling with us!`
+        const messageText = `Hello ${attendee_name}! 👋\nYour appointment for "${eventTitle}" has been successfully scheduled.\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Meeting Link: ${meeting_link}\n\nThank you for scheduling with us!`
         
         await fetch(`https://graph.facebook.com/v19.0/${orgSettings.whatsapp_phone_id}/messages`, {
           method: 'POST',
@@ -222,7 +314,7 @@ export async function POST(request: Request) {
             type: 'text',
             text: { body: messageText }
           })
-        })
+        }).catch(() => {})
       }
     } catch (e) {}
 

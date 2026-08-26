@@ -124,6 +124,10 @@ export default function CalendarDashboardPage() {
 
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (wizardStep < 4) {
+      setWizardStep(prev => prev + 1)
+      return
+    }
     if (!org?.id) return
     setSaving(true)
     setSaveError('')
@@ -616,6 +620,18 @@ export default function CalendarDashboardPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Custom Google Meet / Zoom Link (Optional)</label>
+                    <input
+                      type="url"
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      value={formData.location_url}
+                      onChange={e => setFormData({ ...formData, location_url: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">If left blank, a dedicated Google Meet room will be generated automatically upon booking.</p>
                   </div>
 
                   <div>

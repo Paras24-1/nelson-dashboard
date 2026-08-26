@@ -400,13 +400,13 @@ export default function PublicBookingPage() {
 
               {confirmedApt?.meeting_link && (
                 <a
-                  href={confirmedApt.meeting_link}
+                  href={confirmedApt.meeting_link.startsWith('http') ? confirmedApt.meeting_link : `https://${confirmedApt.meeting_link}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-blue-600/20"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-xs transition-all shadow-lg shadow-blue-600/30 scale-100 hover:scale-[1.01]"
                 >
-                  <Video className="w-4 h-4" />
-                  <span>Join Video Meeting Link</span>
+                  <Video className="w-4.5 h-4.5" />
+                  <span>Join Google Meet Call</span>
                 </a>
               )}
             </div>
