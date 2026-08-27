@@ -76,7 +76,7 @@ interface Appointment {
 }
 
 export default function CalendarDashboardPage() {
-  const { org, profile } = useOrg()
+  const { org } = useOrg()
   const [activeTab, setActiveTab] = useState<'appointments' | 'events' | 'create'>('appointments')
 
   // Feature Flag Gating Check
@@ -288,10 +288,10 @@ export default function CalendarDashboardPage() {
         <div>
           <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
             <CalendarIcon className="w-6 h-6 text-emerald-400" />
-            Booking Calendar & Meetings
+            Booking Calendar & Scheduler
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Manage client appointment slots, custom time intervals, and website embeds.
+            Manage client appointment slots and website embeds.
           </p>
         </div>
 
@@ -337,79 +337,12 @@ export default function CalendarDashboardPage() {
         </div>
       </div>
 
-      {/* TAB 1: UPCOMING APPOINTMENTS LIST */}
+      {/* TAB 1: UPCOMING APPOINTMENTS HIGH-END CALENDAR VIEW */}
       {activeTab === 'appointments' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Clock className="w-4 h-4 text-emerald-400" />
-              Scheduled Client Appointments
-            </h3>
-            <button
-              onClick={fetchCalendarData}
-              className="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-xl transition-colors text-xs flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Refresh</span>
-            </button>
-          </div>
-
-          {appointments.length === 0 ? (
-            <div className="p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-3xl space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto">
-                <Clock className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-bold text-white">No Appointments Booked Yet</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Share your calendar booking link or embed it on your website to start accepting meetings.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {appointments.map(apt => (
-                <div key={apt.id} className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3 shadow-lg hover:border-slate-700 transition-all">
-                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                    <div>
-                      <h4 className="text-sm font-bold text-white">{apt.attendee_name}</h4>
-                      <p className="text-xs text-slate-400">{apt.attendee_email}</p>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase">
-                      {apt.status}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-slate-300">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>{apt.booking_date} @ {apt.start_time}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{apt.attendee_phone}</span>
-                    </div>
-                    {apt.notes && (
-                      <div className="p-2 bg-slate-950/60 rounded-xl text-[11px] text-slate-400 border border-slate-800/60 mt-1">
-                        "{apt.notes}"
-                      </div>
-                    )}
-                  </div>
-
-                  {apt.meeting_link && (
-                    <a
-                      href={apt.meeting_link.startsWith('http') ? apt.meeting_link : `https://${apt.meeting_link}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1.5 w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-blue-600/20"
-                    >
-                      <Video className="w-3.5 h-3.5" />
-                      <span>Join Meeting Link</span>
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <AppointmentsCalendarView
+          appointments={appointments}
+          onRefresh={fetchCalendarData}
+        />
       )}
 
       {/* TAB 2: EVENT CALENDARS LIST */}
@@ -671,7 +604,7 @@ export default function CalendarDashboardPage() {
               </div>
             )}
 
-            {/* STEP 2: SCHEDULE & AVAILABILITY (CUSTOM MULTI-INTERVAL CALENDAR EDITOR) */}
+            {/* STEP 2: SCHEDULE & AVAILABILITY */}
             {wizardStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
@@ -772,7 +705,6 @@ export default function CalendarDashboardPage() {
                           {/* RIGHT: ACTION BUTTONS (+ Add & 📑 Copy) */}
                           {sched.enabled && (
                             <div className="flex items-center gap-2 self-start sm:self-center relative">
-                              {/* Add Interval Button */}
                               <button
                                 type="button"
                                 onClick={() => handleAddInterval(d.id)}
@@ -782,7 +714,6 @@ export default function CalendarDashboardPage() {
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* Copy Hours Button */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -805,7 +736,6 @@ export default function CalendarDashboardPage() {
                                 <Copy className="w-3.5 h-3.5" />
                               </button>
 
-                              {/* COPY POPOVER MENU (matching GoHighLevel screenshot) */}
                               {isCopyingThisDay && (
                                 <div className="absolute right-0 top-11 z-50 w-72 bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl space-y-3 text-xs text-white">
                                   <div className="font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center justify-between">
@@ -820,7 +750,6 @@ export default function CalendarDashboardPage() {
                                   </div>
 
                                   <div className="space-y-1.5">
-                                    {/* Option 1: Apply to all days */}
                                     <button
                                       type="button"
                                       onClick={() => handleApplyToAllDays(d.id)}
@@ -830,7 +759,6 @@ export default function CalendarDashboardPage() {
                                       <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                                     </button>
 
-                                    {/* Option 2: Apply to weekdays */}
                                     <button
                                       type="button"
                                       onClick={() => handleApplyToWeekdays(d.id)}
@@ -840,7 +768,6 @@ export default function CalendarDashboardPage() {
                                       <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                                     </button>
 
-                                    {/* Option 3: Apply to selected days */}
                                     <button
                                       type="button"
                                       onClick={() => setShowSelectedDaysMenu(!showSelectedDaysMenu)}
@@ -855,7 +782,6 @@ export default function CalendarDashboardPage() {
                                     </button>
                                   </div>
 
-                                  {/* Sub-menu: Selected Days Checkboxes */}
                                   {showSelectedDaysMenu && (
                                     <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 pt-2">
                                       <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
@@ -1078,6 +1004,359 @@ export default function CalendarDashboardPage() {
                   )}
                 </button>
               )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
+// --- HIGH-END UPCOMING APPOINTMENTS CALENDAR COMPONENT ---
+function AppointmentsCalendarView({ 
+  appointments, 
+  onRefresh
+}: { 
+  appointments: Appointment[]
+  onRefresh: () => void
+}) {
+  const [viewMode, setViewMode] = useState<'month' | 'cards'>('month')
+  const [currentDate, setCurrentDate] = useState<Date>(new Date())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+
+  // Filter logic
+  const filteredAppointments = appointments.filter(apt => {
+    const matchesSearch = 
+      apt.attendee_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      apt.attendee_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      apt.attendee_phone?.includes(searchQuery)
+    const matchesStatus = statusFilter === 'all' || apt.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
+  // Navigation handlers
+  const prevMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+  }
+
+  const nextMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+  }
+
+  const goToday = () => {
+    setCurrentDate(new Date())
+  }
+
+  // Calendar Math
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth()
+  const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+
+  const firstDayIndex = new Date(year, month, 1).getDay() // 0 = Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  const calendarCells = []
+  for (let i = 0; i < firstDayIndex; i++) {
+    calendarCells.push(null)
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarCells.push(day)
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  return (
+    <div className="space-y-5">
+      
+      {/* TOOLBAR: SEARCH, FILTERS & VIEW MODE TOGGLE */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-900/90 p-4 rounded-3xl border border-slate-800 shadow-xl">
+        
+        {/* LEFT: SEARCH & FILTER */}
+        <div className="flex items-center gap-2 flex-1 flex-wrap sm:flex-nowrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              placeholder="Search meetings by name, email, or phone..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-300 focus:outline-none focus:border-emerald-500 font-medium"
+          >
+            <option value="all">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        {/* RIGHT: VIEW TOGGLE & REFRESH */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
+            <button
+              onClick={() => setViewMode('month')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                viewMode === 'month'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Month View
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                viewMode === 'cards'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              List View
+            </button>
+          </div>
+
+          <button
+            onClick={onRefresh}
+            title="Refresh Meetings"
+            className="p-2.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white rounded-2xl border border-slate-800 transition-colors text-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+      </div>
+
+      {/* MONTH VIEW GRID */}
+      {viewMode === 'month' && (
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
+          
+          {/* MONTH NAVIGATION HEADER */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-black text-white tracking-wide">{monthName}</h2>
+              <button
+                onClick={goToday}
+                className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-[11px] font-bold transition-colors"
+              >
+                Today
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={prevMonth}
+                className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition-colors text-xs font-semibold"
+              >
+                ◀ Prev
+              </button>
+              <button
+                onClick={nextMonth}
+                className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition-colors text-xs font-semibold"
+              >
+                Next ▶
+              </button>
+            </div>
+          </div>
+
+          {/* DAY NAMES HEADER ROW */}
+          <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-400 pb-2 border-b border-slate-800/60">
+            <div>Sun</div>
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+          </div>
+
+          {/* CALENDAR CELLS GRID */}
+          <div className="grid grid-cols-7 gap-1.5">
+            {calendarCells.map((dayNum, idx) => {
+              if (dayNum === null) {
+                return <div key={`empty-${idx}`} className="h-28 bg-slate-950/30 rounded-2xl border border-slate-900/40" />
+              }
+
+              const formattedDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+              const isToday = formattedDateStr === todayStr
+
+              // Find meetings on this date
+              const dayMeetings = filteredAppointments.filter(a => a.booking_date === formattedDateStr)
+
+              return (
+                <div
+                  key={`day-${dayNum}`}
+                  className={`h-28 p-2 rounded-2xl border flex flex-col justify-between transition-all ${
+                    isToday
+                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/10'
+                      : 'bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
+                        isToday
+                          ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30'
+                          : 'text-slate-300'
+                      }`}
+                    >
+                      {dayNum}
+                    </span>
+
+                    {dayMeetings.length > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {dayMeetings.length}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* MEETING PILLS LIST */}
+                  <div className="space-y-1 overflow-y-auto max-h-16 pr-0.5 custom-scrollbar">
+                    {dayMeetings.map(apt => (
+                      <button
+                        key={apt.id}
+                        onClick={() => setSelectedAppointment(apt)}
+                        className="w-full text-left px-2 py-1 bg-emerald-950/90 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-800/60 rounded-lg text-[10px] font-semibold truncate transition-colors flex items-center justify-between gap-1 shadow-sm"
+                      >
+                        <span className="truncate">{apt.start_time} {apt.attendee_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+        </div>
+      )}
+
+      {/* CARDS / LIST VIEW */}
+      {viewMode === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredAppointments.map(apt => (
+            <div key={apt.id} className="p-5 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-3 shadow-xl hover:border-slate-700 transition-all">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div>
+                  <h4 className="text-sm font-bold text-white">{apt.attendee_name}</h4>
+                  <p className="text-xs text-slate-400">{apt.attendee_email}</p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase">
+                  {apt.status}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{apt.booking_date} @ {apt.start_time}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{apt.attendee_phone}</span>
+                </div>
+                {apt.notes && (
+                  <div className="p-2 bg-slate-950/60 rounded-xl text-[11px] text-slate-400 border border-slate-800/60 mt-1">
+                    "{apt.notes}"
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                {apt.meeting_link && (
+                  <a
+                    href={apt.meeting_link.startsWith('http') ? apt.meeting_link : `https://${apt.meeting_link}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors shadow-md shadow-blue-600/20"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Join Meeting</span>
+                  </a>
+                )}
+
+                <button
+                  onClick={() => setSelectedAppointment(apt)}
+                  className="p-2.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition-colors text-xs"
+                  title="View Details"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* APPOINTMENT DETAILS MODAL POPOVER */}
+      {selectedAppointment && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150">
+            
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white">Appointment Details</h3>
+                <p className="text-xs text-emerald-400 font-semibold">{selectedAppointment.booking_date} @ {selectedAppointment.start_time}</p>
+              </div>
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="p-1.5 text-slate-400 hover:text-white bg-slate-950 rounded-xl border border-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-2.5 text-xs">
+              <div className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-400">Attendee Name:</span>
+                <span className="font-bold text-white">{selectedAppointment.attendee_name}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-400">Email:</span>
+                <span className="font-mono text-slate-200">{selectedAppointment.attendee_email}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-400">Phone:</span>
+                <span className="font-mono text-emerald-400">{selectedAppointment.attendee_phone}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-400">Status:</span>
+                <span className="font-bold text-emerald-400 uppercase">{selectedAppointment.status}</span>
+              </div>
+              {selectedAppointment.notes && (
+                <div>
+                  <span className="text-slate-400 block mb-1">Notes / Agenda:</span>
+                  <p className="text-slate-300 italic p-2 bg-slate-900 rounded-xl text-[11px]">{selectedAppointment.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {selectedAppointment.meeting_link && (
+                <a
+                  href={selectedAppointment.meeting_link.startsWith('http') ? selectedAppointment.meeting_link : `https://${selectedAppointment.meeting_link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-xs transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Join Google Meet Call</span>
+                </a>
+              )}
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                className="px-4 py-3 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold rounded-2xl text-xs border border-slate-800"
+              >
+                Close
+              </button>
             </div>
 
           </div>
