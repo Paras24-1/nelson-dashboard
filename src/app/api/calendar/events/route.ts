@@ -18,33 +18,45 @@ export async function GET(request: Request) {
 
     const supabase = getSupabaseAdmin()
 
-    // Try dedicated event_types table first
-    const { data: events, error } = await supabase
-      .from('event_types')
-      .select('*')
-      .eq('org_id', orgId)
-      .order('created_at', { ascending: false })
-
-    if (!error && events) {
-      return NextResponse.json(events)
-    }
-
-    // Fallback to storage in organization_settings if table not present yet
+    // 1. Fetch fallback store from organization_settings
     const { data: settings } = await supabase
       .from('organization_settings')
       .select('ai_system_prompt')
       .eq('org_id', orgId)
       .maybeSingle()
 
-    let fallbackEvents: any[] = []
+    let fallbackEventsMap: Record<string, any> = {}
     if (settings?.ai_system_prompt?.includes('__CALENDAR_EVENTS_STORE__=')) {
       try {
         const raw = settings.ai_system_prompt.split('__CALENDAR_EVENTS_STORE__=')[1].split('__END_STORE__')[0]
-        fallbackEvents = JSON.parse(raw)
+        const fallbackList: any[] = JSON.parse(raw)
+        fallbackList.forEach(e => {
+          if (e.slug) fallbackEventsMap[e.slug] = e
+          if (e.id) fallbackEventsMap[e.id] = e
+        })
       } catch (e) {}
     }
 
-    return NextResponse.json(fallbackEvents)
+    // 2. Try dedicated event_types table
+    const { data: events, error } = await supabase
+      .from('event_types')
+      .select('*')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false })
+
+    if (!error && events && events.length > 0) {
+      // Merge weekly_schedule from fallback store if column was missing in DB table
+      const merged = events.map(evt => {
+        const fallbackMatch = fallbackEventsMap[evt.slug] || fallbackEventsMap[evt.id]
+        return {
+          ...evt,
+          weekly_schedule: evt.weekly_schedule || fallbackMatch?.weekly_schedule || null
+        }
+      })
+      return NextResponse.json(merged)
+    }
+
+    return NextResponse.json(Object.values(fallbackEventsMap))
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }
@@ -53,7 +65,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { id, org_id, title, slug, description, duration_minutes, location_type, location_url, available_days, start_time, end_time, timezone, slot_interval, buffer_minutes, min_notice_hours, redirect_url } = body
+    const { 
+      id, org_id, title, slug, description, duration_minutes, location_type, location_url, 
+      available_days, weekly_schedule, start_time, end_time, timezone, slot_interval, 
+      buffer_minutes, min_notice_hours, redirect_url 
+    } = body
 
     if (!org_id || !title) {
       return NextResponse.json({ error: 'org_id and title are required' }, { status: 400 })
@@ -71,6 +87,7 @@ export async function POST(request: Request) {
       location_type: location_type || 'google_meet',
       location_url: location_url || '',
       available_days: available_days || ['mon', 'tue', 'wed', 'thu', 'fri'],
+      weekly_schedule: weekly_schedule || null,
       start_time: start_time || '10:00',
       end_time: end_time || '18:00',
       timezone: timezone || 'Asia/Kolkata',
@@ -81,31 +98,57 @@ export async function POST(request: Request) {
       is_active: true
     }
 
-    // Try inserting into event_types table
-    if (id) {
-      const { data: updated, error: updateErr } = await supabase
-        .from('event_types')
-        .update(payload)
-        .eq('id', id)
-        .eq('org_id', org_id)
-        .select()
+    let savedResult = null
 
-      if (!updateErr && updated && updated.length > 0) {
-        return NextResponse.json(updated[0])
+    // 1. Try DB table
+    try {
+      if (id) {
+        const { data: updated, error: updateErr } = await supabase
+          .from('event_types')
+          .update(payload)
+          .eq('id', id)
+          .eq('org_id', org_id)
+          .select()
+
+        if (!updateErr && updated && updated.length > 0) {
+          savedResult = updated[0]
+        } else if (updateErr) {
+          // If weekly_schedule column missing in SQL schema, update without it
+          const { weekly_schedule: _, ...payloadNoSchedule } = payload
+          const { data: updatedFallback } = await supabase
+            .from('event_types')
+            .update(payloadNoSchedule)
+            .eq('id', id)
+            .eq('org_id', org_id)
+            .select()
+          if (updatedFallback && updatedFallback.length > 0) {
+            savedResult = { ...updatedFallback[0], weekly_schedule }
+          }
+        }
+      } else {
+        const { data: inserted, error: insertErr } = await supabase
+          .from('event_types')
+          .insert(payload)
+          .select()
+
+        if (!insertErr && inserted && inserted.length > 0) {
+          savedResult = inserted[0]
+        } else if (insertErr) {
+          // If weekly_schedule column missing in SQL schema, insert without it
+          const { weekly_schedule: _, ...payloadNoSchedule } = payload
+          const { data: insertedFallback } = await supabase
+            .from('event_types')
+            .insert(payloadNoSchedule)
+            .select()
+          if (insertedFallback && insertedFallback.length > 0) {
+            savedResult = { ...insertedFallback[0], weekly_schedule }
+          }
+        }
       }
-    } else {
-      const { data: inserted, error: insertErr } = await supabase
-        .from('event_types')
-        .insert(payload)
-        .select()
+    } catch (e) {}
 
-      if (!insertErr && inserted && inserted.length > 0) {
-        return NextResponse.json(inserted[0])
-      }
-    }
-
-    // Fallback store if table is missing
-    const newEvt = {
+    // 2. ALWAYS sync to organization_settings fallback store to guarantee persistence
+    const finalEvt = savedResult || {
       id: id || 'evt_' + Math.random().toString(36).substring(2, 9),
       created_at: new Date().toISOString(),
       ...payload
@@ -127,11 +170,11 @@ export async function POST(request: Request) {
       } catch (e) {}
     }
 
-    const existingIdx = eventsList.findIndex(e => e.id === newEvt.id || e.slug === newEvt.slug)
+    const existingIdx = eventsList.findIndex(e => e.id === finalEvt.id || e.slug === finalEvt.slug)
     if (existingIdx >= 0) {
-      eventsList[existingIdx] = newEvt
+      eventsList[existingIdx] = finalEvt
     } else {
-      eventsList.unshift(newEvt)
+      eventsList.unshift(finalEvt)
     }
 
     const storeTag = `__CALENDAR_EVENTS_STORE__=${JSON.stringify(eventsList)}__END_STORE__`
@@ -146,7 +189,7 @@ export async function POST(request: Request) {
       .from('organization_settings')
       .upsert({ org_id, ai_system_prompt: updatedPrompt }, { onConflict: 'org_id' })
 
-    return NextResponse.json(newEvt)
+    return NextResponse.json(finalEvt)
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }

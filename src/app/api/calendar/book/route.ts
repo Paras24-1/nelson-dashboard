@@ -36,8 +36,10 @@ export async function GET(request: Request) {
 
     if (dbEvt) {
       eventType = dbEvt
-    } else {
-      // Fallback search across org_settings
+    }
+
+    // Always attempt fallback lookup if eventType is missing or lacks weekly_schedule
+    if (!eventType || !eventType.weekly_schedule) {
       const { data: allSettings } = await supabase
         .from('organization_settings')
         .select('org_id, ai_system_prompt')
@@ -48,10 +50,14 @@ export async function GET(request: Request) {
             try {
               const raw = s.ai_system_prompt.split('__CALENDAR_EVENTS_STORE__=')[1].split('__END_STORE__')[0]
               const list = JSON.parse(raw)
-              const match = list.find((e: any) => e.slug === slug || e.id === slug)
+              const match = list.find((e: any) => e.slug === slug || e.id === slug || (dbEvt && e.id === dbEvt.id))
               if (match) {
-                const { data: orgData } = await supabase.from('organizations').select('name, logo_url').eq('id', s.org_id).maybeSingle()
-                eventType = { ...match, organization: orgData }
+                if (!eventType) {
+                  const { data: orgData } = await supabase.from('organizations').select('name, logo_url').eq('id', s.org_id).maybeSingle()
+                  eventType = { ...match, organization: orgData }
+                } else if (match.weekly_schedule) {
+                  eventType = { ...eventType, weekly_schedule: match.weekly_schedule }
+                }
                 break
               }
             } catch (e) {}
