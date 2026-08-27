@@ -62,12 +62,55 @@ export default function PublicBookingPage() {
     if (!eventType || !selectedDate) return []
     const slots: string[] = []
 
-    // Verify selected date falls on a working day
     const DAY_CODES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
     const [year, month, day] = selectedDate.split('-').map(Number)
     const dateObj = new Date(year, month - 1, day)
     const dayCode = DAY_CODES[dateObj.getDay()]
 
+    const bookedForDate = existingApts.filter(a => a.booking_date === selectedDate).map(a => a.start_time)
+    const now = new Date()
+    const isToday = selectedDate === now.toISOString().split('T')[0]
+    const intervalMinutes = Number(eventType.slot_interval) || 30
+
+    // 1. Check if custom per-day weekly schedule exists
+    if (eventType.weekly_schedule && eventType.weekly_schedule[dayCode]) {
+      const daySched = eventType.weekly_schedule[dayCode]
+      if (!daySched.enabled || !Array.isArray(daySched.intervals)) return []
+
+      for (const inter of daySched.intervals) {
+        if (!inter.start || !inter.end) continue
+        const [startH, startM] = inter.start.split(':').map(Number)
+        const [endH, endM] = inter.end.split(':').map(Number)
+
+        let current = new Date()
+        current.setFullYear(year, month - 1, day)
+        current.setHours(startH, startM, 0, 0)
+
+        const endBoundary = new Date(current)
+        endBoundary.setHours(endH, endM, 0, 0)
+
+        while (current < endBoundary) {
+          const hStr = String(current.getHours()).padStart(2, '0')
+          const mStr = String(current.getMinutes()).padStart(2, '0')
+          const timeSlotStr = `${hStr}:${mStr}`
+
+          const slotTimeToday = new Date()
+          slotTimeToday.setHours(current.getHours(), current.getMinutes(), 0, 0)
+
+          if (!bookedForDate.includes(timeSlotStr) && (!isToday || slotTimeToday > now)) {
+            if (!slots.includes(timeSlotStr)) {
+              slots.push(timeSlotStr)
+            }
+          }
+
+          current = new Date(current.getTime() + intervalMinutes * 60 * 1000)
+        }
+      }
+
+      return slots.sort()
+    }
+
+    // 2. Fallback: standard available_days check
     const availableDays = Array.isArray(eventType.available_days) && eventType.available_days.length > 0 
       ? eventType.available_days 
       : ['mon', 'tue', 'wed', 'thu', 'fri']
@@ -78,8 +121,6 @@ export default function PublicBookingPage() {
 
     const [startH, startM] = (eventType.start_time || '10:00').split(':').map(Number)
     const [endH, endM] = (eventType.end_time || '18:00').split(':').map(Number)
-    const duration = Number(eventType.duration_minutes) || 30
-    const interval = Number(eventType.slot_interval) || 30
 
     let current = new Date()
     current.setFullYear(year, month - 1, day)
@@ -88,17 +129,11 @@ export default function PublicBookingPage() {
     const endBoundary = new Date(current)
     endBoundary.setHours(endH, endM, 0, 0)
 
-    // Filter out slots already booked
-    const bookedForDate = existingApts.filter(a => a.booking_date === selectedDate).map(a => a.start_time)
-
     while (current < endBoundary) {
       const hStr = String(current.getHours()).padStart(2, '0')
       const mStr = String(current.getMinutes()).padStart(2, '0')
       const timeSlotStr = `${hStr}:${mStr}`
 
-      // Check if slot is in past if date is today
-      const now = new Date()
-      const isToday = selectedDate === now.toISOString().split('T')[0]
       const slotTimeToday = new Date()
       slotTimeToday.setHours(current.getHours(), current.getMinutes(), 0, 0)
 
@@ -106,7 +141,7 @@ export default function PublicBookingPage() {
         slots.push(timeSlotStr)
       }
 
-      current = new Date(current.getTime() + interval * 60 * 1000)
+      current = new Date(current.getTime() + intervalMinutes * 60 * 1000)
     }
 
     return slots
