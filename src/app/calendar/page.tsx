@@ -1022,11 +1022,77 @@ function AppointmentsCalendarView({
   appointments: Appointment[]
   onRefresh: () => void
 }) {
+  const { org } = useOrg()
   const [viewMode, setViewMode] = useState<'month' | 'cards'>('month')
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+
+  // Status & Notes Update States
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesInput, setNotesInput] = useState('')
+  const [updating, setUpdating] = useState(false)
+  const [updateMessage, setUpdateMessage] = useState('')
+
+  useEffect(() => {
+    if (selectedAppointment) {
+      setNotesInput(selectedAppointment.notes || '')
+      setEditingNotes(false)
+      setUpdateMessage('')
+    }
+  }, [selectedAppointment])
+
+  const handleUpdateStatus = async (newStatus: 'confirmed' | 'completed' | 'cancelled') => {
+    if (!selectedAppointment || !org?.id) return
+    setUpdating(true)
+    setUpdateMessage('')
+    try {
+      const res = await fetch('/api/calendar/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedAppointment.id,
+          org_id: org.id,
+          status: newStatus
+        })
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+      setSelectedAppointment({ ...selectedAppointment, status: newStatus })
+      setUpdateMessage(`Status updated to ${newStatus.toUpperCase()}!`)
+      onRefresh()
+    } catch (err: any) {
+      setUpdateMessage(err.message || 'Update failed')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleSaveNotes = async () => {
+    if (!selectedAppointment || !org?.id) return
+    setUpdating(true)
+    setUpdateMessage('')
+    try {
+      const res = await fetch('/api/calendar/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedAppointment.id,
+          org_id: org.id,
+          notes: notesInput
+        })
+      })
+      if (!res.ok) throw new Error('Failed to save notes')
+      setSelectedAppointment({ ...selectedAppointment, notes: notesInput })
+      setEditingNotes(false)
+      setUpdateMessage('Meeting notes saved successfully!')
+      onRefresh()
+    } catch (err: any) {
+      setUpdateMessage(err.message || 'Failed to save notes')
+    } finally {
+      setUpdating(false)
+    }
+  }
 
   // Filter logic
   const filteredAppointments = appointments.filter(apt => {
@@ -1314,7 +1380,13 @@ function AppointmentsCalendarView({
               </button>
             </div>
 
-            <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-2.5 text-xs">
+            {updateMessage && (
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-400 font-semibold">
+                {updateMessage}
+              </div>
+            )}
+
+            <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-3 text-xs">
               <div className="flex justify-between border-b border-slate-800 pb-2">
                 <span className="text-slate-400">Attendee Name:</span>
                 <span className="font-bold text-white">{selectedAppointment.attendee_name}</span>
@@ -1327,19 +1399,116 @@ function AppointmentsCalendarView({
                 <span className="text-slate-400">Phone:</span>
                 <span className="font-mono text-emerald-400">{selectedAppointment.attendee_phone}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                 <span className="text-slate-400">Status:</span>
-                <span className="font-bold text-emerald-400 uppercase">{selectedAppointment.status}</span>
+                <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] uppercase ${
+                  selectedAppointment.status === 'completed'
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    : selectedAppointment.status === 'cancelled'
+                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                }`}>
+                  {selectedAppointment.status}
+                </span>
               </div>
-              {selectedAppointment.notes && (
-                <div>
-                  <span className="text-slate-400 block mb-1">Notes / Agenda:</span>
-                  <p className="text-slate-300 italic p-2 bg-slate-900 rounded-xl text-[11px]">{selectedAppointment.notes}</p>
+
+              {/* MEETING NOTES & FOLLOW-UP AGENDA SECTION */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-slate-300 font-bold">Meeting Notes & Summary:</span>
+                  {!editingNotes && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingNotes(true)}
+                      className="text-[11px] text-emerald-400 hover:underline font-semibold"
+                    >
+                      {selectedAppointment.notes ? 'Edit Notes' : '+ Add Notes'}
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {editingNotes ? (
+                  <div className="space-y-2">
+                    <textarea
+                      rows={3}
+                      placeholder="Write notes, agenda, or key outcomes of this meeting..."
+                      value={notesInput}
+                      onChange={e => setNotesInput(e.target.value)}
+                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingNotes(false)}
+                        className="px-3 py-1 bg-slate-900 text-slate-400 hover:text-white rounded-lg text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={updating}
+                        onClick={handleSaveNotes}
+                        className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-emerald-500/20"
+                      >
+                        Save Notes
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-slate-300 italic p-2.5 bg-slate-900/90 border border-slate-800/80 rounded-xl text-[11px]">
+                    {selectedAppointment.notes || 'No notes added yet. Click "+ Add Notes" to record meeting summary.'}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* QUICK STATUS ACTIONS (MARK AS COMPLETED / CANCELLED) */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Update Status:</span>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  disabled={updating || selectedAppointment.status === 'completed'}
+                  onClick={() => handleUpdateStatus('completed')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    selectedAppointment.status === 'completed'
+                      ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  ✓ Completed
+                </button>
+
+                <button
+                  type="button"
+                  disabled={updating || selectedAppointment.status === 'confirmed'}
+                  onClick={() => handleUpdateStatus('confirmed')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    selectedAppointment.status === 'confirmed'
+                      ? 'bg-blue-600 text-white border-blue-500'
+                      : 'bg-blue-600/10 text-blue-400 border-blue-600/30 hover:bg-blue-600/20'
+                  }`}
+                >
+                  Confirmed
+                </button>
+
+                <button
+                  type="button"
+                  disabled={updating || selectedAppointment.status === 'cancelled'}
+                  onClick={() => handleUpdateStatus('cancelled')}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                    selectedAppointment.status === 'cancelled'
+                      ? 'bg-rose-600 text-white border-rose-500'
+                      : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
+                  }`}
+                >
+                  ✕ Cancelled
+                </button>
+              </div>
+            </div>
+
+            {/* JOIN LINK & CLOSE */}
+            <div className="flex items-center gap-3 pt-2">
               {selectedAppointment.meeting_link && (
                 <a
                   href={selectedAppointment.meeting_link.startsWith('http') ? selectedAppointment.meeting_link : `https://${selectedAppointment.meeting_link}`}

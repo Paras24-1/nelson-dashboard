@@ -50,6 +50,64 @@ export async function GET(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+    const { id, org_id, status, notes } = body
+
+    if (!id || !org_id) {
+      return NextResponse.json({ error: 'id and org_id are required' }, { status: 400 })
+    }
+
+    const supabase = getSupabaseAdmin()
+
+    // 1. Update database table booking_appointments
+    const updatePayload: any = {}
+    if (status !== undefined) updatePayload.status = status
+    if (notes !== undefined) updatePayload.notes = notes
+
+    await supabase
+      .from('booking_appointments')
+      .update(updatePayload)
+      .eq('id', id)
+      .eq('org_id', org_id)
+
+    // 2. Also update fallback store if present
+    const { data: settings } = await supabase
+      .from('organization_settings')
+      .select('ai_system_prompt')
+      .eq('org_id', org_id)
+      .maybeSingle()
+
+    if (settings?.ai_system_prompt?.includes('__CALENDAR_APPOINTMENTS_STORE__=')) {
+      try {
+        const currentPrompt = settings.ai_system_prompt
+        const raw = currentPrompt.split('__CALENDAR_APPOINTMENTS_STORE__=')[1].split('__END_STORE__')[0]
+        let aptsList = JSON.parse(raw).map((a: any) => {
+          if (a.id === id) {
+            return {
+              ...a,
+              ...(status !== undefined ? { status } : {}),
+              ...(notes !== undefined ? { notes } : {})
+            }
+          }
+          return a
+        })
+        const storeTag = `__CALENDAR_APPOINTMENTS_STORE__=${JSON.stringify(aptsList)}__END_STORE__`
+        const updatedPrompt = currentPrompt.replace(/__CALENDAR_APPOINTMENTS_STORE__=[\s\S]*?__END_STORE__/, storeTag)
+        await supabase
+          .from('organization_settings')
+          .update({ ai_system_prompt: updatedPrompt })
+          .eq('org_id', org_id)
+      } catch (e) {}
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
