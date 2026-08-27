@@ -149,6 +149,8 @@ export default function PublicBookingPage() {
 
   const handleBookSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedDate || !selectedSlot || !formData.name || !formData.email || !formData.phone) return
+
     setSubmitting(true)
     setError('')
     try {
@@ -158,25 +160,27 @@ export default function PublicBookingPage() {
         body: JSON.stringify({
           event_type_id: eventType.id,
           org_id: eventType.org_id,
+          booking_date: selectedDate,
+          start_time: selectedSlot,
           attendee_name: formData.name,
           attendee_email: formData.email,
           attendee_phone: formData.phone,
-          notes: formData.notes,
-          booking_date: selectedDate,
-          start_time: selectedSlot
+          notes: formData.notes
         })
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to submit booking')
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to book appointment')
+      }
 
       setConfirmedApt(data.appointment)
 
-      // Handle custom thank-you redirect URL if provided
-      if (eventType.redirect_url && eventType.redirect_url.trim().startsWith('http')) {
-        let targetUrl = eventType.redirect_url.trim()
-        const sep = targetUrl.includes('?') ? '&' : '?'
-        targetUrl += `${sep}booking_id=${data.appointment?.id || ''}`
+      // Handle redirect URL if present
+      if (eventType.redirect_url) {
+        const targetUrl = eventType.redirect_url.startsWith('http')
+          ? eventType.redirect_url
+          : `https://${eventType.redirect_url}`
         window.location.href = targetUrl
         return
       }
@@ -274,42 +278,42 @@ export default function PublicBookingPage() {
 
           {/* STEP 1: Select Date & Time Slot */}
           {step === 'slot' && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div>
                 <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5 text-emerald-400" />
                   Select Date & Time
                 </h2>
-                <p className="text-xs text-slate-400">Choose a convenient slot for your meeting</p>
+                <p className="text-xs text-slate-400">Click a date on the calendar to view open slots</p>
               </div>
 
-              {/* Date Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">Meeting Date</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => setSelectedDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                />
-              </div>
+              {/* Interactive Calendar Date Picker */}
+              <DatePickerCalendar
+                selectedDate={selectedDate}
+                onSelectDate={(dateStr) => {
+                  setSelectedDate(dateStr)
+                  setSelectedSlot('')
+                }}
+                eventType={eventType}
+              />
 
               {/* Available Slots Grid */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-2">Select Time Slot</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                  Time Slots for <span className="text-emerald-400 font-bold">{selectedDate || 'Selected Date'}</span>
+                </label>
                 {availableSlots.length === 0 ? (
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center text-xs text-amber-400">
-                    No open slots available for this date. Please pick another date.
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center text-xs text-amber-400">
+                    No open slots for this date. Please pick another date on the calendar above.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2.5 max-h-48 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto pr-1">
                     {availableSlots.map(slot => (
                       <button
                         key={slot}
                         type="button"
                         onClick={() => setSelectedSlot(slot)}
-                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
                           selectedSlot === slot
                             ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20 scale-[1.02]'
                             : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
@@ -326,7 +330,7 @@ export default function PublicBookingPage() {
                 type="button"
                 disabled={!selectedDate || !selectedSlot}
                 onClick={() => setStep('form')}
-                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 text-slate-950 font-extrabold rounded-2xl text-xs shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 text-slate-950 font-extrabold rounded-2xl text-xs shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
               >
                 <span>Next: Enter Details</span>
                 <ChevronRight className="w-4 h-4" />
@@ -390,7 +394,7 @@ export default function PublicBookingPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">WhatsApp Phone Number *</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Phone / WhatsApp Number *</label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                   <input
@@ -399,79 +403,206 @@ export default function PublicBookingPage() {
                     placeholder="+91 9876543210"
                     value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">Additional Notes / Agenda (Optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="Share anything that will help prepare for our meeting..."
-                  value={formData.notes}
-                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
-                />
+                <div className="relative">
+                  <MessageSquare className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <textarea
+                    rows={2}
+                    placeholder="Please share anything that will help prepare for our meeting..."
+                    value={formData.notes}
+                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-xs shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                disabled={submitting || !formData.name || !formData.email || !formData.phone}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black rounded-2xl text-xs shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span>Confirm Appointment</span>
+                  <>
+                    <span>Confirm & Schedule Meeting</span>
+                    <CheckCircle2 className="w-4 h-4" />
+                  </>
                 )}
               </button>
             </form>
           )}
 
-          {/* STEP 3: Confirmed Screen */}
-          {step === 'confirmed' && (
-            <div className="text-center py-6 space-y-5">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
-                <CheckCircle2 className="w-10 h-10" />
+          {/* STEP 3: Booking Confirmed Success Screen */}
+          {step === 'confirmed' && confirmedApt && (
+            <div className="text-center space-y-5 py-4">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/10">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
 
               <div>
-                <h2 className="text-xl font-black text-white">You're Scheduled!</h2>
-                <p className="text-xs text-slate-400 mt-1">A calendar invite & WhatsApp confirmation has been dispatched.</p>
+                <h2 className="text-xl font-black text-white tracking-tight mb-1">Meeting Confirmed!</h2>
+                <p className="text-xs text-slate-400">
+                  A confirmation email has been sent to <span className="text-emerald-400 font-mono font-bold">{confirmedApt.attendee_email}</span>
+                </p>
               </div>
 
               <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-left space-y-2 text-xs">
-                <div className="flex justify-between border-b border-slate-800/60 pb-2">
-                  <span className="text-slate-400">Meeting:</span>
-                  <span className="font-bold text-white">{eventType.title}</span>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Date:</span>
+                  <span className="font-bold text-white">{confirmedApt.booking_date}</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-800/60 pb-2">
-                  <span className="text-slate-400">Date & Time:</span>
-                  <span className="font-bold text-emerald-400">{selectedDate} @ {selectedSlot}</span>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Time:</span>
+                  <span className="font-bold text-emerald-400">{confirmedApt.start_time}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Attendee:</span>
-                  <span className="font-bold text-white">{formData.name} ({formData.phone})</span>
+                  <span className="font-bold text-white">{confirmedApt.attendee_name}</span>
                 </div>
               </div>
 
-              {confirmedApt?.meeting_link && (
+              {eventType.location_url && (
                 <a
-                  href={confirmedApt.meeting_link.startsWith('http') ? confirmedApt.meeting_link : `https://${confirmedApt.meeting_link}`}
+                  href={eventType.location_url.startsWith('http') ? eventType.location_url : `https://${eventType.location_url}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-xs transition-all shadow-lg shadow-blue-600/30 scale-100 hover:scale-[1.01]"
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-xs transition-all shadow-lg shadow-blue-600/30"
                 >
-                  <Video className="w-4.5 h-4.5" />
-                  <span>Join Google Meet Call</span>
+                  <Video className="w-4 h-4" />
+                  <span>Join Meeting Link</span>
                 </a>
               )}
             </div>
           )}
 
         </div>
+      </div>
+    </div>
+  )
+}
 
+// --- INTERACTIVE CALENDAR DATE PICKER COMPONENT ---
+function DatePickerCalendar({
+  selectedDate,
+  onSelectDate,
+  eventType
+}: {
+  selectedDate: string
+  onSelectDate: (dateStr: string) => void
+  eventType: any
+}) {
+  const initialDate = selectedDate ? new Date(selectedDate) : new Date()
+  const [currentMonthDate, setCurrentMonthDate] = useState<Date>(initialDate)
+
+  const prevMonth = () => {
+    setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+  }
+
+  const nextMonth = () => {
+    setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+  }
+
+  const year = currentMonthDate.getFullYear()
+  const month = currentMonthDate.getMonth()
+  const monthName = currentMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+
+  const firstDayIndex = new Date(year, month, 1).getDay() // 0 = Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  const calendarCells = []
+  for (let i = 0; i < firstDayIndex; i++) {
+    calendarCells.push(null)
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarCells.push(day)
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const DAY_CODES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+
+  return (
+    <div className="bg-slate-950 border border-slate-800 rounded-3xl p-4 space-y-3 shadow-xl">
+      {/* Month Navigation */}
+      <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+        <span className="text-xs font-black text-white tracking-wide">{monthName}</span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={prevMonth}
+            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-xs font-bold"
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            onClick={nextMonth}
+            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 text-xs font-bold"
+          >
+            ▶
+          </button>
+        </div>
+      </div>
+
+      {/* Weekday Labels */}
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-slate-500 pb-1">
+        <div>Su</div>
+        <div>Mo</div>
+        <div>Tu</div>
+        <div>We</div>
+        <div>Th</div>
+        <div>Fr</div>
+        <div>Sa</div>
+      </div>
+
+      {/* Days Grid */}
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {calendarCells.map((dayNum, idx) => {
+          if (dayNum === null) {
+            return <div key={`empty-${idx}`} className="h-9" />
+          }
+
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+          const isPast = dateStr < todayStr
+          const isSelected = dateStr === selectedDate
+
+          // Operating day check
+          const dateObj = new Date(year, month, dayNum)
+          const dayCode = DAY_CODES[dateObj.getDay()]
+          
+          let isOperating = true
+          if (eventType?.weekly_schedule && eventType.weekly_schedule[dayCode]) {
+            isOperating = Boolean(eventType.weekly_schedule[dayCode].enabled)
+          } else if (Array.isArray(eventType?.available_days)) {
+            isOperating = eventType.available_days.includes(dayCode)
+          }
+
+          const isDisabled = isPast || !isOperating
+
+          return (
+            <button
+              key={`day-${dayNum}`}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => onSelectDate(dateStr)}
+              className={`h-9 w-9 mx-auto rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
+                isSelected
+                  ? 'bg-emerald-500 text-slate-950 font-black shadow-lg shadow-emerald-500/30 scale-105'
+                  : isDisabled
+                  ? 'opacity-25 text-slate-600 cursor-not-allowed pointer-events-none'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800/80 hover:border-slate-700'
+              }`}
+            >
+              {dayNum}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
