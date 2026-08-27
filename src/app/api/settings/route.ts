@@ -32,6 +32,7 @@ export async function PATCH(req: NextRequest) {
       'n8n_inbound_webhook_url',
       'n8n_webhook_url',
       'n8n_reply_webhook_url',
+      'n8n_calendar_webhook_url',
       'google_sheet_id',
       'google_sheet_name',
       'google_sheets_api_key',

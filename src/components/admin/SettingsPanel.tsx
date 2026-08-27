@@ -14,6 +14,7 @@ interface SettingsData {
   n8n_inbound_webhook_url: string
   n8n_webhook_url: string
   n8n_reply_webhook_url: string
+  n8n_calendar_webhook_url: string
   google_sheet_id: string
   google_sheet_name: string
   google_sheets_api_key: string
@@ -45,6 +46,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
     n8n_inbound_webhook_url: '',
     n8n_webhook_url: '',
     n8n_reply_webhook_url: '',
+    n8n_calendar_webhook_url: '',
     google_sheet_id: '',
     google_sheet_name: 'LEADS',
     google_sheets_api_key: '',
@@ -71,6 +73,7 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
             n8n_inbound_webhook_url: data.n8n_inbound_webhook_url || '',
             n8n_webhook_url: data.n8n_webhook_url || '',
             n8n_reply_webhook_url: data.n8n_reply_webhook_url || '',
+            n8n_calendar_webhook_url: data.n8n_calendar_webhook_url || '',
             google_sheet_id: data.google_sheet_id || '',
             google_sheet_name: data.google_sheet_name || 'LEADS',
             google_sheets_api_key: data.google_sheets_api_key || '',
@@ -303,6 +306,21 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
                       placeholder="https://n8n.yourdomain.com/webhook/inbound"
                       className="w-full px-3.5 py-2.5 text-xs text-white bg-slate-950 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-60"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">n8n Calendar Notification Webhook URL</label>
+                    <input
+                      type="url"
+                      disabled={!isEditable}
+                      value={formData.n8n_calendar_webhook_url || ''}
+                      onChange={e => setFormData({ ...formData, n8n_calendar_webhook_url: e.target.value })}
+                      placeholder="https://n8n.yourdomain.com/webhook/calendar-booking"
+                      className="w-full px-3.5 py-2.5 text-xs text-white bg-slate-950 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 font-mono disabled:opacity-60"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Triggers your n8n workflow instantly when a meeting is booked to send WhatsApp messages or sync CRMs.
+                    </p>
                   </div>
                 </div>
               </div>

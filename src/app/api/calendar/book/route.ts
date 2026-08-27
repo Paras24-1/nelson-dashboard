@@ -385,8 +385,14 @@ export async function POST(request: Request) {
         }).catch(() => {})
       }
 
-      // 5. Trigger n8n Calendar Notification Webhook if configured
-      const n8nWebhookUrl = dbEvt?.n8n_calendar_webhook_url
+      // 5. Trigger n8n Calendar Notification Webhook if configured in Organization Settings
+      const { data: orgWebhookSettings } = await supabase
+        .from('organization_settings')
+        .select('n8n_calendar_webhook_url')
+        .eq('org_id', org_id)
+        .maybeSingle()
+
+      const n8nWebhookUrl = orgWebhookSettings?.n8n_calendar_webhook_url || dbEvt?.n8n_calendar_webhook_url
       if (n8nWebhookUrl && n8nWebhookUrl.startsWith('http')) {
         try {
           await fetch(n8nWebhookUrl, {
