@@ -388,11 +388,17 @@ export async function POST(request: Request) {
       // 5. Trigger n8n Calendar Notification Webhook if configured in Organization Settings
       const { data: orgWebhookSettings } = await supabase
         .from('organization_settings')
-        .select('n8n_calendar_webhook_url')
+        .select('n8n_calendar_webhook_url, ai_system_prompt')
         .eq('org_id', org_id)
         .maybeSingle()
 
-      const n8nWebhookUrl = orgWebhookSettings?.n8n_calendar_webhook_url || dbEvt?.n8n_calendar_webhook_url
+      let n8nWebhookUrl = orgWebhookSettings?.n8n_calendar_webhook_url || dbEvt?.n8n_calendar_webhook_url
+      if (!n8nWebhookUrl && orgWebhookSettings?.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+        try {
+          n8nWebhookUrl = orgWebhookSettings.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
+        } catch (e) {}
+      }
+
       if (n8nWebhookUrl && n8nWebhookUrl.startsWith('http')) {
         try {
           await fetch(n8nWebhookUrl, {

@@ -13,9 +13,19 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
 
     if (error) throw error
-    return NextResponse.json(data || {})
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    const result = data || {}
+
+    // Parse fallback n8n_calendar_webhook_url if embedded in ai_system_prompt
+    if (!result.n8n_calendar_webhook_url && result.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+      try {
+        const raw = result.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
+        result.n8n_calendar_webhook_url = raw
+      } catch (e) {}
+    }
+
+    return NextResponse.json(result)
+  } catch (err: any) {
+    return NextResponse.json({ error: String(err.message || err) }, { status: 500 })
   }
 }
 
@@ -50,10 +60,12 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    const calWebhook = body.n8n_calendar_webhook_url !== undefined ? (body.n8n_calendar_webhook_url || '') : null
+
     // Check if settings row already exists for this org
     const { data: existing } = await supabaseAdmin
       .from('organization_settings')
-      .select('id')
+      .select('id, ai_system_prompt, n8n_calendar_webhook_url')
       .eq('org_id', orgId)
       .maybeSingle()
 
@@ -69,12 +81,49 @@ export async function PATCH(req: NextRequest) {
         .insert({ org_id: orgId, ...filtered })
     }
 
-    const { data, error } = await query.select().single()
-    if (error) throw error
+    let { data, error } = await query.select().single()
+
+    // If SQL column 'n8n_calendar_webhook_url' does not exist in Supabase schema, handle fallback
+    if (error) {
+      delete filtered.n8n_calendar_webhook_url
+
+      if (calWebhook !== null) {
+        let prompt = body.ai_system_prompt !== undefined ? (body.ai_system_prompt || '') : (existing?.ai_system_prompt || '')
+        if (prompt.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+          prompt = prompt.replace(/__N8N_CALENDAR_WEBHOOK__=[\s\S]*?__END_WEBHOOK__/g, '').trim()
+        }
+        if (calWebhook) {
+          prompt = prompt ? `${prompt}\n__N8N_CALENDAR_WEBHOOK__=${calWebhook}__END_WEBHOOK__` : `__N8N_CALENDAR_WEBHOOK__=${calWebhook}__END_WEBHOOK__`
+        }
+        filtered.ai_system_prompt = prompt
+      }
+
+      let retryQuery
+      if (existing) {
+        retryQuery = supabaseAdmin
+          .from('organization_settings')
+          .update(filtered)
+          .eq('org_id', orgId)
+      } else {
+        retryQuery = supabaseAdmin
+          .from('organization_settings')
+          .insert({ org_id: orgId, ...filtered })
+      }
+
+      const retryRes = await retryQuery.select().single()
+      if (retryRes.error) {
+        throw new Error(retryRes.error.message || String(retryRes.error))
+      }
+      data = retryRes.data
+    }
+
+    if (data && !data.n8n_calendar_webhook_url && calWebhook) {
+      data.n8n_calendar_webhook_url = calWebhook
+    }
 
     return NextResponse.json(data)
-  } catch (err) {
+  } catch (err: any) {
     console.error('[settings]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: String(err.message || err) }, { status: 500 })
   }
 }

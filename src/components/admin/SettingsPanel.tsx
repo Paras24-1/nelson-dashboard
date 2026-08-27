@@ -117,14 +117,16 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
 
       if (!res.ok) {
         const json = await res.json()
-        throw new Error(json.error || 'Failed to update settings')
+        const errMsg = typeof json.error === 'string' ? json.error : (json.error?.message || JSON.stringify(json.error) || 'Failed to update settings')
+        throw new Error(errMsg)
       }
 
       setSuccess('Settings updated successfully!')
       setIsEditable(false)
       setTimeout(() => setSuccess(''), 3000)
     } catch (err: any) {
-      setError(err.message || 'Failed to save settings')
+      const msg = typeof err === 'string' ? err : (err.message || JSON.stringify(err) || 'Failed to save settings')
+      setError(msg)
     } finally {
       setSaving(false)
     }
