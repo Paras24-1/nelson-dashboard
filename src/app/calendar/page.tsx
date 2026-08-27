@@ -378,61 +378,14 @@ export default function CalendarDashboardPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {events.map(evt => (
-                <div key={evt.id} className="p-6 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-4 shadow-xl">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-base font-bold text-white">{evt.title}</h4>
-                      <p className="text-xs text-emerald-400 font-mono mt-0.5">/book/{evt.slug}</p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-slate-950 text-slate-300 border border-slate-800 text-xs font-bold">
-                      {evt.duration_minutes} Mins
-                    </span>
-                  </div>
-
-                  {evt.description && (
-                    <p className="text-xs text-slate-400 line-clamp-2">{evt.description}</p>
-                  )}
-
-                  <div className="flex items-center gap-3 pt-2">
-                    <button
-                      onClick={() => handleCopyLink(evt.slug, evt.id || '')}
-                      className="flex-1 py-2 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-800 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      {copiedId === evt.id ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400">Copied Link!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Link</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => handleCopyEmbed(evt.slug, evt.id || '')}
-                      className="py-2 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-800 transition-colors flex items-center gap-1.5"
-                    >
-                      {copiedEmbedId === evt.id ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : (
-                        <Code className="w-3.5 h-3.5 text-slate-400" />
-                      )}
-                      <span>iFrame Code</span>
-                    </button>
-
-                    <a
-                      href={`/book/${evt.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl transition-colors"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                </div>
+                <EventCalendarCard
+                  key={evt.id || evt.slug}
+                  evt={evt}
+                  copiedId={copiedId}
+                  copiedEmbedId={copiedEmbedId}
+                  onCopyLink={handleCopyLink}
+                  onCopyEmbed={handleCopyEmbed}
+                />
               ))}
             </div>
           )}
@@ -1532,6 +1485,165 @@ function AppointmentsCalendarView({
         </div>
       )}
 
+    </div>
+  )
+}
+
+// --- EVENT CALENDAR CARD WITH EXPANDABLE DETAILS ---
+function EventCalendarCard({
+  evt,
+  copiedId,
+  copiedEmbedId,
+  onCopyLink,
+  onCopyEmbed
+}: {
+  evt: EventType
+  copiedId: string | null
+  copiedEmbedId: string | null
+  onCopyLink: (slug: string, id: string) => void
+  onCopyEmbed: (slug: string, id: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="p-6 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-4 shadow-xl hover:border-slate-700 transition-all">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-3">
+        <div>
+          <h4 className="text-base font-bold text-white flex items-center gap-2">
+            <span>{evt.title}</span>
+          </h4>
+          <p className="text-xs text-emerald-400 font-mono mt-0.5">/book/{evt.slug}</p>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+            {evt.duration_minutes} Mins
+          </span>
+          <span className="px-2.5 py-1 rounded-full bg-slate-950 text-slate-300 border border-slate-800 text-[11px] font-semibold capitalize">
+            {evt.location_type?.replace('_', ' ') || 'Google Meet'}
+          </span>
+        </div>
+      </div>
+
+      {evt.description && (
+        <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/60 p-3 rounded-2xl border border-slate-800/60">
+          {evt.description}
+        </p>
+      )}
+
+      {/* Basic Metadata Grid */}
+      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800">
+        <div>
+          <span className="text-slate-500 block text-[10px] uppercase font-bold">Location Details</span>
+          <span className="text-slate-200 font-mono truncate block font-medium" title={evt.location_url || 'Not set'}>
+            {evt.location_url || 'Auto-generated'}
+          </span>
+        </div>
+        <div>
+          <span className="text-slate-500 block text-[10px] uppercase font-bold">Timezone & Notice</span>
+          <span className="text-slate-200 font-medium block">
+            {evt.timezone || 'Asia/Kolkata'} ({evt.min_notice_hours || 4}h notice)
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded Details Section */}
+      {expanded && (
+        <div className="space-y-3 pt-2 border-t border-slate-800/80 animate-in fade-in duration-150">
+          <div className="p-3 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 text-xs">
+            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Weekly Operating Schedule</h5>
+            
+            {evt.weekly_schedule ? (
+              <div className="space-y-1.5 font-mono text-[11px]">
+                {DAYS_LIST.map(d => {
+                  const sched = evt.weekly_schedule?.[d.id]
+                  if (!sched || !sched.enabled) return null
+                  const intervalsStr = sched.intervals?.map(i => `${i.start} - ${i.end}`).join(', ')
+                  return (
+                    <div key={d.id} className="flex justify-between items-center py-0.5 border-b border-slate-900 last:border-0">
+                      <span className="font-bold text-emerald-400 w-16 capitalize">{d.label}:</span>
+                      <span className="text-slate-300 font-medium">{intervalsStr || '10:00 - 18:00'}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-slate-300 font-medium">
+                Active Days: <span className="text-emerald-400 uppercase font-bold">{evt.available_days?.join(', ') || 'MON, TUE, WED, THU, FRI'}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950 p-3 rounded-2xl border border-slate-800">
+            <div>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">Buffer Between Calls</span>
+              <span className="text-slate-300 font-semibold">{evt.buffer_minutes || 0} Minutes</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px] uppercase font-bold">Slot Interval</span>
+              <span className="text-slate-300 font-semibold">{evt.slot_interval || 30} Minutes</span>
+            </div>
+            {evt.redirect_url && (
+              <div className="col-span-2 pt-1 border-t border-slate-900">
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">Custom Redirect URL</span>
+                <span className="text-emerald-400 font-mono text-[11px] truncate block">{evt.redirect_url}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Expand / Collapse Details Button */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+      >
+        <span>{expanded ? 'Hide Full Details ▲' : 'View Full Calendar Details ▼'}</span>
+      </button>
+
+      {/* Action Buttons */}
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={() => onCopyLink(evt.slug, evt.id || '')}
+          className="flex-1 py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-800 transition-colors flex items-center justify-center gap-1.5"
+        >
+          {copiedId === evt.id ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400">Copied Link!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5" />
+              <span>Copy Link</span>
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={() => onCopyEmbed(evt.slug, evt.id || '')}
+          className="py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-800 transition-colors flex items-center gap-1.5"
+        >
+          {copiedEmbedId === evt.id ? (
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+          ) : (
+            <Code className="w-3.5 h-3.5 text-slate-400" />
+          )}
+          <span>iFrame Code</span>
+        </button>
+
+        <a
+          href={`/book/${evt.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Preview Booking Page"
+          className="p-2.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
     </div>
   )
 }
