@@ -352,7 +352,7 @@ export async function POST(request: Request) {
         const cleanPhone = attendee_phone.replace(/[^0-9]/g, '')
         const formattedMessage = `Hello ${attendee_name}! 👋\n\nYour appointment for "${eventTitle}" has been successfully scheduled.\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Join Link: ${meeting_link}\n\nWe look forward to speaking with you!`
 
-        fetch(n8nWebhookUrl, {
+        const n8nRes = await fetch(n8nWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -376,7 +376,9 @@ export async function POST(request: Request) {
             org_id,
             created_at: new Date().toISOString()
           })
-        }).catch(err => console.error('[N8N DISPATCH ERROR]', err))
+        })
+        const n8nBody = await n8nRes.text()
+        console.log(`[N8N DISPATCH RESPONSE] ${n8nRes.status} ${n8nRes.statusText}:`, n8nBody)
       }
     } catch (n8nErr) {
       console.error('[N8N DISPATCH EXCEPTION]', n8nErr)
