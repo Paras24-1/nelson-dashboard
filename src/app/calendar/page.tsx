@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useOrg } from '@/contexts/OrgContext'
+import Sidebar from '@/components/Sidebar'
 import { 
   Calendar as CalendarIcon, Clock, Video, MapPin, Phone, User, Plus, Code, Copy, Check, 
   Trash2, ExternalLink, Filter, Search, Globe, ShieldAlert, Sparkles, RefreshCw, ChevronRight, ArrowLeft
@@ -261,7 +262,10 @@ export default function CalendarDashboardPage() {
 
   if (!isAllowed) {
     return (
-      <div className="min-h-screen bg-slate-950 p-6 flex flex-col items-center justify-center text-center">
+      <div className="min-h-screen bg-slate-950 p-6 flex flex-col items-center justify-center text-center relative">
+        <div className="absolute top-6 left-6">
+          <Sidebar />
+        </div>
         <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-4">
           <ShieldAlert className="w-8 h-8" />
         </div>
@@ -286,14 +290,17 @@ export default function CalendarDashboardPage() {
       
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
-        <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <CalendarIcon className="w-6 h-6 text-emerald-400" />
-            Booking Calendar & Scheduler
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Manage client appointment slots and website embeds.
-          </p>
+        <div className="flex items-center gap-3">
+          <Sidebar />
+          <div>
+            <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              <CalendarIcon className="w-6 h-6 text-emerald-400" />
+              Booking Calendar & Scheduler
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Manage client appointment slots and website embeds.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800">
