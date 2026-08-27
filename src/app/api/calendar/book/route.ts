@@ -302,11 +302,80 @@ export async function POST(request: Request) {
       }
     } catch (e) {}
 
-    // --- EMAIL DISPATCH (LEAD & ADMIN) ---
+    // --- POST-BOOKING AUTOMATION & NOTIFICATIONS ---
+
+    // A. Trigger n8n Calendar Notification Webhook
     try {
-      // 1. Resolve Admin Emails for this organization
+      let n8nWebhookUrl = ''
+      
+      // 1. Try from organization_settings for org_id
+      if (org_id) {
+        const { data: orgSettings } = await supabase
+          .from('organization_settings')
+          .select('n8n_calendar_webhook_url, ai_system_prompt')
+          .eq('org_id', org_id)
+          .maybeSingle()
+
+        if (orgSettings?.n8n_calendar_webhook_url) {
+          n8nWebhookUrl = orgSettings.n8n_calendar_webhook_url
+        } else if (orgSettings?.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+          n8nWebhookUrl = orgSettings.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
+        }
+      }
+
+      // 2. Try from dbEvt
+      if (!n8nWebhookUrl && dbEvt?.n8n_calendar_webhook_url) {
+        n8nWebhookUrl = dbEvt.n8n_calendar_webhook_url
+      }
+
+      // 3. Fallback search across all organization_settings if n8nWebhookUrl still empty
+      if (!n8nWebhookUrl) {
+        const { data: allSettings } = await supabase
+          .from('organization_settings')
+          .select('n8n_calendar_webhook_url, ai_system_prompt')
+
+        if (allSettings) {
+          for (const s of allSettings) {
+            if (s.n8n_calendar_webhook_url) {
+              n8nWebhookUrl = s.n8n_calendar_webhook_url
+              break
+            } else if (s.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+              n8nWebhookUrl = s.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
+              break
+            }
+          }
+        }
+      }
+
+      if (n8nWebhookUrl && n8nWebhookUrl.startsWith('http')) {
+        console.log('[N8N CALENDAR DISPATCH] Firing webhook to:', n8nWebhookUrl)
+        fetch(n8nWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_type: 'calendar_booking_created',
+            event_title: eventTitle,
+            booking_date,
+            start_time,
+            end_time: end_time || start_time,
+            attendee_name,
+            attendee_email,
+            attendee_phone,
+            meeting_link,
+            notes: notes || '',
+            org_id,
+            created_at: new Date().toISOString()
+          })
+        }).catch(err => console.error('[N8N DISPATCH ERROR]', err))
+      }
+    } catch (n8nErr) {
+      console.error('[N8N DISPATCH EXCEPTION]', n8nErr)
+    }
+
+    // B. Deliver Real Gmail SMTP Email Notifications
+    try {
       const { data: adminUsers } = await supabase
-        .from('users')
+        .from('profiles')
         .select('email')
         .eq('org_id', org_id)
         .in('role', ['owner', 'admin'])
@@ -316,8 +385,8 @@ export async function POST(request: Request) {
         adminEmails.push('voxai4278@gmail.com')
       }
 
-      // 2. Deliver Real Gmail SMTP Email to Lead
-      await sendBookingEmail({
+      // Deliver to Lead
+      sendBookingEmail({
         to: attendee_email,
         subject: `🗓️ Meeting Confirmed: ${eventTitle} on ${booking_date} at ${start_time}`,
         recipientName: attendee_name,
@@ -327,11 +396,11 @@ export async function POST(request: Request) {
         meetingLink: meeting_link,
         notes: notes || '',
         isAdmin: false
-      })
+      }).catch(() => {})
 
-      // 3. Deliver Real Gmail SMTP Email to Admin(s)
+      // Deliver to Admins
       for (const adminEmail of adminEmails) {
-        await sendBookingEmail({
+        sendBookingEmail({
           to: adminEmail,
           subject: `🔔 New Meeting Booked: ${attendee_name} (${booking_date} @ ${start_time})`,
           recipientName: 'Admin',
@@ -343,10 +412,10 @@ export async function POST(request: Request) {
           isAdmin: true,
           leadPhone: attendee_phone,
           leadEmail: attendee_email
-        })
+        }).catch(() => {})
       }
 
-      // Also log ticket in Supabase emails table
+      // Log ticket in Supabase emails table
       try {
         await supabase.from('emails').insert({
           org_id,
@@ -359,8 +428,10 @@ export async function POST(request: Request) {
           status: 'sent'
         })
       } catch (e) {}
+    } catch (emailErr) {}
 
-      // 4. Send WhatsApp Notification to Lead if WhatsApp API configured
+    // C. Deliver Meta WhatsApp Direct Message if configured
+    try {
       const { data: orgSettings } = await supabase
         .from('organization_settings')
         .select('whatsapp_token, whatsapp_phone_id')
@@ -370,7 +441,7 @@ export async function POST(request: Request) {
       if (orgSettings?.whatsapp_token && orgSettings?.whatsapp_phone_id) {
         const messageText = `Hello ${attendee_name}! 👋\nYour appointment for "${eventTitle}" has been successfully scheduled.\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Meeting Link: ${meeting_link}\n\nThank you for scheduling with us!`
         
-        await fetch(`https://graph.facebook.com/v19.0/${orgSettings.whatsapp_phone_id}/messages`, {
+        fetch(`https://graph.facebook.com/v19.0/${orgSettings.whatsapp_phone_id}/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${orgSettings.whatsapp_token}`,
@@ -384,44 +455,7 @@ export async function POST(request: Request) {
           })
         }).catch(() => {})
       }
-
-      // 5. Trigger n8n Calendar Notification Webhook if configured in Organization Settings
-      const { data: orgWebhookSettings } = await supabase
-        .from('organization_settings')
-        .select('n8n_calendar_webhook_url, ai_system_prompt')
-        .eq('org_id', org_id)
-        .maybeSingle()
-
-      let n8nWebhookUrl = orgWebhookSettings?.n8n_calendar_webhook_url || dbEvt?.n8n_calendar_webhook_url
-      if (!n8nWebhookUrl && orgWebhookSettings?.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
-        try {
-          n8nWebhookUrl = orgWebhookSettings.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
-        } catch (e) {}
-      }
-
-      if (n8nWebhookUrl && n8nWebhookUrl.startsWith('http')) {
-        try {
-          await fetch(n8nWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              event_type: 'calendar_booking_created',
-              event_title: eventTitle,
-              booking_date,
-              start_time,
-              end_time: end_time || start_time,
-              attendee_name,
-              attendee_email,
-              attendee_phone,
-              meeting_link,
-              notes: notes || '',
-              org_id,
-              created_at: new Date().toISOString()
-            })
-          }).catch(err => console.error('n8n calendar webhook dispatch error:', err))
-        } catch (e) {}
-      }
-    } catch (e) {}
+    } catch (waErr) {}
 
     return NextResponse.json({ success: true, appointment: newApt })
   } catch (err: any) {
