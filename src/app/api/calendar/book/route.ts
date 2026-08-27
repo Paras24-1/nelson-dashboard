@@ -349,10 +349,20 @@ export async function POST(request: Request) {
 
       if (n8nWebhookUrl && n8nWebhookUrl.startsWith('http')) {
         console.log('[N8N CALENDAR DISPATCH] Firing webhook to:', n8nWebhookUrl)
+        const cleanPhone = attendee_phone.replace(/[^0-9]/g, '')
+        const formattedMessage = `Hello ${attendee_name}! 👋\n\nYour appointment for "${eventTitle}" has been successfully scheduled.\n\n📅 Date: ${booking_date}\n⏰ Time: ${start_time}\n📹 Join Link: ${meeting_link}\n\nWe look forward to speaking with you!`
+
         fetch(n8nWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            recipient: cleanPhone,
+            to: cleanPhone,
+            phone: cleanPhone,
+            phone_number: cleanPhone,
+            message: formattedMessage,
+            body: formattedMessage,
+            text: formattedMessage,
             event_type: 'calendar_booking_created',
             event_title: eventTitle,
             booking_date,
@@ -360,7 +370,7 @@ export async function POST(request: Request) {
             end_time: end_time || start_time,
             attendee_name,
             attendee_email,
-            attendee_phone,
+            attendee_phone: cleanPhone,
             meeting_link,
             notes: notes || '',
             org_id,
