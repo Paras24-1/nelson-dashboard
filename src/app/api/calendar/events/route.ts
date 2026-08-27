@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     const { 
       id, org_id, title, slug, description, duration_minutes, location_type, location_url, 
       available_days, weekly_schedule, start_time, end_time, timezone, slot_interval, 
-      buffer_minutes, min_notice_hours, redirect_url 
+      buffer_minutes, min_notice_hours, redirect_url, n8n_calendar_webhook_url 
     } = body
 
     if (!org_id || !title) {
@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       buffer_minutes: Number(buffer_minutes) || 10,
       min_notice_hours: Number(min_notice_hours) || 4,
       redirect_url: redirect_url || '',
+      n8n_calendar_webhook_url: n8n_calendar_webhook_url || '',
       is_active: true
     }
 

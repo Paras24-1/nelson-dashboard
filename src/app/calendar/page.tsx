@@ -57,6 +57,7 @@ interface EventType {
   buffer_minutes: number
   min_notice_hours: number
   redirect_url?: string
+  n8n_calendar_webhook_url?: string
   created_at?: string
 }
 
@@ -838,6 +839,22 @@ export default function CalendarDashboardPage() {
                     className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    n8n Calendar Notification Webhook URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://n8n.your-domain.com/webhook/calendar-booking"
+                    value={formData.n8n_calendar_webhook_url || ''}
+                    onChange={e => setFormData({ ...formData, n8n_calendar_webhook_url: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Triggers your n8n workflow instantly when a meeting is booked to send WhatsApp messages or sync CRMs.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -859,6 +876,12 @@ export default function CalendarDashboardPage() {
                     <span className="text-slate-400">Location Details:</span>
                     <span className="font-bold text-white">{formData.location_type} ({formData.location_url})</span>
                   </div>
+                  {formData.n8n_calendar_webhook_url && (
+                    <div className="flex justify-between border-b border-slate-800 pb-2">
+                      <span className="text-slate-400">n8n Webhook:</span>
+                      <span className="font-mono text-blue-400 truncate max-w-[220px]">{formData.n8n_calendar_webhook_url}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-b border-slate-800 pb-2">
                     <span className="text-slate-400">Duration:</span>
                     <span className="font-bold text-white">{formData.duration_minutes} Mins</span>
@@ -1588,6 +1611,12 @@ function EventCalendarCard({
               <div className="col-span-2 pt-1 border-t border-slate-900">
                 <span className="text-slate-500 block text-[10px] uppercase font-bold">Custom Redirect URL</span>
                 <span className="text-emerald-400 font-mono text-[11px] truncate block">{evt.redirect_url}</span>
+              </div>
+            )}
+            {evt.n8n_calendar_webhook_url && (
+              <div className="col-span-2 pt-1 border-t border-slate-900">
+                <span className="text-slate-500 block text-[10px] uppercase font-bold">n8n Calendar Webhook</span>
+                <span className="text-blue-400 font-mono text-[11px] truncate block">{evt.n8n_calendar_webhook_url}</span>
               </div>
             )}
           </div>

@@ -384,6 +384,31 @@ export async function POST(request: Request) {
           })
         }).catch(() => {})
       }
+
+      // 5. Trigger n8n Calendar Notification Webhook if configured
+      const n8nWebhookUrl = dbEvt?.n8n_calendar_webhook_url
+      if (n8nWebhookUrl && n8nWebhookUrl.startsWith('http')) {
+        try {
+          await fetch(n8nWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event_type: 'calendar_booking_created',
+              event_title: eventTitle,
+              booking_date,
+              start_time,
+              end_time: end_time || start_time,
+              attendee_name,
+              attendee_email,
+              attendee_phone,
+              meeting_link,
+              notes: notes || '',
+              org_id,
+              created_at: new Date().toISOString()
+            })
+          }).catch(err => console.error('n8n calendar webhook dispatch error:', err))
+        } catch (e) {}
+      }
     } catch (e) {}
 
     return NextResponse.json({ success: true, appointment: newApt })
