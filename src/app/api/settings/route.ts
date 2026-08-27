@@ -35,6 +35,8 @@ export async function PATCH(req: NextRequest) {
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
+
+    // Allowed columns that exist in Supabase organization_settings table
     const allowedKeys = [
       'whatsapp_token',
       'whatsapp_phone_id',
@@ -42,7 +44,6 @@ export async function PATCH(req: NextRequest) {
       'n8n_inbound_webhook_url',
       'n8n_webhook_url',
       'n8n_reply_webhook_url',
-      'n8n_calendar_webhook_url',
       'google_sheet_id',
       'google_sheet_name',
       'google_sheets_api_key',
@@ -60,14 +61,26 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    const calWebhook = body.n8n_calendar_webhook_url !== undefined ? (body.n8n_calendar_webhook_url || '') : null
+    const calWebhook = body.n8n_calendar_webhook_url !== undefined ? (body.n8n_calendar_webhook_url || '').trim() : null
 
-    // Check if settings row already exists for this org
+    // Safely query existing settings using only guaranteed valid columns
     const { data: existing } = await supabaseAdmin
       .from('organization_settings')
-      .select('id, ai_system_prompt, n8n_calendar_webhook_url')
+      .select('id, ai_system_prompt')
       .eq('org_id', orgId)
       .maybeSingle()
+
+    // Handle embedding n8n_calendar_webhook_url safely inside ai_system_prompt tag
+    if (calWebhook !== null) {
+      let prompt = filtered.ai_system_prompt !== undefined ? (filtered.ai_system_prompt || '') : (existing?.ai_system_prompt || '')
+      if (prompt.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+        prompt = prompt.replace(/__N8N_CALENDAR_WEBHOOK__=[\s\S]*?__END_WEBHOOK__/g, '').trim()
+      }
+      if (calWebhook) {
+        prompt = prompt ? `${prompt}\n__N8N_CALENDAR_WEBHOOK__=${calWebhook}__END_WEBHOOK__` : `__N8N_CALENDAR_WEBHOOK__=${calWebhook}__END_WEBHOOK__`
+      }
+      filtered.ai_system_prompt = prompt
+    }
 
     let query
     if (existing) {
@@ -81,47 +94,14 @@ export async function PATCH(req: NextRequest) {
         .insert({ org_id: orgId, ...filtered })
     }
 
-    let { data, error } = await query.select().single()
-
-    // If SQL column 'n8n_calendar_webhook_url' does not exist in Supabase schema, handle fallback
+    const { data, error } = await query.select().single()
     if (error) {
-      delete filtered.n8n_calendar_webhook_url
-
-      if (calWebhook !== null) {
-        let prompt = body.ai_system_prompt !== undefined ? (body.ai_system_prompt || '') : (existing?.ai_system_prompt || '')
-        if (prompt.includes('__N8N_CALENDAR_WEBHOOK__=')) {
-          prompt = prompt.replace(/__N8N_CALENDAR_WEBHOOK__=[\s\S]*?__END_WEBHOOK__/g, '').trim()
-        }
-        if (calWebhook) {
-          prompt = prompt ? `${prompt}\n__N8N_CALENDAR_WEBHOOK__=${calWebhook}__END_WEBHOOK__` : `__N8N_CALENDAR_WEBHOOK__=${calWebhook}__END_WEBHOOK__`
-        }
-        filtered.ai_system_prompt = prompt
-      }
-
-      let retryQuery
-      if (existing) {
-        retryQuery = supabaseAdmin
-          .from('organization_settings')
-          .update(filtered)
-          .eq('org_id', orgId)
-      } else {
-        retryQuery = supabaseAdmin
-          .from('organization_settings')
-          .insert({ org_id: orgId, ...filtered })
-      }
-
-      const retryRes = await retryQuery.select().single()
-      if (retryRes.error) {
-        throw new Error(retryRes.error.message || String(retryRes.error))
-      }
-      data = retryRes.data
+      console.error('[settings save error]', error)
+      throw new Error(error.message || String(error))
     }
 
-    if (data && !data.n8n_calendar_webhook_url && calWebhook) {
-      data.n8n_calendar_webhook_url = calWebhook
-    }
-
-    return NextResponse.json(data)
+    const resObj = { ...data, n8n_calendar_webhook_url: calWebhook !== null ? calWebhook : '' }
+    return NextResponse.json(resObj)
   } catch (err: any) {
     console.error('[settings]', err)
     return NextResponse.json({ error: String(err.message || err) }, { status: 500 })
