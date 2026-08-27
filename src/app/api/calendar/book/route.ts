@@ -137,26 +137,60 @@ export async function POST(request: Request) {
       if (dbEvt.end_time) endTimeStr = dbEvt.end_time
     }
 
-    // --- STRICT DAY OF WEEK WORKING DAYS CHECK ---
+    // --- STRICT DAY OF WEEK & WEEKLY SCHEDULE WORKING HOURS CHECK ---
     const DAY_CODES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-    const bookingDateObj = new Date(booking_date + 'T00:00:00')
+    const [y, m, d] = booking_date.split('-').map(Number)
+    const bookingDateObj = new Date(y, m - 1, d)
     const dayCode = DAY_CODES[bookingDateObj.getDay()]
 
-    if (availableDays.length > 0 && !availableDays.includes(dayCode)) {
-      return NextResponse.json({ error: `Selected date (${booking_date}) falls on a non-working day (${dayCode.toUpperCase()})` }, { status: 400 })
+    let weeklySched = dbEvt?.weekly_schedule
+    if (typeof weeklySched === 'string') {
+      try { weeklySched = JSON.parse(weeklySched) } catch (e) {}
     }
 
-    // --- STRICT WORKING HOURS BOUNDS CHECK ---
-    const [startH, startM] = startTimeStr.split(':').map(Number)
-    const [endH, endM] = endTimeStr.split(':').map(Number)
-    const [bookH, bookM] = start_time.split(':').map(Number)
+    if (weeklySched && weeklySched[dayCode]) {
+      const dayConfig = weeklySched[dayCode]
+      if (!dayConfig.enabled) {
+        return NextResponse.json({ error: `Selected date (${booking_date}) is marked as closed/unavailable` }, { status: 400 })
+      }
 
-    const slotMinutes = bookH * 60 + bookM
-    const startMinutes = startH * 60 + startM
-    const endMinutes = endH * 60 + endM
+      const intervals: { start: string; end: string }[] = dayConfig.intervals || []
+      const [bookH, bookM] = start_time.split(':').map(Number)
+      const bookMins = bookH * 60 + bookM
 
-    if (slotMinutes < startMinutes || slotMinutes >= endMinutes) {
-      return NextResponse.json({ error: `Selected time (${start_time}) is outside operating hours (${startTimeStr} - ${endTimeStr})` }, { status: 400 })
+      let fallsInInterval = false
+      for (const inter of intervals) {
+        if (!inter.start || !inter.end) continue
+        const [sH, sM] = inter.start.split(':').map(Number)
+        const [eH, eM] = inter.end.split(':').map(Number)
+        const startMins = sH * 60 + sM
+        const endMins = eH * 60 + eM
+
+        if (bookMins >= startMins && bookMins < endMins) {
+          fallsInInterval = true
+          break
+        }
+      }
+
+      if (!fallsInInterval) {
+        return NextResponse.json({ error: `Selected time (${start_time}) is outside operating hours for ${dayCode.toUpperCase()}` }, { status: 400 })
+      }
+    } else {
+      if (availableDays.length > 0 && !availableDays.includes(dayCode)) {
+        return NextResponse.json({ error: `Selected date (${booking_date}) falls on a non-working day (${dayCode.toUpperCase()})` }, { status: 400 })
+      }
+
+      const [startH, startM] = startTimeStr.split(':').map(Number)
+      const [endH, endM] = endTimeStr.split(':').map(Number)
+      const [bookH, bookM] = start_time.split(':').map(Number)
+
+      const slotMinutes = bookH * 60 + bookM
+      const startMinutes = startH * 60 + startM
+      const endMinutes = endH * 60 + endM
+
+      if (slotMinutes < startMinutes || slotMinutes >= endMinutes) {
+        return NextResponse.json({ error: `Selected time (${start_time}) is outside operating hours (${startTimeStr} - ${endTimeStr})` }, { status: 400 })
+      }
     }
 
     // --- PROPER GOOGLE MEET / LOCATION LINK RESOLUTION ---

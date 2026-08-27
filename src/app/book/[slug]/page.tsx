@@ -73,9 +73,20 @@ export default function PublicBookingPage() {
     const intervalMinutes = Number(eventType.slot_interval) || 30
 
     // 1. Check if custom per-day weekly schedule exists
-    if (eventType.weekly_schedule && eventType.weekly_schedule[dayCode]) {
-      const daySched = eventType.weekly_schedule[dayCode]
-      if (!daySched.enabled || !Array.isArray(daySched.intervals)) return []
+    let weeklySched = eventType.weekly_schedule
+    if (typeof weeklySched === 'string') {
+      try {
+        weeklySched = JSON.parse(weeklySched)
+      } catch (e) {
+        weeklySched = null
+      }
+    }
+
+    if (weeklySched && weeklySched[dayCode]) {
+      const daySched = weeklySched[dayCode]
+      if (!daySched.enabled || !Array.isArray(daySched.intervals) || daySched.intervals.length === 0) {
+        return []
+      }
 
       for (const inter of daySched.intervals) {
         if (!inter.start || !inter.end) continue
@@ -577,8 +588,13 @@ function DatePickerCalendar({
           const dayCode = DAY_CODES[dateObj.getDay()]
           
           let isOperating = true
-          if (eventType?.weekly_schedule && eventType.weekly_schedule[dayCode]) {
-            isOperating = Boolean(eventType.weekly_schedule[dayCode].enabled)
+          let weeklySched = eventType?.weekly_schedule
+          if (typeof weeklySched === 'string') {
+            try { weeklySched = JSON.parse(weeklySched) } catch (e) {}
+          }
+
+          if (weeklySched && weeklySched[dayCode]) {
+            isOperating = Boolean(weeklySched[dayCode].enabled)
           } else if (Array.isArray(eventType?.available_days)) {
             isOperating = eventType.available_days.includes(dayCode)
           }
