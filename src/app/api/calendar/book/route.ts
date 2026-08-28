@@ -312,13 +312,11 @@ export async function POST(request: Request) {
       if (org_id) {
         const { data: orgSettings } = await supabase
           .from('organization_settings')
-          .select('n8n_calendar_webhook_url, ai_system_prompt')
+          .select('ai_system_prompt')
           .eq('org_id', org_id)
           .maybeSingle()
 
-        if (orgSettings?.n8n_calendar_webhook_url) {
-          n8nWebhookUrl = orgSettings.n8n_calendar_webhook_url
-        } else if (orgSettings?.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+        if (orgSettings?.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
           n8nWebhookUrl = orgSettings.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
         }
       }
@@ -332,14 +330,11 @@ export async function POST(request: Request) {
       if (!n8nWebhookUrl) {
         const { data: allSettings } = await supabase
           .from('organization_settings')
-          .select('n8n_calendar_webhook_url, ai_system_prompt')
+          .select('ai_system_prompt')
 
         if (allSettings) {
           for (const s of allSettings) {
-            if (s.n8n_calendar_webhook_url) {
-              n8nWebhookUrl = s.n8n_calendar_webhook_url
-              break
-            } else if (s.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
+            if (s.ai_system_prompt?.includes('__N8N_CALENDAR_WEBHOOK__=')) {
               n8nWebhookUrl = s.ai_system_prompt.split('__N8N_CALENDAR_WEBHOOK__=')[1].split('__END_WEBHOOK__')[0]
               break
             }
