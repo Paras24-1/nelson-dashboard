@@ -79,8 +79,21 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdmin()
-    const eventSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'call'
+    let eventSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'call'
     const targetId = id || 'evt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)
+
+    if (!id) {
+      const { data: existingSlug } = await supabase
+        .from('event_types')
+        .select('id')
+        .eq('org_id', org_id)
+        .eq('slug', eventSlug)
+        .maybeSingle()
+
+      if (existingSlug) {
+        eventSlug = `${eventSlug}-${Math.random().toString(36).substring(2, 6)}`
+      }
+    }
 
     const payload = {
       id: targetId,

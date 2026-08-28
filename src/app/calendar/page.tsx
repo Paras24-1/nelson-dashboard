@@ -118,6 +118,28 @@ export default function CalendarDashboardPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      slug: '',
+      description: '',
+      duration_minutes: 30,
+      location_type: 'google_meet',
+      location_url: '',
+      available_days: ['mon', 'tue', 'wed', 'thu', 'fri'],
+      weekly_schedule: INITIAL_WEEKLY_SCHEDULE,
+      start_time: '10:00',
+      end_time: '18:00',
+      timezone: 'Asia/Kolkata',
+      slot_interval: 30,
+      buffer_minutes: 10,
+      min_notice_hours: 4,
+      redirect_url: '',
+      n8n_calendar_webhook_url: ''
+    })
+    setWeeklySchedule(INITIAL_WEEKLY_SCHEDULE)
+  }
+
   useEffect(() => {
     if (org?.id && isAllowed) {
       fetchCalendarData()
@@ -347,6 +369,7 @@ export default function CalendarDashboardPage() {
 
           <button
             onClick={() => {
+              resetForm()
               setActiveTab('create')
               setWizardStep(1)
             }}
@@ -391,6 +414,7 @@ export default function CalendarDashboardPage() {
               </p>
               <button
                 onClick={() => {
+                  resetForm()
                   setActiveTab('create')
                   setWizardStep(1)
                 }}
@@ -965,6 +989,7 @@ export default function CalendarDashboardPage() {
                       })
                       const data = await res.json()
                       if (!res.ok) throw new Error(data.error || 'Failed to save calendar')
+                      resetForm()
                       await fetchCalendarData()
                       setActiveTab('events')
                       setWizardStep(1)
