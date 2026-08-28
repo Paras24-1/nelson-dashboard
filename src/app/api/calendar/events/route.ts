@@ -25,17 +25,21 @@ export async function GET(request: Request) {
       .eq('org_id', orgId)
       .maybeSingle()
 
-    let fallbackEventsMap: Record<string, any> = {}
+    let fallbackEventsList: any[] = []
     if (settings?.ai_system_prompt?.includes('__CALENDAR_EVENTS_STORE__=')) {
       try {
         const raw = settings.ai_system_prompt.split('__CALENDAR_EVENTS_STORE__=')[1].split('__END_STORE__')[0]
-        const fallbackList: any[] = JSON.parse(raw)
-        fallbackList.forEach(e => {
-          if (e.slug) fallbackEventsMap[e.slug] = e
-          if (e.id) fallbackEventsMap[e.id] = e
-        })
+        fallbackEventsList = JSON.parse(raw)
       } catch (e) {}
     }
+
+    const fallbackEventsMap = new Map<string, any>()
+    fallbackEventsList.forEach(e => {
+      const key = e.id || e.slug
+      if (key && !fallbackEventsMap.has(key)) {
+        fallbackEventsMap.set(key, e)
+      }
+    })
 
     // 2. Try dedicated event_types table
     const { data: events, error } = await supabase
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
       const uniqueEventsMap = new Map()
       events.forEach(evt => {
         if (!uniqueEventsMap.has(evt.slug) && !uniqueEventsMap.has(evt.id)) {
-          const fallbackMatch = fallbackEventsMap[evt.slug] || fallbackEventsMap[evt.id]
+          const fallbackMatch = fallbackEventsMap.get(evt.id) || fallbackEventsMap.get(evt.slug)
           uniqueEventsMap.set(evt.id, {
             ...evt,
             weekly_schedule: evt.weekly_schedule || fallbackMatch?.weekly_schedule || null
@@ -59,7 +63,7 @@ export async function GET(request: Request) {
       return NextResponse.json(Array.from(uniqueEventsMap.values()))
     }
 
-    return NextResponse.json(Object.values(fallbackEventsMap))
+    return NextResponse.json(Array.from(fallbackEventsMap.values()))
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }
