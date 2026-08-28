@@ -163,6 +163,23 @@ export default function CalendarDashboardPage() {
     setTimeout(() => setCopiedEmbedId(null), 2500)
   }
 
+  const handleDeleteCalendar = async (id: string, slug: string, title: string) => {
+    const targetId = id || slug
+    if (!org?.id || !targetId) return
+    if (!confirm(`Are you sure you want to delete the "${title}" calendar? This action cannot be undone.`)) return
+
+    try {
+      const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(targetId)}&org_id=${encodeURIComponent(org.id)}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete calendar')
+      await fetchCalendarData()
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete calendar')
+    }
+  }
+
   // --- WEEKLY SCHEDULE HELPER FUNCTIONS ---
   const handleToggleDay = (dayId: string) => {
     setWeeklySchedule(prev => ({
@@ -393,6 +410,7 @@ export default function CalendarDashboardPage() {
                   copiedEmbedId={copiedEmbedId}
                   onCopyLink={handleCopyLink}
                   onCopyEmbed={handleCopyEmbed}
+                  onDelete={handleDeleteCalendar}
                 />
               ))}
             </div>
@@ -1503,13 +1521,15 @@ function EventCalendarCard({
   copiedId,
   copiedEmbedId,
   onCopyLink,
-  onCopyEmbed
+  onCopyEmbed,
+  onDelete
 }: {
   evt: EventType
   copiedId: string | null
   copiedEmbedId: string | null
   onCopyLink: (slug: string, id: string) => void
   onCopyEmbed: (slug: string, id: string) => void
+  onDelete: (id: string, slug: string, title: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -1653,10 +1673,19 @@ function EventCalendarCard({
           target="_blank"
           rel="noopener noreferrer"
           title="Preview Booking Page"
-          className="p-2.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl transition-colors"
+          className="p-2.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl transition-colors flex items-center justify-center"
         >
           <ExternalLink className="w-4 h-4" />
         </a>
+
+        <button
+          type="button"
+          onClick={() => onDelete(evt.id || '', evt.slug, evt.title)}
+          title="Delete Calendar"
+          className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl transition-colors flex items-center justify-center"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </div>
   )

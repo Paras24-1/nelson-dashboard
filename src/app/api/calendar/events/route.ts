@@ -190,7 +190,7 @@ export async function DELETE(request: Request) {
     await supabase
       .from('event_types')
       .delete()
-      .eq('id', id)
+      .or(`id.eq.${id},slug.eq.${id}`)
       .eq('org_id', orgId)
 
     // Also clean fallback store
@@ -204,7 +204,7 @@ export async function DELETE(request: Request) {
       try {
         const currentPrompt = settings.ai_system_prompt
         const raw = currentPrompt.split('__CALENDAR_EVENTS_STORE__=')[1].split('__END_STORE__')[0]
-        let eventsList = JSON.parse(raw).filter((e: any) => e.id !== id)
+        let eventsList = JSON.parse(raw).filter((e: any) => e.id !== id && e.slug !== id)
         const storeTag = `__CALENDAR_EVENTS_STORE__=${JSON.stringify(eventsList)}__END_STORE__`
         const updatedPrompt = currentPrompt.replace(/__CALENDAR_EVENTS_STORE__=[\s\S]*?__END_STORE__/, storeTag)
         await supabase
