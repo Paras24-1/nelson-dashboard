@@ -45,15 +45,18 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
 
     if (!error && events && events.length > 0) {
-      // Merge weekly_schedule from fallback store if column was missing in DB table
-      const merged = events.map(evt => {
-        const fallbackMatch = fallbackEventsMap[evt.slug] || fallbackEventsMap[evt.id]
-        return {
-          ...evt,
-          weekly_schedule: evt.weekly_schedule || fallbackMatch?.weekly_schedule || null
+      // Merge weekly_schedule from fallback store if column was missing in DB table, deduplicating by slug/id
+      const uniqueEventsMap = new Map()
+      events.forEach(evt => {
+        if (!uniqueEventsMap.has(evt.slug) && !uniqueEventsMap.has(evt.id)) {
+          const fallbackMatch = fallbackEventsMap[evt.slug] || fallbackEventsMap[evt.id]
+          uniqueEventsMap.set(evt.id, {
+            ...evt,
+            weekly_schedule: evt.weekly_schedule || fallbackMatch?.weekly_schedule || null
+          })
         }
       })
-      return NextResponse.json(merged)
+      return NextResponse.json(Array.from(uniqueEventsMap.values()))
     }
 
     return NextResponse.json(Object.values(fallbackEventsMap))
@@ -77,8 +80,10 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin()
     const eventSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'call'
+    const targetId = id || 'evt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)
 
     const payload = {
+      id: targetId,
       org_id,
       title,
       slug: eventSlug,
@@ -101,56 +106,30 @@ export async function POST(request: Request) {
 
     let savedResult = null
 
-    // 1. Try DB table
+    // 1. Atomic upsert to DB table to prevent duplicate inserts
     try {
-      if (id) {
-        const { data: updated, error: updateErr } = await supabase
-          .from('event_types')
-          .update(payload)
-          .eq('id', id)
-          .eq('org_id', org_id)
-          .select()
+      const { data: upserted, error: upsertErr } = await supabase
+        .from('event_types')
+        .upsert(payload, { onConflict: 'id' })
+        .select()
 
-        if (!updateErr && updated && updated.length > 0) {
-          savedResult = updated[0]
-        } else if (updateErr) {
-          // If weekly_schedule column missing in SQL schema, update without it
-          const { weekly_schedule: _, ...payloadNoSchedule } = payload
-          const { data: updatedFallback } = await supabase
-            .from('event_types')
-            .update(payloadNoSchedule)
-            .eq('id', id)
-            .eq('org_id', org_id)
-            .select()
-          if (updatedFallback && updatedFallback.length > 0) {
-            savedResult = { ...updatedFallback[0], weekly_schedule }
-          }
-        }
-      } else {
-        const { data: inserted, error: insertErr } = await supabase
+      if (!upsertErr && upserted && upserted.length > 0) {
+        savedResult = upserted[0]
+      } else if (upsertErr) {
+        // If weekly_schedule column missing in SQL schema, upsert without it
+        const { weekly_schedule: _, n8n_calendar_webhook_url: __, ...payloadClean } = payload
+        const { data: fallbackUpsert } = await supabase
           .from('event_types')
-          .insert(payload)
+          .upsert(payloadClean, { onConflict: 'id' })
           .select()
-
-        if (!insertErr && inserted && inserted.length > 0) {
-          savedResult = inserted[0]
-        } else if (insertErr) {
-          // If weekly_schedule column missing in SQL schema, insert without it
-          const { weekly_schedule: _, ...payloadNoSchedule } = payload
-          const { data: insertedFallback } = await supabase
-            .from('event_types')
-            .insert(payloadNoSchedule)
-            .select()
-          if (insertedFallback && insertedFallback.length > 0) {
-            savedResult = { ...insertedFallback[0], weekly_schedule }
-          }
+        if (fallbackUpsert && fallbackUpsert.length > 0) {
+          savedResult = { ...fallbackUpsert[0], weekly_schedule, n8n_calendar_webhook_url }
         }
       }
     } catch (e) {}
 
     // 2. ALWAYS sync to organization_settings fallback store to guarantee persistence
     const finalEvt = savedResult || {
-      id: id || 'evt_' + Math.random().toString(36).substring(2, 9),
       created_at: new Date().toISOString(),
       ...payload
     }
