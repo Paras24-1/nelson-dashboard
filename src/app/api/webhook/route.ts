@@ -239,6 +239,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Support unofficial Baileys / Evolution API payloads (body.data.message / body.data.from)
+    if (!parsedPhone && body.data?.from) {
+      parsedPhone = body.data.from.split('@')[0]
+      parsedDirection = parsedDirection || 'incoming'
+    }
+    if (!parsedMessage && body.data?.message) {
+      const rawMsg = body.data.message
+      if (typeof rawMsg === 'string') {
+        parsedMessage = rawMsg
+      } else {
+        parsedMessage = rawMsg.conversation || rawMsg.extendedTextMessage?.text || rawMsg.text || ''
+      }
+    }
+    if (typeof parsedMessage === 'object' && parsedMessage !== null) {
+      parsedMessage = (parsedMessage as any).conversation || (parsedMessage as any).extendedTextMessage?.text || (parsedMessage as any).text || ''
+    }
+
     if (!parsedPhone || !parsedDirection) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
