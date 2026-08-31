@@ -18,15 +18,15 @@ export async function GET(request: Request) {
 
     const supabase = getSupabaseAdmin()
 
-    // Try dedicated booking_appointments table
-    const { data: appointments, error } = await supabase
+    let dbApts: any[] = []
+    const { data: appointments } = await supabase
       .from('booking_appointments')
       .select('*')
       .eq('org_id', orgId)
       .order('created_at', { ascending: false })
 
-    if (!error && appointments) {
-      return NextResponse.json(appointments)
+    if (appointments && Array.isArray(appointments)) {
+      dbApts = appointments
     }
 
     // Fallback store
@@ -44,7 +44,16 @@ export async function GET(request: Request) {
       } catch (e) {}
     }
 
-    return NextResponse.json(fallbackApts)
+    // Merge and deduplicate by appointment ID
+    const map = new Map<string, any>()
+    for (const apt of [...dbApts, ...fallbackApts]) {
+      if (apt && apt.id && !map.has(apt.id)) {
+        map.set(apt.id, apt)
+      }
+    }
+
+    const mergedAppointments = Array.from(map.values())
+    return NextResponse.json(mergedAppointments)
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }
