@@ -1027,8 +1027,9 @@ function AppointmentsCalendarView({
   onRefresh: () => void
 }) {
   const { org } = useOrg()
-  const [viewMode, setViewMode] = useState<'month' | 'cards'>('month')
+  const [viewMode, setViewMode] = useState<'day' | 'month' | 'cards'>('day')
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
+  const [selectedDayDate, setSelectedDayDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
@@ -1121,6 +1122,22 @@ function AppointmentsCalendarView({
     setCurrentDate(new Date())
   }
 
+  const prevDay = () => {
+    const d = new Date(selectedDayDate + 'T00:00:00')
+    d.setDate(d.getDate() - 1)
+    setSelectedDayDate(d.toISOString().split('T')[0])
+  }
+
+  const nextDay = () => {
+    const d = new Date(selectedDayDate + 'T00:00:00')
+    d.setDate(d.getDate() + 1)
+    setSelectedDayDate(d.toISOString().split('T')[0])
+  }
+
+  const goTodayDay = () => {
+    setSelectedDayDate(new Date().toISOString().split('T')[0])
+  }
+
   // Calendar Math
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -1174,6 +1191,16 @@ function AppointmentsCalendarView({
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
             <button
+              onClick={() => setViewMode('day')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                viewMode === 'day'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Day View
+            </button>
+            <button
               onClick={() => setViewMode('month')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 viewMode === 'month'
@@ -1205,6 +1232,120 @@ function AppointmentsCalendarView({
         </div>
 
       </div>
+
+      {/* DAY VIEW TIMELINE */}
+      {viewMode === 'day' && (
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-6">
+          
+          {/* DAY NAVIGATION HEADER */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+            <div>
+              <h2 className="text-base font-black text-white tracking-wide flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5 text-emerald-400" />
+                <span>{new Date(selectedDayDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {filteredAppointments.filter(a => a.booking_date === selectedDayDate).length} meeting(s) scheduled for this day
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goTodayDay}
+                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold transition-colors"
+              >
+                Today
+              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prevDay}
+                  className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition-colors text-xs font-semibold"
+                >
+                  ◀ Prev Day
+                </button>
+                <input
+                  type="date"
+                  value={selectedDayDate}
+                  onChange={e => e.target.value && setSelectedDayDate(e.target.value)}
+                  className="px-2 py-1 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                />
+                <button
+                  onClick={nextDay}
+                  className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition-colors text-xs font-semibold"
+                >
+                  Next Day ▶
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* DAY HOURLY TIMELINE SLOTS */}
+          <div className="space-y-3">
+            {['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'].map(hourStr => {
+              const hourNum = parseInt(hourStr.split(':')[0], 10)
+              const hourFormatted = `${hourNum > 12 ? hourNum - 12 : hourNum === 0 ? 12 : hourNum}:00 ${hourNum >= 12 ? 'PM' : 'AM'}`
+
+              // Meetings that start during this hour on selectedDayDate
+              const hourMeetings = filteredAppointments.filter(a => {
+                if (a.booking_date !== selectedDayDate) return false
+                const startHour = parseInt((a.start_time || '').split(':')[0], 10)
+                return startHour === hourNum
+              })
+
+              return (
+                <div key={hourStr} className="flex gap-4 items-start group">
+                  <div className="w-20 pt-1 text-right font-mono text-xs font-bold text-slate-400 group-hover:text-emerald-400 transition-colors">
+                    {hourFormatted}
+                  </div>
+
+                  <div className="flex-1 min-h-[56px] p-3 bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl transition-all space-y-2">
+                    {hourMeetings.length === 0 ? (
+                      <div className="text-[11px] text-slate-600 italic py-0.5">
+                        No appointments scheduled
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {hourMeetings.map(apt => (
+                          <div
+                            key={apt.id}
+                            onClick={() => setSelectedAppointment(apt)}
+                            className="p-3 bg-slate-900 border border-emerald-500/40 hover:border-emerald-400 rounded-xl cursor-pointer transition-all shadow-md space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 text-emerald-400" />
+                                {apt.attendee_name}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase">
+                                {apt.status}
+                              </span>
+                            </div>
+
+                            <div className="text-[11px] text-slate-300 flex items-center justify-between font-mono">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                {apt.start_time} - {apt.end_time || '30m'}
+                              </span>
+                              <span className="text-slate-400 text-[10px]">{apt.attendee_phone}</span>
+                            </div>
+
+                            {apt.notes && (
+                              <div className="text-[10px] text-slate-400 truncate italic">
+                                "{apt.notes}"
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+        </div>
+      )}
 
       {/* MONTH VIEW GRID */}
       {viewMode === 'month' && (
@@ -1265,10 +1406,14 @@ function AppointmentsCalendarView({
               return (
                 <div
                   key={`day-${dayNum}`}
-                  className={`h-28 p-2 rounded-2xl border flex flex-col justify-between transition-all ${
+                  onClick={() => {
+                    setSelectedDayDate(formattedDateStr)
+                    setViewMode('day')
+                  }}
+                  className={`h-28 p-2 rounded-2xl border flex flex-col justify-between transition-all cursor-pointer ${
                     isToday
-                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/10'
-                      : 'bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
+                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/10 hover:bg-emerald-500/20'
+                      : 'bg-slate-950/80 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
                   }`}
                 >
                   <div className="flex items-center justify-between">
