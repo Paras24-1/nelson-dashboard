@@ -1184,20 +1184,29 @@ function AppointmentsCalendarView({
     setCurrentDate(new Date())
   }
 
+  const formatDateToLocalStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const prevDay = () => {
-    const d = new Date(selectedDayDate + 'T00:00:00')
+    const [y, m, day] = selectedDayDate.split('-').map(Number)
+    const d = new Date(y, m - 1, day)
     d.setDate(d.getDate() - 1)
-    setSelectedDayDate(d.toISOString().split('T')[0])
+    setSelectedDayDate(formatDateToLocalStr(d))
   }
 
   const nextDay = () => {
-    const d = new Date(selectedDayDate + 'T00:00:00')
+    const [y, m, day] = selectedDayDate.split('-').map(Number)
+    const d = new Date(y, m - 1, day)
     d.setDate(d.getDate() + 1)
-    setSelectedDayDate(d.toISOString().split('T')[0])
+    setSelectedDayDate(formatDateToLocalStr(d))
   }
 
   const goTodayDay = () => {
-    setSelectedDayDate(new Date().toISOString().split('T')[0])
+    setSelectedDayDate(formatDateToLocalStr(new Date()))
   }
 
   // Calendar Math
