@@ -98,6 +98,8 @@ export default function CalendarDashboardPage() {
     })
   }
 
+  const isLight = themeMode === 'light'
+
   // Feature Flag Gating Check
   const isAllowed = Boolean(org?.has_calendar)
 
@@ -486,6 +488,7 @@ export default function CalendarDashboardPage() {
                   onCopyLink={handleCopyLink}
                   onCopyEmbed={handleCopyEmbed}
                   onDelete={handleDeleteCalendar}
+                  themeMode={themeMode}
                 />
               ))}
             </div>
@@ -495,20 +498,26 @@ export default function CalendarDashboardPage() {
 
       {/* TAB 3: CREATE NEW CALENDAR WIZARD */}
       {activeTab === 'create' && (
-        <div className="max-w-3xl mx-auto bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+        <div className={`max-w-3xl mx-auto rounded-3xl p-6 sm:p-8 space-y-6 border transition-all ${
+          isLight ? 'bg-white border-slate-200 shadow-xl shadow-slate-200/50' : 'bg-slate-900/90 border-slate-800 shadow-2xl'
+        }`}>
           
-          <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div className={`flex items-center justify-between pb-4 border-b ${
+            isLight ? 'border-slate-200' : 'border-slate-800'
+          }`}>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setActiveTab('events')}
-                className="p-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-colors"
+                className={`p-2 rounded-xl border transition-colors ${
+                  isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border-slate-800'
+                }`}
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h3 className="text-lg font-bold text-white">Create Booking Calendar</h3>
-                <p className="text-xs text-slate-400">Step {wizardStep} of 4</p>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Create Booking Calendar</h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Step {wizardStep} of 4</p>
               </div>
             </div>
 
@@ -1373,43 +1382,53 @@ function AppointmentsCalendarView({
 
               return (
                 <div key={hourStr} className="flex gap-4 items-start group">
-                  <div className="w-20 pt-1 text-right font-mono text-xs font-bold text-slate-400 group-hover:text-emerald-400 transition-colors">
+                  <div className={`w-20 pt-2 text-right font-mono text-xs font-bold transition-colors ${
+                    isLight ? 'text-slate-500 group-hover:text-emerald-600' : 'text-slate-400 group-hover:text-emerald-400'
+                  }`}>
                     {hourFormatted}
                   </div>
 
-                  <div className="flex-1 min-h-[56px] p-3 bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl transition-all space-y-2">
+                  <div className={`flex-1 min-h-[56px] p-3.5 rounded-2xl border transition-all space-y-2 ${
+                    isLight 
+                      ? 'bg-slate-50/80 border-slate-200/90 hover:border-emerald-300 hover:bg-slate-100/60 shadow-sm' 
+                      : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700/80'
+                  }`}>
                     {hourMeetings.length === 0 ? (
-                      <div className="text-[11px] text-slate-600 italic py-0.5">
+                      <div className={`text-xs italic py-0.5 ${isLight ? 'text-slate-400 font-medium' : 'text-slate-600'}`}>
                         No appointments scheduled
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {hourMeetings.map(apt => (
                           <div
                             key={apt.id}
                             onClick={() => setSelectedAppointment(apt)}
-                            className="p-3 bg-slate-900 border border-emerald-500/40 hover:border-emerald-400 rounded-xl cursor-pointer transition-all shadow-md space-y-1.5"
+                            className={`p-3.5 rounded-xl cursor-pointer transition-all border shadow-sm space-y-2 ${
+                              isLight 
+                                ? 'bg-white border-emerald-300 hover:border-emerald-500 hover:shadow-md' 
+                                : 'bg-slate-900 border-emerald-500/40 hover:border-emerald-400'
+                            }`}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                <User className="w-3.5 h-3.5 text-emerald-500" />
                                 {apt.attendee_name}
                               </span>
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase">
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase">
                                 {apt.status}
                               </span>
                             </div>
 
-                            <div className="text-[11px] text-slate-300 flex items-center justify-between font-mono">
+                            <div className={`text-[11px] flex items-center justify-between font-mono ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                               <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-slate-400" />
+                                <Clock className="w-3 h-3 text-emerald-500" />
                                 {apt.start_time} - {apt.end_time || '30m'}
                               </span>
-                              <span className="text-slate-400 text-[10px]">{apt.attendee_phone}</span>
+                              <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{apt.attendee_phone}</span>
                             </div>
 
                             {apt.notes && (
-                              <div className="text-[10px] text-slate-400 truncate italic">
+                              <div className={`text-[10px] truncate italic ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                                 "{apt.notes}"
                               </div>
                             )}
@@ -1481,7 +1500,7 @@ function AppointmentsCalendarView({
           <div className="grid grid-cols-7 gap-1.5">
             {calendarCells.map((dayNum, idx) => {
               if (dayNum === null) {
-                return <div key={`empty-${idx}`} className="h-28 bg-slate-950/30 rounded-2xl border border-slate-900/40" />
+                return <div key={`empty-${idx}`} className={`h-28 rounded-2xl border ${isLight ? 'bg-slate-100/50 border-slate-200/60' : 'bg-slate-950/30 border-slate-900/40'}`} />
               }
 
               const formattedDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
@@ -1499,7 +1518,9 @@ function AppointmentsCalendarView({
                   }}
                   className={`h-28 p-2 rounded-2xl border flex flex-col justify-between transition-all cursor-pointer ${
                     isToday
-                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/10 hover:bg-emerald-500/20'
+                      ? 'bg-emerald-500/10 border-emerald-500/50 shadow-md shadow-emerald-500/10 hover:bg-emerald-500/20'
+                      : isLight 
+                      ? 'bg-white border-slate-200/90 hover:border-emerald-400 hover:bg-emerald-50/20 shadow-sm'
                       : 'bg-slate-950/80 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/60'
                   }`}
                 >
@@ -1507,15 +1528,15 @@ function AppointmentsCalendarView({
                     <span
                       className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
                         isToday
-                          ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30'
-                          : 'text-slate-300'
+                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                          : isLight ? 'text-slate-700 font-bold' : 'text-slate-300'
                       }`}
                     >
                       {dayNum}
                     </span>
 
                     {dayMeetings.length > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                         {dayMeetings.length}
                       </span>
                     )}
@@ -1545,28 +1566,36 @@ function AppointmentsCalendarView({
       {viewMode === 'cards' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAppointments.map(apt => (
-            <div key={apt.id} className="p-5 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-3 shadow-xl hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div key={apt.id} className={`p-5 rounded-3xl space-y-3 border transition-all ${
+              isLight 
+                ? 'bg-white border-slate-200 shadow-xl shadow-slate-200/50 hover:border-slate-300' 
+                : 'bg-slate-900/90 border-slate-800 shadow-xl hover:border-slate-700'
+            }`}>
+              <div className={`flex items-center justify-between border-b pb-3 ${
+                isLight ? 'border-slate-100' : 'border-slate-800/80'
+              }`}>
                 <div>
-                  <h4 className="text-sm font-bold text-white">{apt.attendee_name}</h4>
-                  <p className="text-xs text-slate-400">{apt.attendee_email}</p>
+                  <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{apt.attendee_name}</h4>
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{apt.attendee_email}</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase">
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase">
                   {apt.status}
                 </span>
               </div>
 
-              <div className="space-y-1.5 text-xs text-slate-300">
+              <div className={`space-y-1.5 text-xs ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                 <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{apt.booking_date} @ {apt.start_time}</span>
+                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="font-medium">{apt.booking_date} @ {apt.start_time}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5 text-slate-400" />
                   <span>{apt.attendee_phone}</span>
                 </div>
                 {apt.notes && (
-                  <div className="p-2 bg-slate-950/60 rounded-xl text-[11px] text-slate-400 border border-slate-800/60 mt-1">
+                  <div className={`p-2 rounded-xl text-[11px] italic border mt-1 ${
+                    isLight ? 'bg-slate-50 text-slate-600 border-slate-200' : 'bg-slate-950/60 text-slate-400 border-slate-800/60'
+                  }`}>
                     "{apt.notes}"
                   </div>
                 )}
@@ -1587,10 +1616,11 @@ function AppointmentsCalendarView({
 
                 <button
                   onClick={() => setSelectedAppointment(apt)}
-                  className="p-2.5 bg-slate-950 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition-colors text-xs"
-                  title="View Details"
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
+                    isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  Manage
                 </button>
               </div>
             </div>
@@ -1779,7 +1809,8 @@ function EventCalendarCard({
   copiedEmbedId,
   onCopyLink,
   onCopyEmbed,
-  onDelete
+  onDelete,
+  themeMode = 'dark'
 }: {
   evt: EventType
   copiedId: string | null
@@ -1787,47 +1818,61 @@ function EventCalendarCard({
   onCopyLink: (slug: string, id: string) => void
   onCopyEmbed: (slug: string, id: string) => void
   onDelete: (id: string, slug: string, title: string) => void
+  themeMode?: 'dark' | 'light'
 }) {
   const [expanded, setExpanded] = useState(false)
+  const isLight = themeMode === 'light'
 
   return (
-    <div className="p-6 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-4 shadow-xl hover:border-slate-700 transition-all">
+    <div className={`p-6 rounded-3xl space-y-4 border transition-all ${
+      isLight ? 'bg-white border-slate-200 shadow-xl shadow-slate-200/50 hover:border-slate-300' : 'bg-slate-900/90 border-slate-800 shadow-xl hover:border-slate-700'
+    }`}>
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 border-b border-slate-800/80 pb-3">
+      <div className={`flex items-start justify-between gap-2 border-b pb-3 ${
+        isLight ? 'border-slate-100' : 'border-slate-800/80'
+      }`}>
         <div>
-          <h4 className="text-base font-bold text-white flex items-center gap-2">
+          <h4 className={`text-base font-bold flex items-center gap-2 ${
+            isLight ? 'text-slate-900' : 'text-white'
+          }`}>
             <span>{evt.title}</span>
           </h4>
-          <p className="text-xs text-emerald-400 font-mono mt-0.5">/book/{evt.slug}</p>
+          <p className="text-xs text-emerald-600 font-mono font-semibold mt-0.5">/book/{evt.slug}</p>
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
-          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[11px] font-bold">
             {evt.duration_minutes} Mins
           </span>
-          <span className="px-2.5 py-1 rounded-full bg-slate-950 text-slate-300 border border-slate-800 text-[11px] font-semibold capitalize">
+          <span className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold capitalize ${
+            isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-950 text-slate-300 border-slate-800'
+          }`}>
             {evt.location_type?.replace('_', ' ') || 'Google Meet'}
           </span>
         </div>
       </div>
 
       {evt.description && (
-        <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/60 p-3 rounded-2xl border border-slate-800/60">
+        <p className={`text-xs leading-relaxed p-3 rounded-2xl border ${
+          isLight ? 'bg-slate-50 text-slate-600 border-slate-200' : 'bg-slate-950/60 text-slate-400 border-slate-800/60'
+        }`}>
           {evt.description}
         </p>
       )}
 
       {/* Basic Metadata Grid */}
-      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800">
+      <div className={`grid grid-cols-2 gap-2 text-xs p-3.5 rounded-2xl border ${
+        isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
+      }`}>
         <div>
-          <span className="text-slate-500 block text-[10px] uppercase font-bold">Location Details</span>
-          <span className="text-slate-200 font-mono truncate block font-medium" title={evt.location_url || 'Not set'}>
+          <span className="text-slate-400 block text-[10px] uppercase font-bold">Location Details</span>
+          <span className={`font-mono truncate block font-medium ${isLight ? 'text-slate-800' : 'text-slate-200'}`} title={evt.location_url || 'Not set'}>
             {evt.location_url || 'Auto-generated'}
           </span>
         </div>
         <div>
-          <span className="text-slate-500 block text-[10px] uppercase font-bold">Timezone & Notice</span>
-          <span className="text-slate-200 font-medium block">
+          <span className="text-slate-400 block text-[10px] uppercase font-bold">Timezone & Notice</span>
+          <span className={`font-medium block ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
             {evt.timezone || 'Asia/Kolkata'} ({evt.min_notice_hours || 4}h notice)
           </span>
         </div>
