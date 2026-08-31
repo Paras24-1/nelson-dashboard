@@ -251,20 +251,6 @@ export default function PublicBookingPage() {
         
         {/* Left Column: Event Meta */}
         <div className="md:col-span-5 p-6 sm:p-8 bg-slate-950/60 border-b md:border-b-0 md:border-r border-slate-800/80 flex flex-col justify-between">
-          <div>
-            {eventType.organization?.name && (
-              <div className="flex items-center gap-2 mb-6">
-                {eventType.organization.logo_url ? (
-                  <img src={eventType.organization.logo_url} alt="Logo" className="w-8 h-8 rounded-full object-cover" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs border border-emerald-500/30">
-                    {eventType.organization.name.slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">{eventType.organization.name}</span>
-              </div>
-            )}
-
             <h1 className="text-2xl font-black text-white tracking-tight mb-3">{eventType.title}</h1>
 
             <div className="space-y-3 my-6">
@@ -292,7 +278,6 @@ export default function PublicBookingPage() {
                 {eventType.description}
               </p>
             )}
-          </div>
 
           <div className="pt-6 border-t border-slate-800/60 text-[11px] text-slate-500 flex items-center justify-between">
             <span>Powered by VoxAI Scheduler</span>
