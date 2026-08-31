@@ -512,19 +512,25 @@ export default function CalendarDashboardPage() {
       {activeTab === 'events' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4 text-emerald-400" />
+            <h3 className={`text-sm font-bold flex items-center gap-2 ${
+              isLight ? 'text-slate-900' : 'text-white'
+            }`}>
+              <CalendarIcon className="w-4 h-4 text-emerald-500" />
               Active Booking Calendars
             </h3>
           </div>
 
           {events.length === 0 ? (
-            <div className="p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-3xl space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto">
+            <div className={`p-12 text-center border rounded-3xl space-y-3 ${
+              isLight ? 'bg-white border-slate-200 shadow-xl shadow-slate-200/50' : 'bg-slate-900/40 border-slate-800/80'
+            }`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
+                isLight ? 'bg-slate-100 text-slate-500' : 'bg-slate-800/80 text-slate-400'
+              }`}>
                 <CalendarIcon className="w-6 h-6" />
               </div>
-              <h4 className="text-sm font-bold text-white">No Event Calendars Created</h4>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>No Event Calendars Created</h4>
+              <p className={`text-xs max-w-sm mx-auto ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 Create your first booking calendar (e.g. 30 Mins Strategy Call) to start receiving bookings.
               </p>
               <button
@@ -614,10 +620,10 @@ export default function CalendarDashboardPage() {
             {/* STEP 1: CALENDAR DETAILS */}
             {wizardStep === 1 && (
               <div className="space-y-4">
-                <h4 className="text-sm font-bold text-white">1. Calendar Details</h4>
+                <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>1. Calendar Details</h4>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Calendar Name *</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Calendar Name *</label>
                   <input
                     type="text"
                     required
@@ -631,14 +637,18 @@ export default function CalendarDashboardPage() {
                         slug: t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
                       })
                     }}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">URL Slug *</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>URL Slug *</label>
                   <div className="flex items-center">
-                    <span className="px-3 py-2.5 bg-slate-950 border border-r-0 border-slate-800 rounded-l-xl text-xs text-slate-500 font-mono">
+                    <span className={`px-3 py-2.5 border border-r-0 rounded-l-xl text-xs font-mono ${
+                      isLight ? 'bg-slate-100 border-slate-300 text-slate-600' : 'bg-slate-950 border-slate-800 text-slate-500'
+                    }`}>
                       /book/
                     </span>
                     <input
@@ -647,17 +657,21 @@ export default function CalendarDashboardPage() {
                       placeholder="strategy-call"
                       value={formData.slug}
                       onChange={e => setFormData({ ...formData, slug: e.target.value })}
-                      className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-r-xl text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+                      className={`flex-1 px-4 py-2.5 border rounded-r-xl text-xs font-mono focus:outline-none focus:border-emerald-500 ${
+                        isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white' : 'bg-slate-950 border-slate-800 text-white'
+                      }`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Meeting Duration (Minutes)</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Meeting Duration (Minutes)</label>
                   <select
                     value={formData.duration_minutes}
                     onChange={e => setFormData({ ...formData, duration_minutes: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
                   >
                     <option value={15}>15 Minutes</option>
                     <option value={30}>30 Minutes</option>
@@ -667,7 +681,7 @@ export default function CalendarDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Location / Meeting Provider *</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Location / Meeting Provider *</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: 'google_meet', label: 'Google Meet', icon: Video },
@@ -681,7 +695,9 @@ export default function CalendarDashboardPage() {
                         onClick={() => setFormData({ ...formData, location_type: loc.id as any })}
                         className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                           formData.location_type === loc.id
-                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                            ? 'bg-emerald-500/20 text-emerald-600 border-emerald-500/40 shadow-sm'
+                            : isLight
+                            ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                             : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                         }`}
                       >
@@ -693,7 +709,7 @@ export default function CalendarDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                     {formData.location_type === 'google_meet' && 'Google Meet Link * (Mandatory)'}
                     {formData.location_type === 'zoom' && 'Zoom Meeting Link * (Mandatory)'}
                     {formData.location_type === 'phone_call' && 'Host Phone Number * (Mandatory)'}
@@ -710,21 +726,25 @@ export default function CalendarDashboardPage() {
                     }
                     value={formData.location_url || ''}
                     onChange={e => setFormData({ ...formData, location_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-500 ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
                   />
-                  <p className="text-[10px] text-amber-400 font-semibold mt-1">
+                  <p className="text-[10px] text-amber-500 font-semibold mt-1">
                     * Required: Please enter the {formData.location_type.replace('_', ' ')} details before proceeding.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Description / Instructions</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Description / Instructions</label>
                   <textarea
                     rows={3}
                     placeholder="Describe what this calendar is for and any instructions for attendees..."
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
                   />
                 </div>
               </div>
@@ -733,13 +753,15 @@ export default function CalendarDashboardPage() {
             {/* STEP 2: SCHEDULE & AVAILABILITY */}
             {wizardStep === 2 && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className={`flex items-center justify-between pb-2 border-b ${
+                  isLight ? 'border-slate-200' : 'border-slate-800'
+                }`}>
                   <div>
-                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-emerald-400" />
+                    <h4 className={`text-sm font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <Clock className="w-4 h-4 text-emerald-500" />
                       2. Schedule & Availability
                     </h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                       Set your weekly operating hours and custom break intervals per day.
                     </p>
                   </div>
@@ -756,8 +778,8 @@ export default function CalendarDashboardPage() {
                         key={d.id}
                         className={`p-4 rounded-2xl border transition-all ${
                           sched.enabled
-                            ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700 shadow-md'
-                            : 'bg-slate-950/60 border-slate-900 opacity-60'
+                            ? isLight ? 'bg-slate-50 border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800 shadow-md'
+                            : isLight ? 'bg-slate-100/60 border-slate-200/80 opacity-60' : 'bg-slate-950/60 border-slate-900 opacity-60'
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -768,17 +790,23 @@ export default function CalendarDashboardPage() {
                               type="button"
                               onClick={() => handleToggleDay(d.id)}
                               className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${
-                                sched.enabled ? 'bg-emerald-500 shadow-inner' : 'bg-slate-800'
+                                sched.enabled ? 'bg-emerald-500 shadow-inner' : isLight ? 'bg-slate-300' : 'bg-slate-800'
                               }`}
                             >
                               <div
-                                className={`w-4 h-4 rounded-full bg-slate-950 shadow-md transform transition-transform ${
-                                  sched.enabled ? 'translate-x-6 bg-slate-950' : 'translate-x-0 bg-slate-400'
+                                className={`w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                                  sched.enabled
+                                    ? isLight ? 'translate-x-6 bg-white' : 'translate-x-6 bg-slate-950'
+                                    : isLight ? 'translate-x-0 bg-white' : 'translate-x-0 bg-slate-400'
                                 }`}
                               />
                             </button>
 
-                            <span className={`text-xs font-bold ${sched.enabled ? 'text-white' : 'text-slate-500'}`}>
+                            <span className={`text-xs font-bold ${
+                              sched.enabled
+                                ? isLight ? 'text-slate-900' : 'text-white'
+                                : isLight ? 'text-slate-400' : 'text-slate-500'
+                            }`}>
                               {d.label}
                             </span>
                           </div>
@@ -786,30 +814,38 @@ export default function CalendarDashboardPage() {
                           {/* MIDDLE: TIME INTERVALS */}
                           <div className="flex-1 space-y-2">
                             {!sched.enabled ? (
-                              <span className="text-xs text-slate-500 italic font-mono">Unavailable / Closed</span>
+                              <span className={`text-xs italic font-mono ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Unavailable / Closed</span>
                             ) : (
                               sched.intervals.map((inter, idx) => (
                                 <div key={idx} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                  <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 focus-within:border-emerald-500">
+                                  <div className={`flex items-center gap-1.5 border rounded-xl px-3 py-1.5 focus-within:border-emerald-500 ${
+                                    isLight ? 'bg-white border-slate-300 shadow-sm' : 'bg-slate-950 border-slate-800'
+                                  }`}>
                                     <input
                                       type="time"
                                       value={inter.start}
                                       onChange={e => handleUpdateInterval(d.id, idx, 'start', e.target.value)}
-                                      className="bg-transparent text-xs text-white font-mono focus:outline-none"
+                                      className={`bg-transparent text-xs font-mono focus:outline-none ${
+                                        isLight ? 'text-slate-900' : 'text-white'
+                                      }`}
                                     />
-                                    <Clock className="w-3 h-3 text-slate-500" />
+                                    <Clock className="w-3 h-3 text-slate-400" />
                                   </div>
 
-                                  <span className="text-xs text-slate-500 font-medium">to</span>
+                                  <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>to</span>
 
-                                  <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 focus-within:border-emerald-500">
+                                  <div className={`flex items-center gap-1.5 border rounded-xl px-3 py-1.5 focus-within:border-emerald-500 ${
+                                    isLight ? 'bg-white border-slate-300 shadow-sm' : 'bg-slate-950 border-slate-800'
+                                  }`}>
                                     <input
                                       type="time"
                                       value={inter.end}
                                       onChange={e => handleUpdateInterval(d.id, idx, 'end', e.target.value)}
-                                      className="bg-transparent text-xs text-white font-mono focus:outline-none"
+                                      className={`bg-transparent text-xs font-mono focus:outline-none ${
+                                        isLight ? 'text-slate-900' : 'text-white'
+                                      }`}
                                     />
-                                    <Clock className="w-3 h-3 text-slate-500" />
+                                    <Clock className="w-3 h-3 text-slate-400" />
                                   </div>
 
                                   {/* Delete Interval Button */}
@@ -818,7 +854,7 @@ export default function CalendarDashboardPage() {
                                       type="button"
                                       onClick={() => handleRemoveInterval(d.id, idx)}
                                       title="Remove Interval"
-                                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -835,7 +871,11 @@ export default function CalendarDashboardPage() {
                                 type="button"
                                 onClick={() => handleAddInterval(d.id)}
                                 title="Add another time interval"
-                                className="p-2 text-slate-400 hover:text-emerald-400 bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-xl transition-all text-xs font-semibold flex items-center gap-1"
+                                className={`p-2 border rounded-xl transition-all text-xs font-semibold flex items-center gap-1 ${
+                                  isLight
+                                    ? 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 hover:border-emerald-400'
+                                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-emerald-500/40 hover:text-emerald-400'
+                                }`}
                               >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
@@ -856,6 +896,8 @@ export default function CalendarDashboardPage() {
                                 className={`p-2 rounded-xl border transition-all text-xs font-semibold flex items-center gap-1 ${
                                   isCopyingThisDay
                                     ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/30'
+                                    : isLight
+                                    ? 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100 hover:border-blue-400'
                                     : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-blue-500/40 hover:text-blue-400'
                                 }`}
                               >
@@ -863,13 +905,17 @@ export default function CalendarDashboardPage() {
                               </button>
 
                               {isCopyingThisDay && (
-                                <div className="absolute right-0 top-11 z-50 w-72 bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl space-y-3 text-xs text-white">
-                                  <div className="font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center justify-between">
+                                <div className={`absolute right-0 top-11 z-50 w-72 border rounded-2xl p-4 shadow-2xl space-y-3 text-xs ${
+                                  isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                                }`}>
+                                  <div className={`font-bold border-b pb-2 flex items-center justify-between ${
+                                    isLight ? 'border-slate-200 text-slate-800' : 'border-slate-800 text-slate-200'
+                                  }`}>
                                     <span>Choose days to copy {d.label}'s hours</span>
                                     <button
                                       type="button"
                                       onClick={() => setCopyingDay(null)}
-                                      className="text-slate-500 hover:text-white"
+                                      className="text-slate-400 hover:text-slate-600"
                                     >
                                       ✕
                                     </button>
@@ -879,19 +925,23 @@ export default function CalendarDashboardPage() {
                                     <button
                                       type="button"
                                       onClick={() => handleApplyToAllDays(d.id)}
-                                      className="w-full text-left px-3 py-2 bg-slate-950 hover:bg-slate-800 rounded-xl text-slate-300 font-medium transition-colors flex items-center justify-between"
+                                      className={`w-full text-left px-3 py-2 rounded-xl font-medium transition-colors flex items-center justify-between ${
+                                        isLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-800' : 'bg-slate-950 hover:bg-slate-800 text-slate-300'
+                                      }`}
                                     >
                                       <span>Apply to all days</span>
-                                      <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                                     </button>
 
                                     <button
                                       type="button"
                                       onClick={() => handleApplyToWeekdays(d.id)}
-                                      className="w-full text-left px-3 py-2 bg-slate-950 hover:bg-slate-800 rounded-xl text-slate-300 font-medium transition-colors flex items-center justify-between"
+                                      className={`w-full text-left px-3 py-2 rounded-xl font-medium transition-colors flex items-center justify-between ${
+                                        isLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-800' : 'bg-slate-950 hover:bg-slate-800 text-slate-300'
+                                      }`}
                                     >
                                       <span>Apply to weekdays</span>
-                                      <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                                     </button>
 
                                     <button
@@ -899,22 +949,26 @@ export default function CalendarDashboardPage() {
                                       onClick={() => setShowSelectedDaysMenu(!showSelectedDaysMenu)}
                                       className={`w-full text-left px-3 py-2 rounded-xl font-medium transition-colors flex items-center justify-between ${
                                         showSelectedDaysMenu
-                                          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                                          : 'bg-slate-950 hover:bg-slate-800 text-slate-300'
+                                          ? 'bg-blue-600/20 text-blue-500 border border-blue-500/30'
+                                          : isLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-800' : 'bg-slate-950 hover:bg-slate-800 text-slate-300'
                                       }`}
                                     >
                                       <span>Apply to selected days</span>
-                                      <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showSelectedDaysMenu ? 'rotate-90 text-blue-400' : 'text-slate-500'}`} />
+                                      <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showSelectedDaysMenu ? 'rotate-90 text-blue-500' : 'text-slate-400'}`} />
                                     </button>
                                   </div>
 
                                   {showSelectedDaysMenu && (
-                                    <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 pt-2">
+                                    <div className={`p-3 border rounded-xl space-y-2 pt-2 ${
+                                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'
+                                    }`}>
                                       <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                                         {DAYS_LIST.map(dayItem => (
                                           <label
                                             key={dayItem.id}
-                                            className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer text-xs py-1"
+                                            className={`flex items-center gap-2 cursor-pointer text-xs py-1 ${
+                                              isLight ? 'text-slate-700 hover:text-slate-900' : 'text-slate-300 hover:text-white'
+                                            }`}
                                           >
                                             <input
                                               type="checkbox"
@@ -926,7 +980,7 @@ export default function CalendarDashboardPage() {
                                                   setSelectedCopyDays(selectedCopyDays.filter(k => k !== dayItem.id))
                                                 }
                                               }}
-                                              className="rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-0"
+                                              className="rounded border-slate-300 bg-slate-100 text-blue-600 focus:ring-0"
                                             />
                                             <span>{dayItem.label}</span>
                                           </label>
@@ -956,11 +1010,13 @@ export default function CalendarDashboardPage() {
 
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Buffer Time Between Meetings</label>
+                    <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Buffer Time Between Meetings</label>
                     <select
                       value={formData.buffer_minutes}
                       onChange={e => setFormData({ ...formData, buffer_minutes: Number(e.target.value) })}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                      className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                        isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                      }`}
                     >
                       <option value={0}>No Buffer</option>
                       <option value={5}>5 Minutes</option>
@@ -970,12 +1026,14 @@ export default function CalendarDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Timezone</label>
+                    <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Timezone</label>
                     <input
                       type="text"
                       value={formData.timezone}
                       onChange={e => setFormData({ ...formData, timezone: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                      className={`w-full px-4 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-500 ${
+                        isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                      }`}
                     />
                   </div>
                 </div>
@@ -985,14 +1043,16 @@ export default function CalendarDashboardPage() {
             {/* STEP 3: BOOKING RULES */}
             {wizardStep === 3 && (
               <div className="space-y-4">
-                <h4 className="text-sm font-bold text-white">3. Booking Rules & Notices</h4>
+                <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>3. Booking Rules & Notices</h4>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Minimum Scheduling Notice (Hours)</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Minimum Scheduling Notice (Hours)</label>
                   <select
                     value={formData.min_notice_hours}
                     onChange={e => setFormData({ ...formData, min_notice_hours: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
                   >
                     <option value={1}>1 Hour in advance</option>
                     <option value={2}>2 Hours in advance</option>
@@ -1002,13 +1062,15 @@ export default function CalendarDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Custom Thank-You Redirect URL (Optional)</label>
+                  <label className={`block text-xs font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Custom Thank-You Redirect URL (Optional)</label>
                   <input
                     type="url"
                     placeholder="https://yourdomain.com/thank-you"
                     value={formData.redirect_url}
                     onChange={e => setFormData({ ...formData, redirect_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-500 ${
+                      isLight ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
                   />
                 </div>
               </div>
@@ -1017,28 +1079,30 @@ export default function CalendarDashboardPage() {
             {/* STEP 4: REVIEW & SAVE */}
             {wizardStep === 4 && (
               <div className="space-y-4">
-                <h4 className="text-sm font-bold text-white">4. Review & Create Calendar</h4>
+                <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>4. Review & Create Calendar</h4>
 
-                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 text-xs">
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Calendar Title:</span>
-                    <span className="font-bold text-white">{formData.title || 'Untitled'}</span>
+                <div className={`p-4 border rounded-2xl space-y-2 text-xs ${
+                  isLight ? 'bg-slate-50 border-slate-200 text-slate-900 shadow-sm' : 'bg-slate-950 border-slate-800 text-white'
+                }`}>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Calendar Title:</span>
+                    <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{formData.title || 'Untitled'}</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Slug / URL:</span>
-                    <span className="font-mono text-emerald-400">/book/{formData.slug}</span>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Slug / URL:</span>
+                    <span className="font-mono text-emerald-500 font-bold">/book/{formData.slug}</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Location Details:</span>
-                    <span className="font-bold text-white">{formData.location_type} ({formData.location_url})</span>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Location Details:</span>
+                    <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{formData.location_type} ({formData.location_url})</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Duration:</span>
-                    <span className="font-bold text-white">{formData.duration_minutes} Mins</span>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Duration:</span>
+                    <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{formData.duration_minutes} Mins</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Operating Days:</span>
-                    <span className="font-bold text-emerald-400 uppercase">
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Operating Days:</span>
+                    <span className="font-bold text-emerald-500 uppercase">
                       {DAYS_LIST.filter(d => weeklySchedule[d.id]?.enabled).map(d => d.id).join(', ')}
                     </span>
                   </div>
@@ -1047,12 +1111,16 @@ export default function CalendarDashboardPage() {
             )}
 
             {/* Wizard Navigation Controls */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+            <div className={`flex items-center justify-between pt-4 border-t ${
+              isLight ? 'border-slate-200' : 'border-slate-800'
+            }`}>
               {wizardStep > 1 ? (
                 <button
                   type="button"
                   onClick={() => setWizardStep(prev => prev - 1)}
-                  className="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-xs transition-colors border border-slate-800"
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-colors border ${
+                    isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
                 >
                   Back
                 </button>
@@ -1822,48 +1890,56 @@ function AppointmentsCalendarView({
       {/* APPOINTMENT DETAILS MODAL POPOVER */}
       {selectedAppointment && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150">
+          <div className={`border rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 ${
+            isLight ? 'bg-white border-slate-200 text-slate-900 shadow-slate-300/50' : 'bg-slate-900 border-slate-700 text-white'
+          }`}>
             
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              isLight ? 'border-slate-200' : 'border-slate-800'
+            }`}>
               <div>
-                <h3 className="text-base font-bold text-white">Appointment Details</h3>
-                <p className="text-xs text-emerald-400 font-semibold">{selectedAppointment.booking_date} @ {selectedAppointment.start_time}</p>
+                <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Appointment Details</h3>
+                <p className="text-xs text-emerald-500 font-semibold">{selectedAppointment.booking_date} @ {selectedAppointment.start_time}</p>
               </div>
               <button
                 onClick={() => setSelectedAppointment(null)}
-                className="p-1.5 text-slate-400 hover:text-white bg-slate-950 rounded-xl border border-slate-800"
+                className={`p-1.5 rounded-xl border text-xs font-bold transition-colors ${
+                  isLight ? 'bg-slate-100 text-slate-500 hover:text-slate-900 border-slate-200' : 'bg-slate-950 text-slate-400 hover:text-white border-slate-800'
+                }`}
               >
                 ✕
               </button>
             </div>
 
             {updateMessage && (
-              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-400 font-semibold">
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-500 font-semibold">
                 {updateMessage}
               </div>
             )}
 
-            <div className="p-4 bg-slate-950 border border-slate-800/80 rounded-2xl space-y-3 text-xs">
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Attendee Name:</span>
-                <span className="font-bold text-white">{selectedAppointment.attendee_name}</span>
+            <div className={`p-4 border rounded-2xl space-y-3 text-xs ${
+              isLight ? 'bg-slate-50 border-slate-200 text-slate-900 shadow-sm' : 'bg-slate-950 border-slate-800/80 text-white'
+            }`}>
+              <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Attendee Name:</span>
+                <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{selectedAppointment.attendee_name}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Email:</span>
-                <span className="font-mono text-slate-200">{selectedAppointment.attendee_email}</span>
+              <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Email:</span>
+                <span className={`font-mono ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{selectedAppointment.attendee_email}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Phone:</span>
-                <span className="font-mono text-emerald-400">{selectedAppointment.attendee_phone}</span>
+              <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Phone:</span>
+                <span className="font-mono text-emerald-500 font-bold">{selectedAppointment.attendee_phone}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                <span className="text-slate-400">Status:</span>
+              <div className={`flex justify-between items-center border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>Status:</span>
                 <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] uppercase ${
                   selectedAppointment.status === 'completed'
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    ? 'bg-blue-500/20 text-blue-500 border border-blue-500/30'
                     : selectedAppointment.status === 'cancelled'
-                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30'
+                    : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
                 }`}>
                   {selectedAppointment.status}
                 </span>
@@ -1872,12 +1948,12 @@ function AppointmentsCalendarView({
               {/* MEETING NOTES & FOLLOW-UP AGENDA SECTION */}
               <div className="pt-1">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-slate-300 font-bold">Meeting Notes & Summary:</span>
+                  <span className={`font-bold ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>Meeting Notes & Summary:</span>
                   {!editingNotes && (
                     <button
                       type="button"
                       onClick={() => setEditingNotes(true)}
-                      className="text-[11px] text-emerald-400 hover:underline font-semibold"
+                      className="text-[11px] text-emerald-500 hover:underline font-semibold"
                     >
                       {selectedAppointment.notes ? 'Edit Notes' : '+ Add Notes'}
                     </button>
@@ -1891,13 +1967,17 @@ function AppointmentsCalendarView({
                       placeholder="Write notes, agenda, or key outcomes of this meeting..."
                       value={notesInput}
                       onChange={e => setNotesInput(e.target.value)}
-                      className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
+                      className={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                        isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                      }`}
                     />
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setEditingNotes(false)}
-                        className="px-3 py-1 bg-slate-900 text-slate-400 hover:text-white rounded-lg text-xs"
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                          isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
                       >
                         Cancel
                       </button>
@@ -1912,7 +1992,9 @@ function AppointmentsCalendarView({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-slate-300 italic p-2.5 bg-slate-900/90 border border-slate-800/80 rounded-xl text-[11px]">
+                  <p className={`italic p-2.5 border rounded-xl text-[11px] ${
+                    isLight ? 'bg-white text-slate-600 border-slate-200' : 'bg-slate-900/90 text-slate-300 border-slate-800/80'
+                  }`}>
                     {selectedAppointment.notes || 'No notes added yet. Click "+ Add Notes" to record meeting summary.'}
                   </p>
                 )}
