@@ -23,23 +23,20 @@ export async function POST(request: Request) {
       cleanDigits = cleanDigits.substring(1)
     }
 
-    // Strict validation for Indian Mobile Numbers (starting with 6-9 or 91 followed by 6-9)
-    if (/^[6-9]/.test(cleanDigits)) {
-      if (cleanDigits.length === 10) {
-        cleanDigits = '91' + cleanDigits
-      } else {
-        return NextResponse.json({
-          valid: false,
-          error: `Invalid phone number (${cleanDigits}). Indian mobile numbers must be exactly 10 digits (e.g. 9876543210 or +91 9876543210).`
-        }, { status: 400 })
-      }
-    } else if (/^91[6-9]/.test(cleanDigits)) {
-      if (cleanDigits.length !== 12) {
-        return NextResponse.json({
-          valid: false,
-          error: `Invalid phone number length (${cleanDigits}). Mobile numbers with +91 country code must be exactly 12 digits in total.`
-        }, { status: 400 })
-      }
+    // 1. Valid 12-digit Indian number with 91 (e.g. 918360599157)
+    if (/^91[6-9]\d{9}$/.test(cleanDigits)) {
+      // Valid 12-digit format
+    } 
+    // 2. Valid 10-digit Indian number (e.g. 8360599157 -> 918360599157)
+    else if (/^[6-9]\d{9}$/.test(cleanDigits)) {
+      cleanDigits = '91' + cleanDigits
+    } 
+    // 3. Reject invalid length Indian mobile numbers
+    else if (/^[6-9]/.test(cleanDigits) || /^91/.test(cleanDigits)) {
+      return NextResponse.json({
+        valid: false,
+        error: `Invalid phone number (${cleanDigits}). Indian mobile numbers must be 10 digits (e.g. 9876543210) or 12 digits with +91 (e.g. +91 9876543210).`
+      }, { status: 400 })
     }
 
     // General format validation for international numbers: 10 to 15 digits

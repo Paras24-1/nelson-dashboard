@@ -116,16 +116,12 @@ export async function POST(request: Request) {
       formattedPhone = formattedPhone.substring(1)
     }
 
-    if (/^[6-9]/.test(formattedPhone)) {
-      if (formattedPhone.length === 10) {
-        formattedPhone = '91' + formattedPhone
-      } else {
-        return NextResponse.json({ error: `Invalid phone number (${formattedPhone}). Indian mobile numbers must be exactly 10 digits (e.g. 9876543210 or +91 9876543210).` }, { status: 400 })
-      }
-    } else if (/^91[6-9]/.test(formattedPhone)) {
-      if (formattedPhone.length !== 12) {
-        return NextResponse.json({ error: `Invalid phone number length (${formattedPhone}). Mobile numbers with +91 country code must be 12 digits in total.` }, { status: 400 })
-      }
+    if (/^91[6-9]\d{9}$/.test(formattedPhone)) {
+      // Valid 12-digit format with 91
+    } else if (/^[6-9]\d{9}$/.test(formattedPhone)) {
+      formattedPhone = '91' + formattedPhone
+    } else if (/^[6-9]/.test(formattedPhone) || /^91/.test(formattedPhone)) {
+      return NextResponse.json({ error: `Invalid phone number (${formattedPhone}). Indian mobile numbers must be 10 digits (e.g. 9876543210) or 12 digits with +91 (e.g. +91 9876543210).` }, { status: 400 })
     }
 
     // --- REJECT PAST DATES & TIME SLOTS ---
