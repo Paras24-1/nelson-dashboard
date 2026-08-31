@@ -60,6 +60,7 @@ interface EventType {
   min_notice_hours: number
   redirect_url?: string
   n8n_calendar_webhook_url?: string
+  url_prefix?: string
   created_at?: string
 }
 
@@ -114,6 +115,7 @@ export default function CalendarDashboardPage() {
   const [editingEvent, setEditingEvent] = useState<EventType | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editSlug, setEditSlug] = useState('')
+  const [editUrlPrefix, setEditUrlPrefix] = useState('book')
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -121,6 +123,7 @@ export default function CalendarDashboardPage() {
     setEditingEvent(evt)
     setEditTitle(evt.title || '')
     setEditSlug(evt.slug || '')
+    setEditUrlPrefix(evt.url_prefix || 'book')
     setEditError('')
   }
 
@@ -147,7 +150,8 @@ export default function CalendarDashboardPage() {
           ...editingEvent,
           org_id: org.id,
           title: editTitle.trim(),
-          slug: cleanSlug
+          slug: cleanSlug,
+          url_prefix: editUrlPrefix
         })
       })
 
@@ -245,15 +249,17 @@ export default function CalendarDashboardPage() {
     }
   }
 
-  const handleCopyLink = (slug: string, id: string) => {
-    const url = `${window.location.origin}/book/${slug}`
+  const handleCopyLink = (slug: string, id: string, prefix?: string) => {
+    const p = prefix || 'book'
+    const url = `${window.location.origin}/${p}/${slug}`
     navigator.clipboard.writeText(url)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2500)
   }
 
-  const handleCopyEmbed = (slug: string, id: string) => {
-    const embedCode = `<iframe src="${window.location.origin}/book/${slug}" width="100%" height="700px" frameborder="0"><` + `/iframe>`
+  const handleCopyEmbed = (slug: string, id: string, prefix?: string) => {
+    const p = prefix || 'book'
+    const embedCode = `<iframe src="${window.location.origin}/${p}/${slug}" width="100%" height="700px" frameborder="0"><` + `/iframe>`
     navigator.clipboard.writeText(embedCode)
     setCopiedEmbedId(id)
     setTimeout(() => setCopiedEmbedId(null), 2500)
@@ -1179,6 +1185,26 @@ export default function CalendarDashboardPage() {
 
               <div>
                 <label className={`block text-xs font-semibold mb-1 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
+                  URL Link Prefix *
+                </label>
+                <select
+                  value={editUrlPrefix}
+                  onChange={e => setEditUrlPrefix(e.target.value)}
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-500 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                  }`}
+                >
+                  <option value="book">/book/ (Default)</option>
+                  <option value="meet">/meet/</option>
+                  <option value="schedule">/schedule/</option>
+                  <option value="call">/call/</option>
+                  <option value="appointment">/appointment/</option>
+                  <option value="booking">/booking/</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={`block text-xs font-semibold mb-1 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
                   Calendar Slug / URL *
                 </label>
                 <div className="relative">
@@ -1196,7 +1222,7 @@ export default function CalendarDashboardPage() {
                   />
                 </div>
                 <p className="text-[11px] text-emerald-500 font-mono mt-1">
-                  Preview: /book/{editSlug || 'your-slug'}
+                  Preview: /{editUrlPrefix}/{editSlug || 'your-slug'}
                 </p>
               </div>
             </div>
@@ -1981,8 +2007,8 @@ function EventCalendarCard({
   evt: EventType
   copiedId: string | null
   copiedEmbedId: string | null
-  onCopyLink: (slug: string, id: string) => void
-  onCopyEmbed: (slug: string, id: string) => void
+  onCopyLink: (slug: string, id: string, prefix?: string) => void
+  onCopyEmbed: (slug: string, id: string, prefix?: string) => void
   onEdit?: (evt: EventType) => void
   onDelete: (id: string, slug: string, title: string) => void
   themeMode?: 'dark' | 'light'
@@ -2004,7 +2030,7 @@ function EventCalendarCard({
           }`}>
             <span>{evt.title}</span>
           </h4>
-          <p className="text-xs text-emerald-600 font-mono font-semibold mt-0.5">/book/{evt.slug}</p>
+          <p className="text-xs text-emerald-600 font-mono font-semibold mt-0.5">/{evt.url_prefix || 'book'}/{evt.slug}</p>
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -2109,7 +2135,7 @@ function EventCalendarCard({
       {/* Action Buttons */}
       <div className="flex items-center gap-2 pt-1">
         <button
-          onClick={() => onCopyLink(evt.slug, evt.id || '')}
+          onClick={() => onCopyLink(evt.slug, evt.id || '', evt.url_prefix)}
           className="flex-1 py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-800 transition-colors flex items-center justify-center gap-1.5"
         >
           {copiedId === evt.id ? (
@@ -2126,7 +2152,7 @@ function EventCalendarCard({
         </button>
 
         <button
-          onClick={() => onCopyEmbed(evt.slug, evt.id || '')}
+          onClick={() => onCopyEmbed(evt.slug, evt.id || '', evt.url_prefix)}
           className="py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-800 transition-colors flex items-center gap-1.5"
         >
           {copiedEmbedId === evt.id ? (
@@ -2147,7 +2173,7 @@ function EventCalendarCard({
         </button>
 
         <a
-          href={`/book/${evt.slug}`}
+          href={`/${evt.url_prefix || 'book'}/${evt.slug}`}
           target="_blank"
           rel="noopener noreferrer"
           title="Preview Booking Page"

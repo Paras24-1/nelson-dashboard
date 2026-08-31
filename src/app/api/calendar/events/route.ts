@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const { 
       id, org_id, title, slug, description, duration_minutes, location_type, location_url, 
       available_days, weekly_schedule, start_time, end_time, timezone, slot_interval, 
-      buffer_minutes, min_notice_hours, redirect_url, n8n_calendar_webhook_url 
+      buffer_minutes, min_notice_hours, redirect_url, n8n_calendar_webhook_url, url_prefix
     } = body
 
     if (!org_id || !title) {
@@ -104,6 +104,7 @@ export async function POST(request: Request) {
       org_id,
       title,
       slug: eventSlug,
+      url_prefix: url_prefix || 'book',
       description: description || '',
       duration_minutes: Number(duration_minutes) || 30,
       location_type: location_type || 'google_meet',
