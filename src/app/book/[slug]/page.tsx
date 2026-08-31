@@ -165,6 +165,22 @@ export default function PublicBookingPage() {
     setSubmitting(true)
     setError('')
     try {
+      // 1. Verify WhatsApp Number first
+      const verifyRes = await fetch('/api/calendar/verify-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone_number: formData.phone,
+          org_id: eventType?.org_id
+        })
+      })
+
+      const verifyData = await verifyRes.json()
+      if (!verifyRes.ok || verifyData.valid === false) {
+        throw new Error(verifyData.error || 'Please enter a valid WhatsApp phone number.')
+      }
+
+      // 2. Proceed with Booking
       const res = await fetch('/api/calendar/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,7 +191,7 @@ export default function PublicBookingPage() {
           start_time: selectedSlot,
           attendee_name: formData.name,
           attendee_email: formData.email,
-          attendee_phone: formData.phone,
+          attendee_phone: verifyData.clean_phone || formData.phone,
           notes: formData.notes
         })
       })
@@ -405,7 +421,10 @@ export default function PublicBookingPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Phone / WhatsApp Number *</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                  <span>WhatsApp Phone Number *</span>
+                  <span className="text-[10px] text-emerald-400 font-mono font-medium">WhatsApp Verified</span>
+                </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                   <input
@@ -413,7 +432,10 @@ export default function PublicBookingPage() {
                     required
                     placeholder="+91 9876543210"
                     value={formData.phone}
-                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={e => {
+                      setError('')
+                      setFormData({ ...formData, phone: e.target.value })
+                    }}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -439,7 +461,10 @@ export default function PublicBookingPage() {
                 className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-black rounded-2xl text-xs shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
               >
                 {submitting ? (
-                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center gap-2 font-bold text-slate-950">
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <span>Verifying WhatsApp & Scheduling...</span>
+                  </div>
                 ) : (
                   <>
                     <span>Confirm & Schedule Meeting</span>
