@@ -115,8 +115,17 @@ export async function POST(request: Request) {
     if (formattedPhone.startsWith('0') && formattedPhone.length === 11) {
       formattedPhone = formattedPhone.substring(1)
     }
-    if (formattedPhone.length === 10 && /^[6-9]/.test(formattedPhone)) {
-      formattedPhone = '91' + formattedPhone
+
+    if (/^[6-9]/.test(formattedPhone)) {
+      if (formattedPhone.length === 10) {
+        formattedPhone = '91' + formattedPhone
+      } else {
+        return NextResponse.json({ error: `Invalid phone number (${formattedPhone}). Indian mobile numbers must be exactly 10 digits (e.g. 9876543210 or +91 9876543210).` }, { status: 400 })
+      }
+    } else if (/^91[6-9]/.test(formattedPhone)) {
+      if (formattedPhone.length !== 12) {
+        return NextResponse.json({ error: `Invalid phone number length (${formattedPhone}). Mobile numbers with +91 country code must be 12 digits in total.` }, { status: 400 })
+      }
     }
 
     // --- REJECT PAST DATES & TIME SLOTS ---

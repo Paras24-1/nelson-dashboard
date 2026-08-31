@@ -16,19 +16,33 @@ export async function POST(request: Request) {
     }
 
     // Clean phone number (digits only)
-    let cleanDigits = phone_number.replace(/[^0-9]/g, '')
+    let cleanDigits = (phone_number || '').replace(/[^0-9]/g, '')
 
-    // Handle leading zero (e.g. 09876543210 -> 9876543210)
+    // Handle leading zero (e.g. 08360599157 -> 8360599157)
     if (cleanDigits.startsWith('0') && cleanDigits.length === 11) {
       cleanDigits = cleanDigits.substring(1)
     }
 
-    // Auto-prefix 10-digit numbers with 91 country code if omitted
-    if (cleanDigits.length === 10 && /^[6-9]/.test(cleanDigits)) {
-      cleanDigits = '91' + cleanDigits
+    // Strict validation for Indian Mobile Numbers (starting with 6-9 or 91 followed by 6-9)
+    if (/^[6-9]/.test(cleanDigits)) {
+      if (cleanDigits.length === 10) {
+        cleanDigits = '91' + cleanDigits
+      } else {
+        return NextResponse.json({
+          valid: false,
+          error: `Invalid phone number (${cleanDigits}). Indian mobile numbers must be exactly 10 digits (e.g. 9876543210 or +91 9876543210).`
+        }, { status: 400 })
+      }
+    } else if (/^91[6-9]/.test(cleanDigits)) {
+      if (cleanDigits.length !== 12) {
+        return NextResponse.json({
+          valid: false,
+          error: `Invalid phone number length (${cleanDigits}). Mobile numbers with +91 country code must be exactly 12 digits in total.`
+        }, { status: 400 })
+      }
     }
 
-    // Basic format validation: phone must be between 10 and 15 digits
+    // General format validation for international numbers: 10 to 15 digits
     if (cleanDigits.length < 10 || cleanDigits.length > 15) {
       return NextResponse.json({ 
         valid: false, 
