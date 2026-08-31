@@ -6,7 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import { 
   Calendar as CalendarIcon, Clock, Video, MapPin, Phone, User, Plus, Code, Copy, Check, 
   Trash2, ExternalLink, Filter, Search, Globe, ShieldAlert, Sparkles, RefreshCw, ChevronRight, ArrowLeft,
-  Sun, Moon
+  Sun, Moon, Pencil
 } from 'lucide-react'
 
 interface TimeInterval {
@@ -110,6 +110,61 @@ export default function CalendarDashboardPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [copiedEmbedId, setCopiedEmbedId] = useState<string | null>(null)
 
+  // Edit Calendar Modal state
+  const [editingEvent, setEditingEvent] = useState<EventType | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editSlug, setEditSlug] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  const handleStartEdit = (evt: EventType) => {
+    setEditingEvent(evt)
+    setEditTitle(evt.title || '')
+    setEditSlug(evt.slug || '')
+    setEditError('')
+  }
+
+  const handleSaveEditCalendar = async () => {
+    if (!editingEvent || !org?.id) return
+    if (!editTitle.trim()) {
+      setEditError('Calendar title is required')
+      return
+    }
+    if (!editSlug.trim()) {
+      setEditError('Calendar slug is required')
+      return
+    }
+
+    const cleanSlug = editSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+    setSavingEdit(true)
+    setEditError('')
+    try {
+      const res = await fetch('/api/calendar/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editingEvent,
+          org_id: org.id,
+          title: editTitle.trim(),
+          slug: cleanSlug
+        })
+      })
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Failed to update calendar')
+      }
+
+      setEditingEvent(null)
+      fetchCalendarData()
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to save changes')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   // Wizard state for event creation
   const [wizardStep, setWizardStep] = useState<number>(1)
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(INITIAL_WEEKLY_SCHEDULE)
@@ -198,7 +253,7 @@ export default function CalendarDashboardPage() {
   }
 
   const handleCopyEmbed = (slug: string, id: string) => {
-    const embedCode = `<iframe src="${window.location.origin}/book/${slug}" width="100%" height="700px" frameborder="0"></iframe>`
+    const embedCode = `<iframe src="${window.location.origin}/book/${slug}" width="100%" height="700px" frameborder="0"><` + `/iframe>`
     navigator.clipboard.writeText(embedCode)
     setCopiedEmbedId(id)
     setTimeout(() => setCopiedEmbedId(null), 2500)
@@ -293,10 +348,11 @@ export default function CalendarDashboardPage() {
   }
 
   const handleApplyToWeekdays = (sourceDayId: string) => {
+    const weekdaysList = ['mon', 'tue', 'wed', 'thu', 'fri']
     setWeeklySchedule(prev => {
       const source = prev[sourceDayId]
       const next = { ...prev }
-      ;['mon', 'tue', 'wed', 'thu', 'fri'].forEach(d => {
+      weekdaysList.forEach(d => {
         next[d] = { enabled: source.enabled, intervals: JSON.parse(JSON.stringify(source.intervals)) }
       })
       return next
@@ -487,6 +543,7 @@ export default function CalendarDashboardPage() {
                   copiedEmbedId={copiedEmbedId}
                   onCopyLink={handleCopyLink}
                   onCopyEmbed={handleCopyEmbed}
+                  onEdit={handleStartEdit}
                   onDelete={handleDeleteCalendar}
                   themeMode={themeMode}
                 />
@@ -1070,6 +1127,105 @@ export default function CalendarDashboardPage() {
               )}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* EDIT CALENDAR NAME & SLUG MODAL */}
+      {editingEvent && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className={`max-w-md w-full p-6 rounded-3xl border shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150 ${
+            themeMode === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-slate-300/50' : 'bg-slate-900 border-slate-800 text-white'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              themeMode === 'light' ? 'border-slate-200' : 'border-slate-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold">Edit Calendar Name & Slug</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEvent(null)}
+                className={`text-sm font-bold ${themeMode === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-500 font-semibold">
+                {editError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-xs font-semibold mb-1 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
+                  Calendar Title / Name *
+                </label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  placeholder="e.g. 30 Mins Strategy Call"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:border-emerald-500 ${
+                    themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-xs font-semibold mb-1 ${themeMode === 'light' ? 'text-slate-700' : 'text-slate-300'}`}>
+                  Calendar Slug / URL *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={editSlug}
+                    onChange={e => {
+                      const sanitized = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                      setEditSlug(sanitized)
+                    }}
+                    placeholder="e.g. strategy-call"
+                    className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:border-emerald-500 ${
+                      themeMode === 'light' ? 'bg-slate-50 border-slate-300 text-slate-900' : 'bg-slate-950 border-slate-800 text-white'
+                    }`}
+                  />
+                </div>
+                <p className="text-[11px] text-emerald-500 font-mono mt-1">
+                  Preview: /book/{editSlug || 'your-slug'}
+                </p>
+              </div>
+            </div>
+
+            <div className={`flex items-center justify-end gap-2 pt-3 border-t ${
+              themeMode === 'light' ? 'border-slate-200' : 'border-slate-800'
+            }`}>
+              <button
+                type="button"
+                onClick={() => setEditingEvent(null)}
+                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold transition-colors ${
+                  themeMode === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300' : 'bg-slate-950 hover:bg-slate-800 text-slate-300 border-slate-800'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingEdit || !editTitle.trim() || !editSlug.trim()}
+                onClick={handleSaveEditCalendar}
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-bold rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
+              >
+                {savingEdit ? (
+                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span>Save Changes</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1818,6 +1974,7 @@ function EventCalendarCard({
   copiedEmbedId,
   onCopyLink,
   onCopyEmbed,
+  onEdit,
   onDelete,
   themeMode = 'dark'
 }: {
@@ -1826,6 +1983,7 @@ function EventCalendarCard({
   copiedEmbedId: string | null
   onCopyLink: (slug: string, id: string) => void
   onCopyEmbed: (slug: string, id: string) => void
+  onEdit?: (evt: EventType) => void
   onDelete: (id: string, slug: string, title: string) => void
   themeMode?: 'dark' | 'light'
 }) {
@@ -1977,6 +2135,15 @@ function EventCalendarCard({
             <Code className="w-3.5 h-3.5 text-slate-400" />
           )}
           <span>iFrame Code</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onEdit && onEdit(evt)}
+          title="Edit Calendar Name & Slug"
+          className="p-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl transition-colors flex items-center justify-center"
+        >
+          <Pencil className="w-4 h-4" />
         </button>
 
         <a
