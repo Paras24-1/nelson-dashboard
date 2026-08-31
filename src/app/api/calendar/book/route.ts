@@ -110,6 +110,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'All booking fields are required' }, { status: 400 })
     }
 
+    // Clean & Sanitize Phone Number to ensure WhatsApp delivery
+    let formattedPhone = (attendee_phone || '').replace(/[^0-9]/g, '')
+    if (formattedPhone.startsWith('0') && formattedPhone.length === 11) {
+      formattedPhone = formattedPhone.substring(1)
+    }
+    if (formattedPhone.length === 10 && /^[6-9]/.test(formattedPhone)) {
+      formattedPhone = '91' + formattedPhone
+    }
+
     // --- REJECT PAST DATES & TIME SLOTS ---
     const todayStr = new Date().toISOString().split('T')[0]
     if (booking_date < todayStr) {
@@ -211,7 +220,7 @@ export async function POST(request: Request) {
       org_id,
       attendee_name,
       attendee_email,
-      attendee_phone,
+      attendee_phone: formattedPhone || attendee_phone,
       notes: notes || '',
       booking_date,
       start_time,
@@ -229,7 +238,7 @@ export async function POST(request: Request) {
         org_id,
         attendee_name,
         attendee_email,
-        attendee_phone,
+        attendee_phone: formattedPhone || attendee_phone,
         notes: notes || '',
         booking_date,
         start_time,

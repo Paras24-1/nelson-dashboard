@@ -16,7 +16,17 @@ export async function POST(request: Request) {
     }
 
     // Clean phone number (digits only)
-    const cleanDigits = phone_number.replace(/[^0-9]/g, '')
+    let cleanDigits = phone_number.replace(/[^0-9]/g, '')
+
+    // Handle leading zero (e.g. 09876543210 -> 9876543210)
+    if (cleanDigits.startsWith('0') && cleanDigits.length === 11) {
+      cleanDigits = cleanDigits.substring(1)
+    }
+
+    // Auto-prefix 10-digit numbers with 91 country code if omitted
+    if (cleanDigits.length === 10 && /^[6-9]/.test(cleanDigits)) {
+      cleanDigits = '91' + cleanDigits
+    }
 
     // Basic format validation: phone must be between 10 and 15 digits
     if (cleanDigits.length < 10 || cleanDigits.length > 15) {
