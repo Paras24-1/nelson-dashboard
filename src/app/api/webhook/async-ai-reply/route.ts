@@ -27,10 +27,9 @@ export async function POST(req: NextRequest) {
       } catch (e) {}
     }
     
-    // If tenant key is empty or invalid (not starting with AIzaSy), fallback to system GEMINI_API_KEY
-    if (!tenantAiKey || !tenantAiKey.startsWith('AIzaSy')) {
-      console.warn(`[async-ai-reply] Tenant Gemini key (${tenantAiKey ? tenantAiKey.substring(0, 10) : 'empty'}) is invalid. Falling back to system GEMINI_API_KEY.`)
-      tenantAiKey = process.env.GEMINI_API_KEY || tenantAiKey
+    // If tenant key is empty, fallback to system GEMINI_API_KEY
+    if (!tenantAiKey || !tenantAiKey.trim()) {
+      tenantAiKey = process.env.GEMINI_API_KEY || ''
     }
 
     if (!tenantAiKey) {
