@@ -1663,24 +1663,34 @@ function AppointmentsCalendarView({
                             key={apt.id}
                             onClick={() => setSelectedAppointment(apt)}
                             className={`p-3.5 rounded-xl cursor-pointer transition-all border shadow-sm space-y-2 ${
-                              isLight 
-                                ? 'bg-white border-emerald-300 hover:border-emerald-500 hover:shadow-md' 
-                                : 'bg-slate-900 border-emerald-500/40 hover:border-emerald-400'
+                              apt.status === 'cancelled'
+                                ? isLight
+                                  ? 'bg-rose-50/80 border-rose-200 hover:border-rose-400'
+                                  : 'bg-rose-950/30 border-rose-500/40 hover:border-rose-400'
+                                : isLight 
+                                  ? 'bg-white border-emerald-300 hover:border-emerald-500 hover:shadow-md' 
+                                  : 'bg-slate-900 border-emerald-500/40 hover:border-emerald-400'
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <span className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                                <User className="w-3.5 h-3.5 text-emerald-500" />
+                                <User className={`w-3.5 h-3.5 ${apt.status === 'cancelled' ? 'text-rose-500' : 'text-emerald-500'}`} />
                                 {apt.attendee_name}
                               </span>
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                                apt.status === 'cancelled'
+                                  ? 'bg-rose-500/20 text-rose-500 border-rose-500/30'
+                                  : apt.status === 'completed'
+                                  ? 'bg-blue-500/20 text-blue-500 border-blue-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/20'
+                              }`}>
                                 {apt.status}
                               </span>
                             </div>
 
                             <div className={`text-[11px] flex items-center justify-between font-mono ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                               <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-emerald-500" />
+                                <Clock className={`w-3 h-3 ${apt.status === 'cancelled' ? 'text-rose-500' : 'text-emerald-500'}`} />
                                 {apt.start_time} - {apt.end_time || '30m'}
                               </span>
                               <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{apt.attendee_phone}</span>
@@ -1807,7 +1817,11 @@ function AppointmentsCalendarView({
                       <button
                         key={apt.id}
                         onClick={() => setSelectedAppointment(apt)}
-                        className="w-full text-left px-2 py-1 bg-emerald-950/90 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-800/60 rounded-lg text-[10px] font-semibold truncate transition-colors flex items-center justify-between gap-1 shadow-sm"
+                        className={`w-full text-left px-2 py-1 border rounded-lg text-[10px] font-semibold truncate transition-colors flex items-center justify-between gap-1 shadow-sm ${
+                          apt.status === 'cancelled'
+                            ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-500 border-rose-500/40 font-bold'
+                            : 'bg-emerald-950/90 hover:bg-emerald-900/90 text-emerald-300 border-emerald-800/60'
+                        }`}
                       >
                         <span className="truncate">{apt.start_time} {apt.attendee_name}</span>
                       </button>
@@ -1826,7 +1840,11 @@ function AppointmentsCalendarView({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAppointments.map(apt => (
             <div key={apt.id} className={`p-5 rounded-3xl space-y-3 border transition-all ${
-              isLight 
+              apt.status === 'cancelled'
+                ? isLight
+                  ? 'bg-rose-50/50 border-rose-200 shadow-sm'
+                  : 'bg-slate-900/90 border-rose-500/30 shadow-xl'
+                : isLight 
                 ? 'bg-white border-slate-200 shadow-xl shadow-slate-200/50 hover:border-slate-300' 
                 : 'bg-slate-900/90 border-slate-800 shadow-xl hover:border-slate-700'
             }`}>
@@ -1837,7 +1855,13 @@ function AppointmentsCalendarView({
                   <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{apt.attendee_name}</h4>
                   <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{apt.attendee_email}</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${
+                  apt.status === 'cancelled'
+                    ? 'bg-rose-500/20 text-rose-500 border-rose-500/30'
+                    : apt.status === 'completed'
+                    ? 'bg-blue-500/20 text-blue-500 border-blue-500/30'
+                    : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/20'
+                }`}>
                   {apt.status}
                 </span>
               </div>
