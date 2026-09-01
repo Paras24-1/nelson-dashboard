@@ -27,13 +27,13 @@ export async function POST(req: NextRequest) {
       } catch (e) {}
     }
     
-    // If tenant key is empty, fallback to system GEMINI_API_KEY
+    // If tenant key is empty, fallback to process.env.GEMINI_API_KEY
     if (!tenantAiKey || !tenantAiKey.trim()) {
       tenantAiKey = process.env.GEMINI_API_KEY || ''
     }
 
     if (!tenantAiKey) {
-      console.warn('[async-ai-reply] No valid GEMINI_API_KEY found. Skipping AI reply.')
+      console.warn(`[async-ai-reply] No valid GEMINI_API_KEY found for org ${orgId}. Skipping AI reply.`)
       return NextResponse.json({ error: 'No valid GEMINI_API_KEY' }, { status: 500 })
     }
 
