@@ -216,11 +216,19 @@ Respond in JSON format with exactly these keys:
       }
     } catch (e) {}
 
-    // Map models to working Gemini 3.1 Flash Lite / flash-lite-latest
-    if (selectedModel === '3.1-flash-lite' || selectedModel === 'gemini-3.1-flash-lite' || selectedModel === 'gemini-3.1-flash-lite-preview') {
-      selectedModel = 'gemini-3.1-flash-lite-preview'
-    } else if (!selectedModel.startsWith('gemini-')) {
+    // Remap all deprecated/discontinued models to a working one
+    const DEPRECATED_MODELS = [
+      'gemini-2.0-flash', 'gemini-2.0-flash-exp', 'gemini-2.0-flash-001',
+      'gemini-2.5-flash', 'gemini-2.5-flash-001',
+      'gemini-1.5-flash', 'gemini-1.5-flash-001', 'gemini-1.5-pro',
+      'gemini-pro', 'gemini-ultra'
+    ]
+    if (DEPRECATED_MODELS.includes(selectedModel) || !selectedModel.startsWith('gemini-')) {
+      console.warn(`[async-ai-reply] Model "${selectedModel}" is deprecated or invalid. Falling back to gemini-flash-lite-latest.`)
       selectedModel = 'gemini-flash-lite-latest'
+    }
+    if (selectedModel === 'gemini-3.1-flash-lite' || selectedModel === 'gemini-3.1-flash-lite-preview') {
+      selectedModel = 'gemini-3.1-flash-lite-preview'
     }
 
     console.log(`[async-ai-reply] Calling Gemini model "${selectedModel}"...`)
