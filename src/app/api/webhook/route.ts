@@ -48,20 +48,11 @@ export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const orgSlug = searchParams.get('org') || searchParams.get('org_id') || ''
-
     let orgId: string | null = null
-    if (orgSlug) {
-      const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(orgSlug)
-      const { data: org } = await (isUuid
-        ? supabaseAdmin.from('organizations').select('id').eq('id', orgSlug).maybeSingle()
-        : supabaseAdmin.from('organizations').select('id').eq('slug', orgSlug).maybeSingle())
-      orgId = org?.id || null
-    }
-
     const body = await req.json()
 
-    // If orgId not provided in query param, resolve automatically by Meta phone_number_id
-    if (!orgId && body.object === 'whatsapp_business_account') {
+    // Priority 1: Resolve automatically by Meta phone_number_id if present in organization_settings
+    if (body.object === 'whatsapp_business_account') {
       const phoneId = body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
       if (phoneId) {
         const { data: settings } = await supabaseAdmin
@@ -69,8 +60,19 @@ export async function POST(req: NextRequest) {
           .select('org_id')
           .eq('whatsapp_phone_id', phoneId)
           .maybeSingle()
-        orgId = settings?.org_id || null
+        if (settings?.org_id) {
+          orgId = settings.org_id
+        }
       }
+    }
+
+    // Priority 2: Fallback to query param slug/id if phone_number_id didn't match
+    if (!orgId && orgSlug) {
+      const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(orgSlug)
+      const { data: org } = await (isUuid
+        ? supabaseAdmin.from('organizations').select('id').eq('id', orgSlug).maybeSingle()
+        : supabaseAdmin.from('organizations').select('id').eq('slug', orgSlug).maybeSingle())
+      orgId = org?.id || null
     }
 
     if (!orgId) {
