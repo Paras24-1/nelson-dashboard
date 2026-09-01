@@ -209,7 +209,7 @@ Respond in JSON format with exactly these keys:
 }`
 
     // Parse active AI model name from settings
-    let selectedModel = 'gemini-2.0-flash'
+    let selectedModel = 'gemini-flash-lite-latest'
     try {
       if (customPromptBase && customPromptBase.startsWith('{')) {
         const parsed = JSON.parse(customPromptBase)
@@ -217,19 +217,16 @@ Respond in JSON format with exactly these keys:
       }
     } catch (e) {}
 
-    // Auto-migrate invalid/deprecated models to working gemini-2.0-flash
-    if (
-      selectedModel === 'gemini-2.5-flash' || 
-      selectedModel === 'gemini-1.5-flash' || 
-      selectedModel === 'gemini-flash-lite-latest' ||
-      !selectedModel.startsWith('gemini-')
-    ) {
-      selectedModel = 'gemini-2.0-flash'
+    // Map models to working Gemini 3.1 Flash Lite / flash-lite-latest
+    if (selectedModel === '3.1-flash-lite' || selectedModel === 'gemini-3.1-flash-lite' || selectedModel === 'gemini-3.1-flash-lite-preview') {
+      selectedModel = 'gemini-3.1-flash-lite-preview'
+    } else if (!selectedModel.startsWith('gemini-')) {
+      selectedModel = 'gemini-flash-lite-latest'
     }
 
     console.log(`[async-ai-reply] Calling Gemini model "${selectedModel}"...`)
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${tenantAiKey}`, {
+    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${tenantAiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -251,8 +248,23 @@ Respond in JSON format with exactly these keys:
       })
     })
 
+    // Retry with working gemini-flash-lite-latest if initial model returns 404 or fails
+    if (!response.ok && selectedModel !== 'gemini-flash-lite-latest') {
+      console.warn(`[async-ai-reply] Model ${selectedModel} failed (${response.status}). Retrying with gemini-flash-lite-latest...`)
+      selectedModel = 'gemini-flash-lite-latest'
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${tenantAiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: `Recent chat history:\n${chatContext}\n\nAnalyze the customer's last message and generate the JSON response.` }] }],
+          systemInstruction: { role: "system", parts: [{ text: systemPrompt }] },
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      })
+    }
+
     if (!response.ok) {
-      throw new Error(`Gemini error: ${await response.text()}`)
+      throw new Error(`Gemini error (${response.status}): ${await response.text()}`)
     }
 
     const aiData = await response.json()
