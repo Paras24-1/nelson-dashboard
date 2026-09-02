@@ -147,6 +147,58 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Helper function to auto-generate sample media handle via Meta Resumable Upload API
+async function getMetaSampleHeaderHandle(tokenStr: string, format: string): Promise<string | null> {
+  try {
+    const meRes = await fetch(`https://graph.facebook.com/v20.0/debug_token?input_token=${tokenStr}&access_token=${tokenStr}`)
+    const meData = await meRes.json()
+    const appId = meData.data?.app_id
+    if (!appId) return null
+
+    let fileBuffer: Buffer
+    let mimeType: string
+
+    if (format === 'IMAGE') {
+      mimeType = 'image/png'
+      fileBuffer = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64'
+      )
+    } else if (format === 'DOCUMENT') {
+      mimeType = 'application/pdf'
+      fileBuffer = Buffer.from('%PDF-1.4 %EOF', 'utf8')
+    } else if (format === 'VIDEO') {
+      mimeType = 'video/mp4'
+      fileBuffer = Buffer.from(
+        'AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAAptZGF0AAAAAA==',
+        'base64'
+      )
+    } else {
+      return null
+    }
+
+    const sessionRes = await fetch(`https://graph.facebook.com/v20.0/${appId}/uploads?file_length=${fileBuffer.length}&file_type=${mimeType}&access_token=${tokenStr}`, {
+      method: 'POST'
+    })
+    const sessionData = await sessionRes.json()
+    if (!sessionData.id) return null
+
+    const uploadRes = await fetch(`https://graph.facebook.com/v20.0/${sessionData.id}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `OAuth ${tokenStr}`,
+        'file_offset': '0'
+      },
+      body: new Uint8Array(fileBuffer)
+    })
+    const uploadData = await uploadRes.json()
+    return uploadData.h || null
+  } catch (err) {
+    console.error('[templates] Error generating Meta sample header handle:', err)
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const orgId = await getOrgId(req)
@@ -231,6 +283,11 @@ export async function POST(req: NextRequest) {
       const headerComp: any = { type: 'HEADER', format: header_format }
       if (header_format === 'TEXT' && header_text) {
         headerComp.text = header_text
+      } else if (['IMAGE', 'DOCUMENT', 'VIDEO'].includes(header_format)) {
+        const handle = await getMetaSampleHeaderHandle(token, header_format)
+        if (handle) {
+          headerComp.example = { header_handle: [handle] }
+        }
       }
       components.push(headerComp)
     }
