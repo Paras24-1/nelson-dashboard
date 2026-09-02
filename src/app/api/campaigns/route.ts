@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
         .eq('org_id', orgId)
         .single()
 
-      const n8nUrl = settings?.n8n_webhook_url || process.env.N8N_BULK_WEBHOOK_URL
+      const DEFAULT_BULK_URL = 'https://resplendent-rejoicing-production-4b92.up.railway.app/webhook/bulk-sendMulti'
+      const n8nUrl = settings?.n8n_webhook_url || process.env.N8N_BULK_WEBHOOK_URL || DEFAULT_BULK_URL
       if (n8nUrl) {
         await fetch(n8nUrl, {
           method: 'POST',
