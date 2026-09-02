@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
     // Safely query existing settings using only guaranteed valid columns
     const { data: existing } = await supabaseAdmin
       .from('organization_settings')
-      .select('id, ai_system_prompt')
+      .select('id, ai_system_prompt, whatsapp_token, whatsapp_waba_id')
       .eq('org_id', orgId)
       .maybeSingle()
 
@@ -98,6 +98,33 @@ export async function PATCH(req: NextRequest) {
     if (error) {
       console.error('[settings save error]', error)
       throw new Error(error.message || String(error))
+    }
+
+    // Auto-subscribe WABA to Meta App webhook whenever WhatsApp credentials are saved/updated
+    // This ensures Meta delivers webhooks to voxaiagents.com for this org's phone number
+    const finalToken = filtered.whatsapp_token || existing?.whatsapp_token
+    const finalWabaId = filtered.whatsapp_waba_id || existing?.whatsapp_waba_id
+    const credentialsChanged = 'whatsapp_token' in filtered || 'whatsapp_waba_id' in filtered || 'whatsapp_phone_id' in filtered
+
+    if (credentialsChanged && finalToken && finalWabaId) {
+      try {
+        console.log(`[settings] Auto-subscribing WABA ${finalWabaId} to Meta App webhook...`)
+        const subRes = await fetch(`https://graph.facebook.com/v20.0/${finalWabaId}/subscribed_apps`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${finalToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        const subData = await subRes.json()
+        if (subRes.ok && subData.success) {
+          console.log(`[settings] ✅ WABA ${finalWabaId} successfully subscribed to webhook`)
+        } else {
+          console.warn(`[settings] ⚠️ WABA webhook subscription failed:`, JSON.stringify(subData))
+        }
+      } catch (subErr) {
+        console.warn(`[settings] ⚠️ Could not auto-subscribe WABA webhook:`, subErr)
+      }
     }
 
     const resObj = { ...data, n8n_calendar_webhook_url: calWebhook !== null ? calWebhook : '' }
