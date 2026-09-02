@@ -10,7 +10,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { orgId, phone_number, message, conversation_id } = body
 
+    console.log(`[async-ai-reply:start] orgId=${orgId} | phone=${phone_number} | conv=${conversation_id} | msg="${message?.substring(0, 50)}"`)
+
     if (!orgId || !phone_number || !message) {
+      console.warn(`[async-ai-reply:error] Missing fields: orgId=${orgId} phone=${phone_number} message=${!!message}`)
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
@@ -19,6 +22,9 @@ export async function POST(req: NextRequest) {
       .select('gemini_api_key, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range, google_sheets_api_key')
       .eq('org_id', orgId)
       .maybeSingle()
+
+    console.log(`[async-ai-reply:settings] orgSettingsFound=${!!orgSettings} | hasGeminiKey=${!!orgSettings?.gemini_api_key} | hasPrompt=${!!orgSettings?.ai_system_prompt}`)
+
     let tenantAiKey = orgSettings?.gemini_api_key
     if (!tenantAiKey && orgSettings?.ai_system_prompt?.startsWith('{')) {
       try {
@@ -33,9 +39,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!tenantAiKey) {
-      console.warn(`[async-ai-reply] No valid GEMINI_API_KEY found for org ${orgId}. Skipping AI reply.`)
+      console.warn(`[async-ai-reply:error] No valid GEMINI_API_KEY found for org ${orgId}. Skipping AI reply.`)
       return NextResponse.json({ error: 'No valid GEMINI_API_KEY' }, { status: 500 })
     }
+
+    console.log(`[async-ai-reply:key] Key resolved: ${tenantAiKey.substring(0, 12)}... (length=${tenantAiKey.length})`)
 
     // 1. Fetch Lead context & metadata
     const { data: lead } = await supabaseAdmin

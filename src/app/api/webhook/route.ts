@@ -413,6 +413,8 @@ export async function POST(req: NextRequest) {
           .eq('org_id', orgId)
           .maybeSingle()
 
+        console.log(`[webhook:routing] OrgID=${orgId} | hasPrompt=${!!orgSettings?.ai_system_prompt} | hasGeminiKey=${!!orgSettings?.gemini_api_key} | hasN8nUrl=${!!orgSettings?.n8n_inbound_webhook_url}`)
+
         let parsedPromptObj: any = {}
         if (orgSettings?.ai_system_prompt) {
           try {
@@ -426,6 +428,7 @@ export async function POST(req: NextRequest) {
 
         const engineMode = parsedPromptObj.engine_mode || (orgSettings?.n8n_inbound_webhook_url ? 'hybrid_n8n' : 'native')
         isHybridN8n = engineMode === 'hybrid_n8n' && !!orgSettings?.n8n_inbound_webhook_url
+        console.log(`[webhook:routing] engineMode=${engineMode} | isHybridN8n=${isHybridN8n} | model=${parsedPromptObj.ai_model_name || '(not set)'}`)
 
         if (isHybridN8n && orgSettings?.n8n_inbound_webhook_url) {
           console.log(`[webhook] Forwarding Enriched Bot Brain Payload to tenant n8n: ${orgSettings.n8n_inbound_webhook_url}`)
@@ -505,8 +508,8 @@ export async function POST(req: NextRequest) {
         // ONLY if n8n is NOT handling this org's inbound messages (to prevent duplicate replies)
         if (!isHybridN8n) {
           const origin = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://voxaiagents.com'
-          console.log(`[webhook] Executing Native Dashboard AI reply for org ${orgId} at ${origin}`)
-          await fetch(`${origin}/api/webhook/async-ai-reply`, {
+          console.log(`[webhook:native-ai] Triggering async-ai-reply | orgId=${orgId} | phone=${phone_number} | conv=${conversation.id}`)
+          const aiReplyRes = await fetch(`${origin}/api/webhook/async-ai-reply`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -515,7 +518,10 @@ export async function POST(req: NextRequest) {
               message: msgText, 
               conversation_id: conversation.id 
             })
-          }).catch(err => console.error('[webhook] Failed to trigger async AI reply:', err))
+          }).catch(err => { console.error('[webhook:native-ai] Failed to trigger async AI reply:', err); return null })
+          if (aiReplyRes) {
+            console.log(`[webhook:native-ai] async-ai-reply HTTP status: ${aiReplyRes.status}`)
+          }
         } else {
           console.log(`[webhook] Skipping native AI reply — n8n is handling inbound for org ${orgId}`)
         }
