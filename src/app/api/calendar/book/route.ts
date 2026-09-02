@@ -395,14 +395,29 @@ export async function POST(request: Request) {
 
     // B. Deliver Real Gmail SMTP Email Notifications
     try {
+      // Fetch the org owner's registered login email first
+      const { data: ownerUser } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('org_id', org_id)
+        .eq('role', 'owner')
+        .maybeSingle()
+
+      // Fallback: any admin in the org
       const { data: adminUsers } = await supabase
         .from('profiles')
         .select('email')
         .eq('org_id', org_id)
-        .in('role', ['owner', 'admin'])
+        .eq('role', 'admin')
 
-      const adminEmails = adminUsers?.map(u => u.email).filter(Boolean) || []
-      if (!adminEmails.includes('voxai4278@gmail.com')) {
+      // Build recipient list: owner first, then admins (deduplicated)
+      const adminEmails: string[] = []
+      if (ownerUser?.email) adminEmails.push(ownerUser.email)
+      for (const u of adminUsers || []) {
+        if (u.email && !adminEmails.includes(u.email)) adminEmails.push(u.email)
+      }
+      // Fallback: if no owner or admin found, send to system email
+      if (adminEmails.length === 0) {
         adminEmails.push('voxai4278@gmail.com')
       }
 
