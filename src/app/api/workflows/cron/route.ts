@@ -273,13 +273,37 @@ export async function GET(req: NextRequest) {
               if (whatsappToken && activePhoneId) {
                 let payload: any = null
                 if (currentStep.whatsapp_template_name) {
+                  const headerImg = currentStep.whatsapp_header_image_url || inst.metadata?.header_image_url
+                  const param1Val = (currentStep.whatsapp_param1 || '{Name}').replace('{Name}', inst.lead_name || 'there')
+                  const param2Val = (currentStep.whatsapp_param2 || '{Industry}').replace('{Industry}', 'business')
+
+                  const components: any[] = [
+                    {
+                      type: 'body',
+                      parameters: [
+                        { type: 'text', text: param1Val },
+                        { type: 'text', text: param2Val }
+                      ]
+                    }
+                  ]
+
+                  if (headerImg) {
+                    components.unshift({
+                      type: 'header',
+                      parameters: [
+                        { type: 'image', image: { link: headerImg } }
+                      ]
+                    })
+                  }
+
                   payload = {
                     messaging_product: 'whatsapp',
                     to: cleanPhone,
                     type: 'template',
                     template: {
                       name: currentStep.whatsapp_template_name,
-                      language: { code: 'en' }
+                      language: { code: 'en' },
+                      components
                     }
                   }
                 } else {

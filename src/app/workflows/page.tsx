@@ -43,6 +43,9 @@ interface WorkflowStep {
   email_body?: string
   whatsapp_message?: string
   whatsapp_template_name?: string
+  whatsapp_header_image_url?: string
+  whatsapp_param1?: string
+  whatsapp_param2?: string
   new_status?: string
 }
 
@@ -644,9 +647,9 @@ function WorkflowsContent() {
                                   )}
 
                                   {step.action_type === 'whatsapp' && (
-                                    <div className="flex flex-col gap-2 text-xs">
+                                    <div className="flex flex-col gap-2.5 text-xs">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-gray-400 font-medium">Meta Template:</span>
+                                        <span className="text-gray-400 font-medium shrink-0">Meta Template:</span>
                                         <select
                                           value={step.whatsapp_template_name || ''}
                                           onChange={(e) => updateStep(step.id, { whatsapp_template_name: e.target.value })}
@@ -662,12 +665,50 @@ function WorkflowsContent() {
                                           <option value="touch_7">touch_7 (Touch 7 Template)</option>
                                         </select>
                                       </div>
-                                      <span className="text-gray-400">Message Text (Supports {'{Name}'}, {'{Business_Name}'}, {'{Industry}'}):</span>
+
+                                      {step.whatsapp_template_name && (
+                                        <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
+                                          <div>
+                                            <span className="text-gray-400 text-[11px] font-medium">Header Image URL (Optional):</span>
+                                            <input
+                                              type="url"
+                                              value={step.whatsapp_header_image_url || ''}
+                                              onChange={(e) => updateStep(step.id, { whatsapp_header_image_url: e.target.value })}
+                                              placeholder="https://example.com/banner.png"
+                                              className="w-full mt-1 px-3 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold"
+                                            />
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                              <span className="text-gray-400 text-[11px] font-medium">Var 1 {'{{1}}'}:</span>
+                                              <input
+                                                type="text"
+                                                value={step.whatsapp_param1 || '{Name}'}
+                                                onChange={(e) => updateStep(step.id, { whatsapp_param1: e.target.value })}
+                                                placeholder="{Name}"
+                                                className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                                              />
+                                            </div>
+                                            <div>
+                                              <span className="text-gray-400 text-[11px] font-medium">Var 2 {'{{2}}'}:</span>
+                                              <input
+                                                type="text"
+                                                value={step.whatsapp_param2 || '{Industry}'}
+                                                onChange={(e) => updateStep(step.id, { whatsapp_param2: e.target.value })}
+                                                placeholder="{Industry}"
+                                                className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      <span className="text-gray-400 font-medium">Message Text / Preview:</span>
                                       <textarea
                                         value={step.whatsapp_message || ''}
                                         onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
                                         placeholder="Hi {Name}, following up on your {Industry} requirement..."
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[60px]"
+                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[50px]"
                                       />
                                     </div>
                                   )}
