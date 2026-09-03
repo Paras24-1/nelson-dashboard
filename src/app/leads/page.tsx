@@ -461,27 +461,40 @@ function LeadsContent() {
                           <td className="px-6 py-4">
                             <div className="text-xs max-w-[280px] space-y-1">
                               {rawFollowup && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate font-medium">📌 {rawFollowup}</div>}
-                              
-                              {lead.metadata && Object.keys(lead.metadata).length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                  {Object.entries(lead.metadata).map(([key, val]) => {
-                                    if (typeof val === 'object' || !val || String(val).trim() === '') return null;
-                                    const skipKeys = ['lead_score', 'lead_quality', 'lead_temperature', 'stage', 'state', 'conversation_id', 'id'];
-                                    if (skipKeys.includes(key.toLowerCase())) return null;
+                              {(() => {
+                                const allCustomData = { ...lead, ...(lead.metadata || {}) };
+                                const skipKeys = [
+                                  'id', 'created_at', 'updated_at', 'org_id', 'assigned_to', 
+                                  'phone_number', 'name', 'conversation_id', 'lead_score', 
+                                  'lead_quality', 'lead_temperature', 'stage', 'state', 
+                                  'followup_notes', 'followup_date', 'followup_notified',
+                                  'metadata', 'lead_type'
+                                ];
 
-                                    const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                    const displayVal = String(val).length > 30 ? String(val).substring(0, 30) + '...' : String(val);
-                                    
-                                    return (
-                                      <span key={key} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 truncate max-w-full">
-                                        <span className="font-semibold mr-1 text-gray-500 dark:text-gray-400">{displayKey}:</span> {displayVal}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                !rawFollowup && <span className="text-gray-400 italic">No custom data</span>
-                              )}
+                                const customEntries = Object.entries(allCustomData).filter(([key, val]) => {
+                                  if (skipKeys.includes(key.toLowerCase())) return false;
+                                  if (typeof val === 'object' || val === null || val === undefined || String(val).trim() === '') return false;
+                                  return true;
+                                });
+
+                                if (customEntries.length === 0) {
+                                  return !rawFollowup && <span className="text-gray-400 italic">No custom data</span>;
+                                }
+
+                                return (
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {customEntries.map(([key, val]) => {
+                                      const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                      const displayVal = String(val).length > 40 ? String(val).substring(0, 40) + '...' : String(val);
+                                      return (
+                                        <span key={key} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 truncate max-w-full">
+                                          <span className="font-semibold mr-1 text-gray-500 dark:text-gray-400">{displayKey}:</span> {displayVal}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
