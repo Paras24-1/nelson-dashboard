@@ -13,7 +13,25 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return NextResponse.json(data)
+
+    const formattedData = (data || []).map((c: any) => {
+      let pbName = c.phonebook_name || null
+      let body = c.template_body || ''
+      if (body.includes('__PHONEBOOK__=')) {
+        const match = body.match(/__PHONEBOOK__=(.*?)__END_PHONEBOOK__\n?/)
+        if (match) {
+          pbName = match[1]
+          body = body.replace(match[0], '')
+        }
+      }
+      return {
+        ...c,
+        phonebook_name: pbName,
+        template_body: body
+      }
+    })
+
+    return NextResponse.json(formattedData)
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
@@ -25,9 +43,9 @@ export async function POST(req: NextRequest) {
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await req.json()
-    const { name, template_name, template_body, template_language, contacts, scheduled_at, header_image_url } = body
+    const { name, template_name, template_body, template_language, contacts, scheduled_at, header_image_url, phonebook_name } = body
 
-    console.log(`[campaigns API] POST parameters:`, JSON.stringify({ name, template_name, template_language, contacts_count: contacts?.length }))
+    console.log(`[campaigns API] POST parameters:`, JSON.stringify({ name, template_name, template_language, phonebook_name, contacts_count: contacts?.length }))
 
     // Deduplicate contacts by phone number to prevent constraint errors
     const uniqueContactsMap = new Map<string, any>()
@@ -46,13 +64,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No valid contacts provided' }, { status: 400 })
     }
 
+    const storedTemplateBody = phonebook_name
+      ? `__PHONEBOOK__=${phonebook_name}__END_PHONEBOOK__\n${template_body || ''}`
+      : (template_body || '')
+
     const { data: campaign, error: campError } = await supabaseAdmin
       .from('campaigns')
       .insert({
         org_id: orgId,
         name,
         template_name,
-        template_body,
+        template_body: storedTemplateBody,
         template_language: template_language || 'en',
         total: uniqueContacts.length,
         status: scheduled_at ? 'draft' : 'sending',

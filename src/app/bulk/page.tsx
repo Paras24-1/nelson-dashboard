@@ -25,6 +25,7 @@ interface Campaign {
   name: string
   template_name: string
   template_body: string
+  phonebook_name?: string | null
   status: 'draft' | 'sending' | 'paused' | 'completed' | 'failed'
   total: number
   sent: number
@@ -255,6 +256,8 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
   const [phonebooks, setPhonebooks]             = useState<any[]>([])
   const [selectedPhonebookId, setSelectedPhonebookId] = useState('')
   const [loadingPhonebooks, setLoadingPhonebooks] = useState(false)
+  const [saveAsPhonebook, setSaveAsPhonebook]       = useState(false)
+  const [phonebookNameInput, setPhonebookNameInput] = useState('')
 
   const fileRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
@@ -495,10 +498,54 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
         'Content-Type': 'application/json',
         ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
       }
+
+      let activePhonebookName = ''
+
+      // If user selected "Save contacts as a new Phonebook"
+      if (saveAsPhonebook && filteredContacts.length > 0) {
+        const pbName = phonebookNameInput.trim() || campaignName || `Phonebook - ${new Date().toLocaleDateString()}`
+        try {
+          const pbRes = await fetch('/api/phonebooks', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ name: pbName })
+          })
+          if (pbRes.ok) {
+            const pbData = await pbRes.json()
+            if (pbData?.id) {
+              activePhonebookName = pbName
+              // Upload contacts to the newly created phonebook
+              const contactsPayload = filteredContacts.map((c) => {
+                const { phone, name, ...restVars } = c
+                return {
+                  phone,
+                  name: name || '',
+                  variables: restVars
+                }
+              })
+              await fetch(`/api/phonebooks/${pbData.id}/contacts`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ contacts: contactsPayload })
+              })
+            }
+          }
+        } catch (pbErr) {
+          console.error('Error auto-creating phonebook:', pbErr)
+        }
+      }
+
+      // If loaded from an existing selected phonebook, pull its name
+      if (!activePhonebookName && selectedPhonebookId) {
+        const foundPb = phonebooks.find(p => p.id === selectedPhonebookId)
+        if (foundPb) activePhonebookName = foundPb.name
+      }
+
       console.log('Sending campaign payload:', {
         name: campaignName,
         template_name: templateName,
-        template_language: selectedTemplate?.language || 'en'
+        template_language: selectedTemplate?.language || 'en',
+        phonebook_name: activePhonebookName
       })
 
       const res = await fetch('/api/campaigns', {
@@ -509,6 +556,7 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
           template_name: templateName,
           template_body: templateBody,
           template_language: selectedTemplate?.language || 'en',
+          phonebook_name: activePhonebookName || null,
           scheduled_at: scheduledAt || null,
           variable_mapping: variableMapping,
           header_image_url: headerImageUrl || '',
@@ -853,6 +901,40 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
                 </div>
               )}
 
+              {/* Save as Phonebook Option */}
+              <div className="p-3.5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-800 space-y-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveAsPhonebook}
+                    onChange={(e) => {
+                      setSaveAsPhonebook(e.target.checked)
+                      if (e.target.checked && !phonebookNameInput) {
+                        setPhonebookNameInput(campaignName || `Phonebook - ${new Date().toLocaleDateString()}`)
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-emerald-500" />
+                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">Save contacts as a new Phonebook</span>
+                  </div>
+                </label>
+
+                {saveAsPhonebook && (
+                  <div className="pt-1">
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Phonebook Name *</label>
+                    <input
+                      type="text"
+                      value={phonebookNameInput}
+                      onChange={(e) => setPhonebookNameInput(e.target.value)}
+                      placeholder="e.g. March Prospects Phonebook"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Schedule */}
               <div>
                 <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Schedule (optional)</label>
@@ -1019,11 +1101,17 @@ function CampaignHistory({ campaigns, onRefresh }: { campaigns: Campaign[]; onRe
             <div className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{campaign.name}</h3>
                     <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[campaign.status]}`}>
                       {STATUS_ICONS[campaign.status]}{campaign.status}
                     </span>
+                    {campaign.phonebook_name && (
+                      <span className="flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                        <BookOpen className="w-3 h-3" />
+                        {campaign.phonebook_name}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400">
                     Template: <span className="font-mono text-gray-600 dark:text-gray-300">{campaign.template_name}</span>
