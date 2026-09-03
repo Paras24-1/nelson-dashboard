@@ -17,11 +17,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    const { data: orgSettings } = await supabaseAdmin
-      .from('organization_settings')
-      .select('gemini_api_key, ai_system_prompt, ai_knowledge_base_sheet_id, ai_knowledge_base_range, google_sheets_api_key')
-      .eq('org_id', orgId)
-      .maybeSingle()
+    // 1. Parallelize initial database queries for max speed
+    const [orgSettingsRes, leadRes, convRes, historyRes] = await Promise.all([
+      supabaseAdmin
+        .from('organization_settings')
+        .select('gemini_api_key, ai_system_prompt, whatsapp_token, whatsapp_phone_id, ai_knowledge_base_sheet_id, ai_knowledge_base_range, google_sheets_api_key')
+        .eq('org_id', orgId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('leads')
+        .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to')
+        .eq('phone_number', phone_number)
+        .eq('org_id', orgId)
+        .maybeSingle(),
+      conversation_id
+        ? supabaseAdmin
+            .from('conversations')
+            .select('provider_phone_id, assigned_to')
+            .eq('id', conversation_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      conversation_id
+        ? supabaseAdmin
+            .from('messages')
+            .select('message, direction')
+            .eq('conversation_id', conversation_id)
+            .order('timestamp', { ascending: false })
+            .limit(5)
+        : Promise.resolve({ data: null })
+    ])
+
+    const orgSettings = orgSettingsRes.data
+    const lead = leadRes.data
+    const conv = convRes.data
+    const history = historyRes.data
 
     console.log(`[async-ai-reply:settings] orgSettingsFound=${!!orgSettings} | hasGeminiKey=${!!orgSettings?.gemini_api_key} | hasPrompt=${!!orgSettings?.ai_system_prompt}`)
 
@@ -45,86 +74,35 @@ export async function POST(req: NextRequest) {
 
     console.log(`[async-ai-reply:key] Key resolved: ${tenantAiKey.substring(0, 12)}... (length=${tenantAiKey.length})`)
 
-    // 1. Fetch Lead context & metadata
-    const { data: lead } = await supabaseAdmin
-      .from('leads')
-      .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to')
-      .eq('phone_number', phone_number)
-      .eq('org_id', orgId)
-      .maybeSingle()
-
-    // Fetch assigned employee name & phone if assigned
+    // Resolve assigned employee details
     let assignedEmployeeName = 'Unassigned'
     let assignedEmployeePhone = ''
-    if (lead?.assigned_to) {
+    const assignedUserId = lead?.assigned_to || conv?.assigned_to
+    if (assignedUserId) {
       const { data: emp } = await supabaseAdmin
         .from('users')
         .select('name, email, avatar')
-        .eq('id', lead.assigned_to)
+        .eq('id', assignedUserId)
         .maybeSingle()
       if (emp) {
         assignedEmployeeName = emp.name || emp.email
         assignedEmployeePhone = (emp as any).phone_number || (emp.avatar && emp.avatar.startsWith('phone:') ? emp.avatar.replace('phone:', '') : '')
       }
-    } else if (conversation_id) {
-      const { data: conv } = await supabaseAdmin
-        .from('conversations')
-        .select('assigned_to')
-        .eq('id', conversation_id)
-        .maybeSingle()
-      if (conv?.assigned_to) {
-        const { data: emp } = await supabaseAdmin
-          .from('users')
-          .select('name, email, avatar')
-          .eq('id', conv.assigned_to)
-          .maybeSingle()
-        if (emp) {
-          assignedEmployeeName = emp.name || emp.email
-          assignedEmployeePhone = (emp as any).phone_number || (emp.avatar && emp.avatar.startsWith('phone:') ? emp.avatar.replace('phone:', '') : '')
-        }
-      }
     }
 
-    // Fallback to org owner/admin phone if unassigned or no phone on assigned employee
-    if (!assignedEmployeePhone && orgId) {
-      const { data: orgUsers } = await supabaseAdmin
-        .from('users')
-        .select('name, email, avatar, role')
-        .eq('org_id', orgId)
-        .limit(20)
-      if (orgUsers && orgUsers.length > 0) {
-        const userWithPhone = orgUsers.find(u => (u as any).phone_number || (u.avatar && typeof u.avatar === 'string' && u.avatar.startsWith('phone:')))
-        if (userWithPhone) {
-          assignedEmployeePhone = (userWithPhone as any).phone_number || (userWithPhone.avatar && userWithPhone.avatar.startsWith('phone:') ? userWithPhone.avatar.replace('phone:', '').trim() : '')
-          if (assignedEmployeeName === 'Unassigned') {
-            assignedEmployeeName = userWithPhone.name || userWithPhone.email
-          }
-        }
-      }
-    }
-
-    // INTERCEPT & STOP AUTOMATED DRIPS
-    // If the user replied, they are engaged! We must immediately cancel any pending automated outbound drip messages.
+    // INTERCEPT & STOP AUTOMATED DRIPS (non-blocking)
     if (lead) {
-      try {
-        await supabaseAdmin.from('scheduled_drips')
-          .update({ status: 'cancelled' })
-          .eq('lead_id', lead.id)
-          .eq('status', 'pending')
-          .then(({ error }) => {
-             if (error && error.code !== 'PGRST205') console.error('[async-ai-reply] Failed to cancel drips:', error)
-          })
-      } catch (e) {}
+      (async () => {
+        try {
+          const { error } = await supabaseAdmin.from('scheduled_drips')
+            .update({ status: 'cancelled' })
+            .eq('lead_id', lead.id)
+            .eq('status', 'pending')
+          if (error && error.code !== 'PGRST205') console.error('[async-ai-reply] Failed to cancel drips:', error)
+        } catch (e) {}
+      })()
     }
-    
-    // 2. Fetch last 5 messages for context
-    const { data: history } = await supabaseAdmin
-      .from('messages')
-      .select('message, direction')
-      .eq('conversation_id', conversation_id)
-      .order('timestamp', { ascending: false })
-      .limit(5)
-    
+
     const chatContext = (history || []).reverse().map(m => 
       `${m.direction === 'incoming' ? 'Customer' : 'AI'}: ${m.message}`
     ).join('\n')
@@ -162,7 +140,7 @@ export async function POST(req: NextRequest) {
         
         if (apiKey) {
           const sheetUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`
-          const sheetRes = await fetch(sheetUrl, { next: { revalidate: 60 } }) // Cache for 60s
+          const sheetRes = await fetch(sheetUrl, { next: { revalidate: 60 } })
           
           if (sheetRes.ok) {
             const sheetData = await sheetRes.json()
@@ -172,8 +150,6 @@ export async function POST(req: NextRequest) {
               const dataRows = rows.slice(1).map((r: string[]) => r.join(' | ')).join('\n')
               knowledgeBaseContext = `\n\n--- KNOWLEDGE BASE (CATALOG / LINKS) ---\nUse the following table to answer questions. If the user asks for a demo, link, or price, look it up here:\nHeaders: ${headers}\n${dataRows}\n----------------------------------------\n`
             }
-          } else {
-            console.warn('[async-ai-reply] Failed to fetch Google Sheet', await sheetRes.text())
           }
         }
       } catch (err) {
@@ -286,7 +262,7 @@ Respond in JSON format with exactly these keys:
     const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
     const content = JSON.parse(rawText)
     
-    // 4. Update Lead Score & Temperature natively
+    // 4. Update Lead Score & Temperature
     const newScore = currentScore + (content.scoreAdjustment || 0)
     let newTemp = lead?.lead_temperature || 'COLD'
     
@@ -296,7 +272,6 @@ Respond in JSON format with exactly these keys:
     else if (newScore >= 20) newTemp = 'COLD'
     else newTemp = 'COLD'
 
-    // Save back to DB. We dynamically merge ALL keys the AI output (like state, industry, etc) into metadata!
     const filteredAiContent = { ...content }
     delete filteredAiContent.replyMessage
     delete filteredAiContent.scoreAdjustment
@@ -304,52 +279,123 @@ Respond in JSON format with exactly these keys:
     
     const newMetadata = { ...metadata, ...filteredAiContent, timeline: content.extractedTimeline || metadata.timeline }
     
-    await supabaseAdmin
-      .from('leads')
-      .update({
-        lead_score: newScore,
-        lead_temperature: newTemp,
-        metadata: newMetadata,
-        updated_at: new Date().toISOString()
-      })
-      .eq('phone_number', phone_number)
-      .eq('org_id', orgId)
+    // Non-blocking lead score & temperature update in background
+    if (lead) {
+      (async () => {
+        try {
+          await supabaseAdmin
+            .from('leads')
+            .update({
+              lead_score: newScore,
+              lead_temperature: newTemp,
+              metadata: newMetadata,
+              updated_at: new Date().toISOString()
+            })
+            .eq('phone_number', phone_number)
+            .eq('org_id', orgId)
+        } catch (e) {
+          console.error('[async-ai-reply] Lead update background error:', e)
+        }
+      })()
+    }
 
-    // 5. Send WhatsApp Reply by posting to our own /api/reply endpoint
+    // 5. Fast Direct Meta Dispatch (skips internal HTTP loop to /api/reply)
     if (content.replyMessage) {
-      const origin = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://voxaiagents.com'
-      console.log(`[async-ai-reply] Dispatching AI reply to ${origin}/api/reply...`)
-      await fetch(`${origin}/api/reply`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-internal-secret': process.env.N8N_WEBHOOK_SECRET || 'internal-ai-reply'
-        },
-        body: JSON.stringify({
-          conversation_id,
-          phone_number,
-          org_id: orgId,
-          message: content.replyMessage
+      const whatsapp_token = orgSettings?.whatsapp_token
+      const active_phone_id = conv?.provider_phone_id || orgSettings?.whatsapp_phone_id
+
+      if (whatsapp_token && active_phone_id) {
+        console.log(`[async-ai-reply:fast-path] Direct Meta WhatsApp dispatch for org ${orgId}...`)
+        const timestamp = new Date().toISOString()
+        
+        // Save outgoing message to DB & update conversation
+        const [msgRes] = await Promise.all([
+          supabaseAdmin
+            .from('messages')
+            .insert({
+              conversation_id,
+              org_id: orgId,
+              phone_number,
+              message: content.replyMessage,
+              direction: 'outgoing',
+              timestamp,
+              platform: 'whatsapp'
+            })
+            .select()
+            .single(),
+          supabaseAdmin
+            .from('conversations')
+            .update({ last_message: content.replyMessage, updated_at: timestamp })
+            .eq('id', conversation_id)
+            .eq('org_id', orgId)
+        ])
+
+        const msg = msgRes.data
+
+        // Dispatch directly to Meta Graph API
+        const metaRes = await fetch(`https://graph.facebook.com/v20.0/${active_phone_id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${whatsapp_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: phone_number.replace('+', ''),
+            type: 'text',
+            text: { body: content.replyMessage }
+          })
         })
-      }).catch(err => console.error('[async-ai-reply] Error calling /api/reply:', err))
+
+        if (metaRes.ok) {
+          const metaData = await metaRes.json()
+          const wamid = metaData?.messages?.[0]?.id
+          if (wamid && msg?.id) {
+            await supabaseAdmin.from('messages').update({ provider_message_id: wamid }).eq('id', msg.id)
+          }
+          console.log(`[async-ai-reply:fast-path] ✅ Direct Meta reply sent! wamid: ${wamid}`)
+        } else {
+          console.error(`[async-ai-reply:fast-path] Meta API error:`, await metaRes.text())
+        }
+      } else {
+        // Fallback to internal route if direct credentials missing
+        const origin = req.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL || 'https://voxaiagents.com'
+        console.log(`[async-ai-reply] Dispatching AI reply to ${origin}/api/reply...`)
+        await fetch(`${origin}/api/reply`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-internal-secret': process.env.N8N_WEBHOOK_SECRET || 'internal-ai-reply'
+          },
+          body: JSON.stringify({
+            conversation_id,
+            phone_number,
+            org_id: orgId,
+            message: content.replyMessage
+          })
+        }).catch(err => console.error('[async-ai-reply] Error calling /api/reply:', err))
+      }
     }
 
     // 6. If HOT, Trigger Human Handover Task natively
     if (newTemp === 'HOT' && lead?.lead_temperature !== 'HOT') {
-      if (lead?.id) {
-        await supabaseAdmin.from('lead_activities').insert({
-          lead_id: lead.id,
-          activity_type: 'human_handover',
-          description: 'Lead reached HOT status. Human Handover Required.',
-          notes: `Reason: ${content.reasoning || 'AI Scoring threshold met.'}\nScore: ${newScore}\nTimeline: ${content.extractedTimeline || 'Unknown'}`
-        })
-      }
-      
-      // Stop Automation explicitly
-      await supabaseAdmin.from('workflow_instances')
-        .update({ status: 'completed' })
-        .eq('phone_number', phone_number)
-        .eq('org_id', orgId)
+      (async () => {
+        try {
+          if (lead?.id) {
+            await supabaseAdmin.from('lead_activities').insert({
+              lead_id: lead.id,
+              activity_type: 'human_handover',
+              description: 'Lead reached HOT status. Human Handover Required.',
+              notes: `Reason: ${content.reasoning || 'AI Scoring threshold met.'}\nScore: ${newScore}\nTimeline: ${content.extractedTimeline || 'Unknown'}`
+            })
+          }
+          
+          await supabaseAdmin.from('workflow_instances')
+            .update({ status: 'completed' })
+            .eq('phone_number', phone_number)
+            .eq('org_id', orgId)
+        } catch (e) {}
+      })()
 
       console.log(`[async-ai-reply] Lead ${phone_number} reached HOT. Human Handover task created and automation stopped.`)
     }
