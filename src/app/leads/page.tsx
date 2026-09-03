@@ -412,14 +412,20 @@ function LeadsContent() {
               ];
 
               const priorityOrder = [
-                'lead_score', 'lead_quality', 'lead_temperature', 'state', 'stage', 
-                'industry', 'business_intent', 'business_type', 'business_name', 
-                'contact_person', 'city', 'email', 'demo_selected', 'pricing_requested', 'consultation_ready'
+                'lead_score', 'lead_quality', 'state', 'industry', 'business_intent', 
+                'business_type', 'business_name', 'contact_person', 'city', 'email', 
+                'demo_selected', 'pricing_requested', 'consultation_ready'
+              ];
+
+              // Always include core standard CRM keys so columns never disappear
+              const standardKeys = [
+                'lead_score', 'lead_quality', 'state', 'industry', 'business_intent'
               ];
 
               // Collect all unique custom keys across leads (merging top-level and metadata)
-              const rawKeys = Array.from(new Set(
-                leads.flatMap(lead => {
+              const rawKeys = Array.from(new Set([
+                ...standardKeys,
+                ...leads.flatMap(lead => {
                   let meta = (lead.metadata || {}) as Record<string, any>;
                   if (typeof meta === 'string') {
                     try { meta = JSON.parse(meta) } catch (e) { meta = {} }
@@ -432,7 +438,7 @@ function LeadsContent() {
                     return true;
                   });
                 })
-              ));
+              ]));
 
               // Sort keys so high-priority CRM fields (Score, Quality, State, Industry) appear first
               const uniqueCustomKeys = rawKeys.sort((a, b) => {
