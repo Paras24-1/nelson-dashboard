@@ -416,13 +416,21 @@ function LeadsContent() {
                       // Quality, stage, score fallbacks
                       const computedStage = lead.stage || (lead.metadata?.lead_ready === 'yes' ? 'interested' : 'new');
                       
-                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || '';
-                      if (!rawQuality && lead.lead_score > 0) {
-                        if (lead.lead_score >= 70) rawQuality = 'HOT';
-                        else if (lead.lead_score >= 40) rawQuality = 'WARM';
-                        else rawQuality = 'COLD';
+                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || lead.metadata?.lead_temperature || '';
+                      if (!rawQuality || rawQuality.toLowerCase() === 'unknown') {
+                        const metaState = lead.metadata?.state || '';
+                        const metaIntent = lead.metadata?.business_intent || lead.metadata?.voice_summary || '';
+                        const metaDemo = lead.metadata?.demo_selected || '';
+                        const metaIndustry = lead.industry || lead.metadata?.industry || '';
+
+                        if (lead.lead_score >= 70 || lead.metadata?.consultation_ready === 'yes' || lead.metadata?.pricing_requested === 'yes') {
+                          rawQuality = 'HOT';
+                        } else if (lead.lead_score >= 40 || metaDemo || metaIntent || metaState === 'qualification' || metaState === 'demo_shown' || metaIndustry) {
+                          rawQuality = 'WARM';
+                        } else {
+                          rawQuality = 'COLD';
+                        }
                       }
-                      if (!rawQuality) rawQuality = 'unknown';
 
                       const displayQuality = rawQuality.toUpperCase();
 
