@@ -418,28 +418,13 @@ function LeadsContent() {
                       const location = lead.metadata?.location || lead.metadata?.city || '';
                       const qualification = lead.metadata?.previous_qualification || '';
 
-                      // Quality, stage, score fallbacks
-                      const computedStage = lead.stage || (lead.metadata?.lead_ready === 'yes' ? 'interested' : 'new');
+                      // Strict display from DB or metadata as requested
+                      const computedStage = lead.stage || lead.metadata?.stage || lead.metadata?.state || 'new';
                       
-                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || lead.metadata?.lead_temperature || '';
-                      if (!rawQuality || rawQuality.toLowerCase() === 'unknown') {
-                        const metaState = lead.metadata?.state || '';
-                        const metaIntent = lead.metadata?.business_intent || lead.metadata?.voice_summary || '';
-                        const metaDemo = lead.metadata?.demo_selected || '';
-                        const metaIndustry = lead.industry || lead.metadata?.industry || '';
-
-                        if (lead.lead_score >= 70 || lead.metadata?.consultation_ready === 'yes' || lead.metadata?.pricing_requested === 'yes') {
-                          rawQuality = 'HOT';
-                        } else if (lead.lead_score >= 40 || metaDemo || metaIntent || metaState === 'qualification' || metaState === 'demo_shown' || metaIndustry) {
-                          rawQuality = 'WARM';
-                        } else {
-                          rawQuality = 'COLD';
-                        }
-                      }
-
+                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || lead.metadata?.lead_temperature || 'UNKNOWN';
                       const displayQuality = rawQuality.toUpperCase();
 
-                      const computedScore = lead.lead_score || (lead.metadata?.lead_score || 0);
+                      const computedScore = lead.lead_score ?? lead.metadata?.lead_score ?? 0;
 
                       return (
                         <tr 
