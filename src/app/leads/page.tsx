@@ -384,31 +384,45 @@ function LeadsContent() {
                 <p className="text-xs text-gray-500 mt-1 max-w-xs">Adjust your search parameters or check your n8n workflow connections.</p>
               </div>
             ) : (() => {
-              // Only show metadata fields as columns — these are the ONLY source of truth.
-              // Top-level DB columns like lead_quality, lead_score, customer_name etc.
-              // are stale or deleted; we skip them entirely.
               const skipKeys = [
                 'id', 'created_at', 'updated_at', 'org_id', 'assigned_to', 
                 'phone_number', 'name', 'conversation_id',
                 'followup_notes', 'followup_date', 'followup_notified',
-                'metadata', 'lead_type',
-                // Skip raw DB columns that are stale / deleted — real data is in metadata
-                'lead_score', 'lead_quality', 'lead_temperature', 'stage',
-                'customer_name', 'industry', 'followup_notified'
+                'metadata', 'lead_type'
               ];
 
-              // Collect unique keys ONLY from metadata (not from top-level lead)
-              const uniqueCustomKeys = Array.from(new Set(
+              const priorityOrder = [
+                'lead_score', 'lead_quality', 'lead_temperature', 'state', 'stage', 
+                'industry', 'business_intent', 'business_type', 'business_name', 
+                'contact_person', 'city', 'email', 'demo_selected', 'pricing_requested', 'consultation_ready'
+              ];
+
+              // Collect all unique custom keys across leads (merging top-level and metadata)
+              const rawKeys = Array.from(new Set(
                 leads.flatMap(lead => {
-                  const meta = (lead.metadata || {}) as Record<string, any>;
-                  return Object.keys(meta).filter(key => {
+                  let meta = (lead.metadata || {}) as Record<string, any>;
+                  if (typeof meta === 'string') {
+                    try { meta = JSON.parse(meta) } catch (e) { meta = {} }
+                  }
+                  const combined = { ...lead, ...meta } as Record<string, any>;
+                  return Object.keys(combined).filter(key => {
                     if (skipKeys.includes(key.toLowerCase())) return false;
-                    const val = meta[key];
+                    const val = combined[key];
                     if (typeof val === 'object' || val === null || val === undefined || String(val).trim() === '') return false;
                     return true;
                   });
                 })
               ));
+
+              // Sort keys so high-priority CRM fields (Score, Quality, State, Industry) appear first
+              const uniqueCustomKeys = rawKeys.sort((a, b) => {
+                const idxA = priorityOrder.indexOf(a.toLowerCase());
+                const idxB = priorityOrder.indexOf(b.toLowerCase());
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.localeCompare(b);
+              });
 
               return (
                 <div className="overflow-x-auto flex-1 pb-4">
@@ -432,16 +446,28 @@ function LeadsContent() {
                           rawFollowup = 'Scheduled Meeting';
                         }
 
-                        // Use ONLY metadata as data source to avoid stale DB columns polluting the view
-                        const allCustomData = (lead.metadata || {}) as Record<string, any>;
-                        // Dynamically derive temperature from score stored in metadata
-                        const metaScore = Number(allCustomData.lead_score) || 0;
-                        if (metaScore > 0 && !allCustomData.lead_temperature) {
-                          allCustomData.lead_temperature = metaScore >= 70 ? 'HOT' : metaScore >= 40 ? 'WARM' : 'COLD';
+                        let meta = (lead.metadata || {}) as Record<string, any>;
+                        if (typeof meta === 'string') {
+                          try { meta = JSON.parse(meta) } catch (e) { meta = {} }
                         }
-                        if (metaScore >= 70) allCustomData.lead_temperature = 'HOT';
-                        else if (metaScore >= 40 && metaScore > 0) allCustomData.lead_temperature = 'WARM';
-                        else if (metaScore > 0) allCustomData.lead_temperature = 'COLD';
+
+                        // Merge lead with metadata so metadata overrides stale columns
+                        const allCustomData = { ...lead, ...meta } as Record<string, any>;
+
+                        // Dynamically derive quality/temperature from score if available
+                        const metaScore = Number(allCustomData.lead_score) || 0;
+                        if (metaScore >= 70) {
+                          allCustomData.lead_temperature = 'HOT';
+                          allCustomData.lead_quality = 'HOT';
+                        } else if (metaScore >= 40) {
+                          allCustomData.lead_temperature = 'WARM';
+                          allCustomData.lead_quality = 'WARM';
+                        } else if (metaScore > 0) {
+                          allCustomData.lead_temperature = 'COLD';
+                          allCustomData.lead_quality = 'COLD';
+                        }
+
+                        const displayName = lead.name || (lead as any).customer_name || allCustomData.Name || allCustomData.name || allCustomData.contact_person || allCustomData.customer_name || 'Unknown';
 
                         return (
                           <tr 
@@ -450,7 +476,7 @@ function LeadsContent() {
                             onClick={() => handleViewLead(lead)}
                           >
                             <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/50 transition-colors z-10 shadow-[inset_-1px_0_0_0_#f3f4f6] dark:shadow-[inset_-1px_0_0_0_#1f2937]">
-                              <div className="font-semibold text-gray-950 dark:text-white">{lead.name || 'Unknown'}</div>
+                              <div className="font-semibold text-gray-950 dark:text-white">{displayName}</div>
                               <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                                 <Phone className="w-3 h-3" />
                                 {lead.phone_number}
