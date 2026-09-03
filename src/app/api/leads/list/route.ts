@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getOrgId } from '@/lib/supabase'
+import { supabaseAdmin, getUserProfile } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
-    const orgId = await getOrgId(req)
-    if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const profile = await getUserProfile(req)
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { userId, orgId, role } = profile
+    const isStaffEmployee = role !== 'owner' && role !== 'admin'
 
     const { searchParams } = new URL(req.url)
     const stage = searchParams.get('stage') || ''
@@ -25,6 +28,10 @@ export async function GET(req: NextRequest) {
         .eq('org_id', orgId)
         .order('created_at', { ascending: false })
         .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1)
+
+      if (isStaffEmployee) {
+        query = query.eq('assigned_to', userId)
+      }
 
       if (stage) {
         query = query.eq('stage', stage)

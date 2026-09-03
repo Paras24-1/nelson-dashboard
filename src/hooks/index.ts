@@ -71,23 +71,30 @@ export function useConversations(filters: {
         filter: `org_id=eq.${orgId}`
       },
         (payload) => {
+          const isStaffEmployee = filters.userRole && filters.userRole !== 'admin' && filters.userRole !== 'owner'
+          
           if (payload.eventType === 'INSERT') {
             const newConv = payload.new as Conversation
+            if (isStaffEmployee && filters.userId && newConv.assigned_to !== filters.userId) {
+              return
+            }
             setConversations(prev => {
               if (prev.some(c => c.id === newConv.id)) return prev
               return [newConv, ...prev]
             })
           } else if (payload.eventType === 'UPDATE') {
             const updatedConv = payload.new as Conversation
+            if (isStaffEmployee && filters.userId && updatedConv.assigned_to !== filters.userId) {
+              setConversations(prev => prev.filter(c => c.id !== updatedConv.id))
+              return
+            }
             setConversations(prev => {
               const list = prev.map(c => {
                 if (c.id === updatedConv.id) {
-                  // Defensive spreading to merge updated columns while preserving static fields
                   return { ...c, ...updatedConv }
                 }
                 return c
               })
-              // Re-sort list by updated_at descending
               return [...list].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
             })
           } else if (payload.eventType === 'DELETE') {
@@ -98,7 +105,7 @@ export function useConversations(filters: {
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [orgId])
+  }, [orgId, filters.userRole, filters.userId])
 
   return { conversations, loading, refetch: fetchConversations }
 }

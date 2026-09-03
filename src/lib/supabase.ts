@@ -16,8 +16,15 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
-// Helper: get current user's org_id from session
-export async function getOrgId(req: Request): Promise<string | null> {
+export interface UserProfile {
+  userId: string
+  orgId: string
+  role: string
+  email: string
+}
+
+// Helper: get current user profile (userId, orgId, role, email) from session
+export async function getUserProfile(req: Request): Promise<UserProfile | null> {
   try {
     const authHeader = req.headers.get('authorization')
     let userId: string | null = null
@@ -29,14 +36,10 @@ export async function getOrgId(req: Request): Promise<string | null> {
     }
 
     if (!userId) {
-      // Try from cookie session
       const cookieStr = req.headers.get('cookie') || ''
       const projectId = supabaseUrl.replace('https://', '').split('.')[0]
       
-      // Check standard cookie
       let tokenMatch = cookieStr.match(new RegExp(`sb-${projectId}-auth-token=([^;]+)`))
-      
-      // If chunked cookie exists (sb-xxx-auth-token.0, sb-xxx-auth-token.1)
       if (!tokenMatch) {
         const chunks: string[] = []
         let idx = 0
@@ -74,14 +77,27 @@ export async function getOrgId(req: Request): Promise<string | null> {
 
     const { data: profile } = await supabaseAdmin
       .from('users')
-      .select('org_id')
+      .select('id, org_id, role, email')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
-    return profile?.org_id || null
+    if (!profile || !profile.org_id) return null
+
+    return {
+      userId: profile.id,
+      orgId: profile.org_id,
+      role: profile.role || 'employee',
+      email: profile.email || ''
+    }
   } catch {
     return null
   }
+}
+
+// Helper: get current user's org_id from session
+export async function getOrgId(req: Request): Promise<string | null> {
+  const profile = await getUserProfile(req)
+  return profile?.orgId || null
 }
 
 const voiceSupabaseUrl = process.env.NEXT_PUBLIC_VOICE_SUPABASE_URL

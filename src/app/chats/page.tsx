@@ -28,6 +28,7 @@ type MobileView = 'list' | 'chat' | 'lead'
 function ChatsPageContent() {
   const {
     org,
+    profile,
     signOut,
     user,
     loading
@@ -78,12 +79,18 @@ function ChatsPageContent() {
 
     const loadDirectConversation = async () => {
       try {
-        const { data, error } = await supabase
+        const isStaff = profile?.role !== 'admin' && profile?.role !== 'owner'
+        let query = supabase
           .from('conversations')
           .select('*')
           .eq('org_id', org.id)
           .eq('phone_number', phone)
-          .maybeSingle()
+
+        if (isStaff && profile?.id) {
+          query = query.eq('assigned_to', profile.id)
+        }
+
+        const { data, error } = await query.maybeSingle()
 
         if (error) throw error
         if (data) {
@@ -95,7 +102,7 @@ function ChatsPageContent() {
     }
 
     loadDirectConversation()
-  }, [phone, org?.id, handleSelect])
+  }, [phone, org?.id, profile, handleSelect])
 
   const handleLeadUpdate = useCallback(
     (updates: Partial<Lead>) => {
