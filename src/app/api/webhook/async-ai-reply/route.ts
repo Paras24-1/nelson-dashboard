@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle(),
       supabaseAdmin
         .from('leads')
-        .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to')
+        .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to, stage')
         .eq('phone_number', phone_number)
         .eq('org_id', orgId)
         .maybeSingle(),
@@ -90,15 +90,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // INTERCEPT & STOP AUTOMATED DRIPS (non-blocking)
+    // INTERCEPT & CANCEL AUTOMATED FOLLOW-UPS WHEN CUSTOMER REPLIES (non-blocking)
     if (lead) {
       (async () => {
         try {
-          const { error } = await supabaseAdmin.from('scheduled_drips')
+          // Clear 6-hour follow-up on leads table
+          await supabaseAdmin.from('leads')
+            .update({
+              followup_date: null,
+              followup_notes: '[Automated Follow-up Cancelled: Customer Replied]'
+            })
+            .eq('id', lead.id)
+            .eq('followup_notified', false)
+
+          await supabaseAdmin.from('scheduled_drips')
             .update({ status: 'cancelled' })
             .eq('lead_id', lead.id)
             .eq('status', 'pending')
-          if (error && error.code !== 'PGRST205') console.error('[async-ai-reply] Failed to cancel drips:', error)
         } catch (e) {}
       })()
     }
@@ -354,6 +362,19 @@ Respond in JSON format with exactly these keys:
             await supabaseAdmin.from('messages').update({ provider_message_id: wamid }).eq('id', msg.id)
           }
           console.log(`[async-ai-reply:fast-path] ✅ Direct Meta reply sent! wamid: ${wamid}`)
+
+          // Schedule 6-Hour Automated Follow-Up for leads that are not qualified/suppressed
+          if (lead?.id && lead.lead_temperature !== 'SUPPRESSED') {
+            const isQualifiedStage = ['confirmed', 'booking', 'completed', 'hot_customer', 'not_interested'].includes(lead.stage || '')
+            if (!isQualifiedStage) {
+              const sixHoursLater = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+              await supabaseAdmin.from('leads').update({
+                followup_date: sixHoursLater,
+                followup_notes: '[Automated 6-Hour Follow-up Scheduled]',
+                followup_notified: false
+              }).eq('id', lead.id)
+            }
+          }
         } else {
           console.error(`[async-ai-reply:fast-path] Meta API error:`, await metaRes.text())
         }
