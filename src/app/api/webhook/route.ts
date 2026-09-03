@@ -235,6 +235,44 @@ export async function POST(req: NextRequest) {
             .update(updatePayload)
             .eq('provider_message_id', messageId)
             .eq('org_id', orgId)
+
+          // Update bulk campaign contact by wamid and recalculate campaign stats
+          const { data: updatedContact } = await supabaseAdmin
+            .from('campaign_contacts')
+            .update({
+              status: newStatus,
+              ...(newStatus === 'failed' && statusObj.errors ? { error: JSON.stringify(statusObj.errors) } : {})
+            })
+            .eq('wamid', messageId)
+            .select('campaign_id')
+
+          if (updatedContact && updatedContact.length > 0) {
+            const campaignId = updatedContact[0].campaign_id
+            if (campaignId) {
+              const { data: counts } = await supabaseAdmin
+                .from('campaign_contacts')
+                .select('status')
+                .eq('campaign_id', campaignId)
+
+              if (counts) {
+                const sent      = counts.filter((c) => c.status === 'sent').length
+                const delivered = counts.filter((c) => c.status === 'delivered' || c.status === 'read').length
+                const failed    = counts.filter((c) => c.status === 'failed').length
+                const pending   = counts.filter((c) => c.status === 'pending').length
+
+                await supabaseAdmin
+                  .from('campaigns')
+                  .update({
+                    sent,
+                    delivered,
+                    failed,
+                    status: pending === 0 ? 'completed' : 'sending',
+                    completed_at: pending === 0 ? new Date().toISOString() : null,
+                  })
+                  .eq('id', campaignId)
+              }
+            }
+          }
         }
         
         return NextResponse.json({ success: true, status: 'processed_status' })
