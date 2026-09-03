@@ -138,7 +138,7 @@ function LeadsContent() {
       if (selectedQuality) params.set('quality', selectedQuality)
       if (search) params.set('search', search)
 
-      const res = await fetch(`/api/leads/list?${params}`, { headers })
+      const res = await fetch(`/api/leads/list?${params}`, { headers, cache: 'no-store' })
       if (!res.ok) throw new Error('Failed to fetch leads list')
       const data = await res.json()
       setLeads(data)
@@ -515,8 +515,8 @@ function LeadsContent() {
                               const displayVal = val !== undefined && val !== null ? String(val) : '-';
                               const truncatedVal = displayVal.length > 50 ? displayVal.substring(0, 50) + '...' : displayVal;
                               
-                              if (key.toLowerCase() === 'lead_score' && val !== undefined && val !== null && val !== '') {
-                                 const score = Number(val) || 0;
+                              if (key.toLowerCase() === 'lead_score') {
+                                 const score = Number(val ?? allCustomData.lead_score) || 0;
                                  return (
                                    <td key={key} className="px-6 py-4 whitespace-nowrap">
                                       <div className="flex items-center gap-2">
@@ -537,20 +537,22 @@ function LeadsContent() {
                                    </td>
                                  )
                               }
-                              if ((key.toLowerCase() === 'lead_quality' || key.toLowerCase() === 'lead_temperature') && val !== undefined && val !== null && val !== '') {
+                              if (key.toLowerCase() === 'lead_quality' || key.toLowerCase() === 'lead_temperature') {
+                                const qVal = String(val || allCustomData.lead_quality || allCustomData.lead_temperature || (metaScore >= 70 ? 'HOT' : metaScore >= 40 ? 'WARM' : 'COLD')).toUpperCase();
                                 return (
                                    <td key={key} className="px-6 py-4 whitespace-nowrap">
-                                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${QUALITY_COLORS[String(val).toUpperCase()] || 'bg-gray-100 text-gray-600'}`}>
-                                        {String(val)}
+                                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${QUALITY_COLORS[qVal] || 'bg-gray-100 text-gray-600'}`}>
+                                        {qVal}
                                       </span>
                                    </td>
                                 )
                               }
-                              if ((key.toLowerCase() === 'stage' || key.toLowerCase() === 'state') && val !== undefined && val !== null && val !== '') {
+                              if (key.toLowerCase() === 'stage' || key.toLowerCase() === 'state') {
+                                const sVal = String(val || allCustomData.state || allCustomData.stage || 'new').toLowerCase();
                                 return (
                                    <td key={key} className="px-6 py-4 whitespace-nowrap">
-                                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[String(val).toLowerCase()] || 'bg-gray-100 text-gray-700'}`}>
-                                        {String(val).replace(/_/g, ' ')}
+                                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[sVal] || 'bg-gray-100 text-gray-700'}`}>
+                                        {sVal.replace(/_/g, ' ')}
                                       </span>
                                    </td>
                                 )
