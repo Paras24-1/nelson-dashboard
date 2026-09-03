@@ -200,10 +200,16 @@ function LeadsContent() {
 
   // Open Details Drawer
   const handleViewLead = (lead: Lead) => {
-    setActiveLead(lead)
-    setEditStage(lead.stage)
-    setEditQuality(lead.lead_quality || 'unknown')
-    setEditScore(lead.lead_score)
+    let meta = (lead.metadata || {}) as Record<string, any>;
+    if (typeof meta === 'string') { try { meta = JSON.parse(meta) } catch (e) { meta = {} } }
+    const score = Number(meta.lead_score ?? lead.lead_score) || 0;
+    const stage = meta.state || meta.stage || lead.stage || 'new';
+    const quality = meta.lead_quality || (score >= 70 ? 'hot' : score >= 40 ? 'warm' : score > 0 ? 'cold' : lead.lead_quality || 'unknown');
+    
+    setActiveLead({ ...lead, metadata: meta })
+    setEditStage(stage)
+    setEditQuality(quality)
+    setEditScore(score)
   }
 
   // Download filtered leads as CSV
@@ -216,8 +222,10 @@ function LeadsContent() {
     // Unique keys in metadata
     const metadataKeys = new Set<string>()
     leads.forEach(l => {
-      if (l.metadata) {
-        Object.keys(l.metadata).forEach(k => metadataKeys.add(k))
+      let meta = l.metadata || {};
+      if (typeof meta === 'string') { try { meta = JSON.parse(meta) } catch (e) {} }
+      if (meta) {
+        Object.keys(meta).forEach(k => metadataKeys.add(k))
       }
     })
 
@@ -229,17 +237,23 @@ function LeadsContent() {
 
     // Data rows
     leads.forEach(l => {
+      let meta = l.metadata || {};
+      if (typeof meta === 'string') { try { meta = JSON.parse(meta) } catch (e) {} }
+      const score = Number(meta.lead_score ?? l.lead_score) || 0;
+      const quality = meta.lead_quality || (score >= 70 ? 'hot' : score >= 40 ? 'warm' : score > 0 ? 'cold' : l.lead_quality || 'unknown');
+      const stage = meta.state || meta.stage || l.stage || 'new';
+
       const row = [
-        l.name || 'Unknown',
+        l.name || (l as any).customer_name || meta.name || meta.contact_person || 'Unknown',
         l.phone_number || '',
-        l.stage || 'new',
-        l.lead_quality || 'unknown',
-        String(l.lead_score || 0),
+        stage,
+        quality,
+        String(score),
         l.created_at ? new Date(l.created_at).toLocaleString() : ''
       ]
 
       metadataKeys.forEach(k => {
-        row.push(l.metadata?.[k] || '')
+        row.push(meta?.[k] || '')
       })
 
       csvRows.push(row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
@@ -256,16 +270,22 @@ function LeadsContent() {
     document.body.removeChild(link)
   }
 
-  // Lead Counts
+  // Lead Counts (reads score/temperature dynamically from metadata first)
   const totalLeads = leads.length
   const hotLeads = leads.filter(l => {
-    const q = (l.lead_temperature || l.lead_quality || l.metadata?.lead_quality || (l.lead_score >= 70 ? 'hot' : '')).toLowerCase()
-    return q === 'hot'
+    let meta = l.metadata || {};
+    if (typeof meta === 'string') { try { meta = JSON.parse(meta) } catch (e) {} }
+    const score = Number(meta.lead_score ?? l.lead_score) || 0;
+    const temp = (meta.lead_temperature || meta.lead_quality || (score >= 70 ? 'hot' : score >= 40 ? 'warm' : l.lead_temperature || l.lead_quality || '')).toLowerCase();
+    return score >= 70 || temp === 'hot';
   }).length
 
   const warmLeads = leads.filter(l => {
-    const q = (l.lead_temperature || l.lead_quality || l.metadata?.lead_quality || (l.lead_score >= 40 && l.lead_score < 70 ? 'warm' : '')).toLowerCase()
-    return q === 'warm'
+    let meta = l.metadata || {};
+    if (typeof meta === 'string') { try { meta = JSON.parse(meta) } catch (e) {} }
+    const score = Number(meta.lead_score ?? l.lead_score) || 0;
+    const temp = (meta.lead_temperature || meta.lead_quality || (score >= 70 ? 'hot' : score >= 40 ? 'warm' : l.lead_temperature || l.lead_quality || '')).toLowerCase();
+    return (score >= 40 && score < 70) || temp === 'warm';
   }).length
 
   const followupLeads = leads.filter(l => l.stage === 'followup' || !!l.followup_date).length
