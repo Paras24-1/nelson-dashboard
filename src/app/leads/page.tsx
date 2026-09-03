@@ -383,99 +383,146 @@ function LeadsContent() {
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-white">No Leads Found</h4>
                 <p className="text-xs text-gray-500 mt-1 max-w-xs">Adjust your search parameters or check your n8n workflow connections.</p>
               </div>
-            ) : (
-              <div className="overflow-x-auto flex-1">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                  <thead className="bg-gray-50 dark:bg-gray-950 text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wider text-left uppercase">
-                    <tr>
-                      <th className="px-6 py-3">Lead Contact</th>
-                      <th className="px-6 py-3">Key Custom Fields</th>
-                      <th className="px-6 py-3 whitespace-nowrap">Date Added</th>
-                      <th className="px-6 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
-                    {leads.map((lead) => {
-                      // Parse followup notes for display
-                      let rawFollowup = lead.followup_notes || '';
-                      if (rawFollowup.includes('Scheduled Meeting')) {
-                        rawFollowup = 'Scheduled Meeting';
-                      }
+            ) : (() => {
+              const skipKeys = [
+                'id', 'created_at', 'updated_at', 'org_id', 'assigned_to', 
+                'phone_number', 'name', 'conversation_id',
+                'followup_notes', 'followup_date', 'followup_notified',
+                'metadata', 'lead_type'
+              ];
+              
+              const uniqueCustomKeys = Array.from(new Set(
+                leads.flatMap(lead => {
+                  const allCustomData = { ...lead, ...(lead.metadata || {}) } as Record<string, any>;
+                  return Object.keys(allCustomData).filter(key => {
+                    if (skipKeys.includes(key.toLowerCase())) return false;
+                    const val = allCustomData[key];
+                    if (typeof val === 'object' || val === null || val === undefined || String(val).trim() === '') return false;
+                    return true;
+                  });
+                })
+              ));
 
-                      // We no longer manually calculate stage, quality, or score since they are strictly metadata fields now
-                      
-                      return (
-                        <tr 
-                          key={lead.id} 
-                          className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors cursor-pointer"
-                          onClick={() => handleViewLead(lead)}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="font-semibold text-gray-950 dark:text-white">{lead.name || 'Unknown'}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                              <Phone className="w-3 h-3" />
-                              {lead.phone_number}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-xs max-w-[280px] space-y-1">
-                              {rawFollowup && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate font-medium">📌 {rawFollowup}</div>}
-                              {(() => {
-                                const allCustomData = { ...lead, ...(lead.metadata || {}) };
-                                const skipKeys = [
-                                  'id', 'created_at', 'updated_at', 'org_id', 'assigned_to', 
-                                  'phone_number', 'name', 'conversation_id',
-                                  'followup_notes', 'followup_date', 'followup_notified',
-                                  'metadata', 'lead_type'
-                                ];
+              return (
+                <div className="overflow-x-auto flex-1 pb-4">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                    <thead className="bg-gray-50 dark:bg-gray-950 text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wider text-left uppercase sticky top-0 z-20">
+                      <tr>
+                        <th className="px-6 py-3 whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-950 z-30 shadow-[inset_-1px_0_0_0_#e5e7eb] dark:shadow-[inset_-1px_0_0_0_#1f2937]">Lead Contact</th>
+                        {uniqueCustomKeys.map(key => (
+                          <th key={key} className="px-6 py-3 whitespace-nowrap">
+                            {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </th>
+                        ))}
+                        <th className="px-6 py-3 whitespace-nowrap">Date Added</th>
+                        <th className="px-6 py-3 text-right whitespace-nowrap sticky right-0 bg-gray-50 dark:bg-gray-950 z-30 shadow-[inset_1px_0_0_0_#e5e7eb] dark:shadow-[inset_1px_0_0_0_#1f2937]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
+                      {leads.map((lead) => {
+                        let rawFollowup = lead.followup_notes || '';
+                        if (rawFollowup.includes('Scheduled Meeting')) {
+                          rawFollowup = 'Scheduled Meeting';
+                        }
 
-                                const customEntries = Object.entries(allCustomData).filter(([key, val]) => {
-                                  if (skipKeys.includes(key.toLowerCase())) return false;
-                                  if (typeof val === 'object' || val === null || val === undefined || String(val).trim() === '') return false;
-                                  return true;
-                                });
+                        const allCustomData = { ...lead, ...(lead.metadata || {}) } as Record<string, any>;
 
-                                if (customEntries.length === 0) {
-                                  return !rawFollowup && <span className="text-gray-400 italic">No custom data</span>;
-                                }
+                        return (
+                          <tr 
+                            key={lead.id} 
+                            className="group hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors cursor-pointer"
+                            onClick={() => handleViewLead(lead)}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/50 transition-colors z-10 shadow-[inset_-1px_0_0_0_#f3f4f6] dark:shadow-[inset_-1px_0_0_0_#1f2937]">
+                              <div className="font-semibold text-gray-950 dark:text-white">{lead.name || 'Unknown'}</div>
+                              <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                <Phone className="w-3 h-3" />
+                                {lead.phone_number}
+                              </div>
+                              {rawFollowup && <div className="text-cyan-600 dark:text-cyan-400 text-[10px] truncate font-medium mt-1">📌 {rawFollowup}</div>}
+                            </td>
 
-                                return (
-                                  <div className="flex flex-wrap gap-1.5 mt-1">
-                                    {customEntries.map(([key, val]) => {
-                                      const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                      const displayVal = String(val).length > 40 ? String(val).substring(0, 40) + '...' : String(val);
-                                      return (
-                                        <span key={key} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 truncate max-w-full">
-                                          <span className="font-semibold mr-1 text-gray-500 dark:text-gray-400">{displayKey}:</span> {displayVal}
+                            {uniqueCustomKeys.map(key => {
+                              const val = allCustomData[key];
+                              const displayVal = val !== undefined && val !== null ? String(val) : '-';
+                              const truncatedVal = displayVal.length > 50 ? displayVal.substring(0, 50) + '...' : displayVal;
+                              
+                              if (key.toLowerCase() === 'lead_score' && val !== undefined && val !== null && val !== '') {
+                                 const score = Number(val) || 0;
+                                 return (
+                                   <td key={key} className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-16 bg-gray-200 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                                          <div 
+                                            className={`h-1.5 rounded-full ${score >= 70 ? 'bg-red-500' : score >= 40 ? 'bg-amber-500' : 'bg-blue-500'}`} 
+                                            style={{ width: `${Math.min(100, Math.max(0, score))}%` }} 
+                                          />
+                                        </div>
+                                        <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${
+                                          score >= 70 ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 
+                                          score >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300' : 
+                                          'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
+                                        }`}>
+                                          {score}
                                         </span>
-                                      );
-                                    })}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(lead.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-xs" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => handleViewLead(lead)}
-                              className="px-2.5 py-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40 rounded border border-emerald-200 dark:border-emerald-900/50 font-semibold"
-                            >
-                              Details
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                                      </div>
+                                   </td>
+                                 )
+                              }
+                              if ((key.toLowerCase() === 'lead_quality' || key.toLowerCase() === 'lead_temperature') && val !== undefined && val !== null && val !== '') {
+                                return (
+                                   <td key={key} className="px-6 py-4 whitespace-nowrap">
+                                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${QUALITY_COLORS[String(val).toUpperCase()] || 'bg-gray-100 text-gray-600'}`}>
+                                        {String(val)}
+                                      </span>
+                                   </td>
+                                )
+                              }
+                              if ((key.toLowerCase() === 'stage' || key.toLowerCase() === 'state') && val !== undefined && val !== null && val !== '') {
+                                return (
+                                   <td key={key} className="px-6 py-4 whitespace-nowrap">
+                                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[String(val).toLowerCase()] || 'bg-gray-100 text-gray-700'}`}>
+                                        {String(val).replace(/_/g, ' ')}
+                                      </span>
+                                   </td>
+                                )
+                              }
+
+                              return (
+                                <td key={key} className="px-6 py-4 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">
+                                  {truncatedVal !== '-' ? (
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                                      {truncatedVal}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-300 dark:text-gray-700">-</span>
+                                  )}
+                                </td>
+                              )
+                            })}
+                            
+                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(lead.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-xs sticky right-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-900/50 transition-colors z-10 shadow-[inset_1px_0_0_0_#f3f4f6] dark:shadow-[inset_1px_0_0_0_#1f2937]" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleViewLead(lead)}
+                                className="px-2.5 py-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40 rounded border border-emerald-200 dark:border-emerald-900/50 font-semibold"
+                              >
+                                Details
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </div>
 
         </div>
