@@ -296,6 +296,7 @@ Respond in JSON format with exactly these keys:
             .update({
               lead_score: newScore,
               lead_temperature: newTemp,
+              lead_quality: newTemp.toLowerCase(),
               metadata: newMetadata,
               updated_at: new Date().toISOString()
             })

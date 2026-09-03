@@ -31,7 +31,11 @@ interface Lead {
   name: string | null
   stage: string
   lead_quality: string | null
+  lead_temperature?: string | null
   lead_score: number
+  industry?: string | null
+  followup_date?: string | null
+  followup_notes?: string | null
   created_at: string
   metadata: Record<string, any>
 }
@@ -65,9 +69,14 @@ const STAGE_COLORS: Record<string, string> = {
 }
 
 const QUALITY_COLORS: Record<string, string> = {
-  hot: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  warm: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  hot: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-300 font-bold',
+  HOT: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-300 font-bold',
+  warm: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 font-bold',
+  WARM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 font-bold',
   cold: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  COLD: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  suppressed: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-400',
+  SUPPRESSED: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-400 border border-rose-400',
   unknown: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
 }
 
@@ -249,9 +258,17 @@ function LeadsContent() {
 
   // Lead Counts
   const totalLeads = leads.length
-  const hotLeads = leads.filter(l => l.lead_quality === 'hot').length
-  const warmLeads = leads.filter(l => l.lead_quality === 'warm').length
-  const followupLeads = leads.filter(l => l.stage === 'followup').length
+  const hotLeads = leads.filter(l => {
+    const q = (l.lead_temperature || l.lead_quality || l.metadata?.lead_quality || (l.lead_score >= 70 ? 'hot' : '')).toLowerCase()
+    return q === 'hot'
+  }).length
+
+  const warmLeads = leads.filter(l => {
+    const q = (l.lead_temperature || l.lead_quality || l.metadata?.lead_quality || (l.lead_score >= 40 && l.lead_score < 70 ? 'warm' : '')).toLowerCase()
+    return q === 'warm'
+  }).length
+
+  const followupLeads = leads.filter(l => l.stage === 'followup' || !!l.followup_date).length
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 overflow-hidden text-gray-900 dark:text-gray-100">
@@ -381,20 +398,33 @@ function LeadsContent() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
                     {leads.map((lead) => {
-                                            // Grab key metadata preview fields
+                      // Grab key metadata preview fields
+                      const domainName = lead.metadata?.domain_name || lead.metadata?.domain || '';
+                      const companyName = lead.metadata?.company_name || lead.metadata?.company || '';
+                      const industryName = lead.industry || lead.metadata?.industry || '';
+                      const websiteStatus = lead.metadata?.website_status || lead.metadata?.requirement || '';
+                      const timeline = lead.metadata?.timeline || '';
+                      const followupNotes = lead.followup_notes || '';
+
                       const crop = lead.metadata?.crop_requirement || lead.metadata?.cropRequirement || lead.metadata?.crop || '';
                       const tehsil = lead.metadata?.tehsil || lead.metadata?.taluka || '';
                       const product = lead.metadata?.product_interest || lead.metadata?.model_name || '';
-
-                      // Fallback for educational/general templates
                       const course = lead.metadata?.course_interest || lead.metadata?.course || '';
                       const location = lead.metadata?.location || lead.metadata?.city || '';
                       const qualification = lead.metadata?.previous_qualification || '';
 
-                      // Quality, stage, score fallbacks from metadata if null on root
+                      // Quality, stage, score fallbacks
                       const computedStage = lead.stage || (lead.metadata?.lead_ready === 'yes' ? 'interested' : 'new');
-                      const computedQuality = lead.lead_quality || lead.metadata?.lead_quality || 'unknown';
-                      const computedScore = lead.lead_score || (lead.metadata?.lead_score || 0);
+                      
+                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || '';
+                      if (!rawQuality && lead.lead_score > 0) {
+                        if (lead.lead_score >= 70) rawQuality = 'HOT';
+                        else if (lead.lead_score >= 40) rawQuality = 'WARM';
+                        else rawQuality = 'COLD';
+                      }
+                      if (!rawQuality) rawQuality = 'unknown';
+
+                      const displayQuality = rawQuality.toUpperCase();
 
                       return (
                         <tr 
@@ -415,12 +445,19 @@ function LeadsContent() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${QUALITY_COLORS[computedQuality || 'unknown'] || 'bg-gray-100 text-gray-600'}`}>
-                              {computedQuality || 'unknown'}
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${QUALITY_COLORS[displayQuality] || QUALITY_COLORS[rawQuality] || 'bg-gray-100 text-gray-600'}`}>
+                              {displayQuality}
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-xs max-w-[200px] truncate space-y-0.5">
+                            <div className="text-xs max-w-[240px] truncate space-y-0.5">
+                              {domainName && <div className="text-gray-700 dark:text-gray-300">🌐 <span className="font-semibold">{domainName}</span></div>}
+                              {companyName && <div className="text-gray-700 dark:text-gray-300">🏢 <span className="font-semibold">{companyName}</span></div>}
+                              {industryName && <div className="text-emerald-600 dark:text-emerald-400">💼 {industryName}</div>}
+                              {websiteStatus && <div className="text-gray-500">💻 {websiteStatus}</div>}
+                              {timeline && <div className="text-amber-600 dark:text-amber-400">⏱️ {timeline}</div>}
+                              {followupNotes && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate">📌 {followupNotes}</div>}
+
                               {crop && <div className="text-gray-700 dark:text-gray-300">🌾 <span className="font-semibold">{crop}</span></div>}
                               {tehsil && <div className="text-gray-500">📍 Tehsil: {tehsil}</div>}
                               {product && <div className="text-gray-500">⚙️ Product: {product}</div>}
@@ -429,7 +466,7 @@ function LeadsContent() {
                               {location && <div className="text-gray-500">📍 Location: {location}</div>}
                               {qualification && <div className="text-gray-500">🎓 Qual: {qualification}</div>}
                               
-                              {!crop && !tehsil && !product && !course && !location && !qualification && <span className="text-gray-400 italic">No custom data</span>}
+                              {!domainName && !companyName && !industryName && !websiteStatus && !timeline && !followupNotes && !crop && !tehsil && !product && !course && !location && !qualification && <span className="text-gray-400 italic">No custom data</span>}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
