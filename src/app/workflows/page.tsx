@@ -460,9 +460,10 @@ function WorkflowsContent() {
 
         {/* Visual Flow Builder Modal */}
         {showModal && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-2xl p-6 shadow-2xl my-8">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4 mb-6">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+              {/* Fixed Modal Header */}
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 p-6 pb-4 shrink-0">
                 <div>
                   <h2 className="text-base font-extrabold text-gray-900 dark:text-white">
                     {editingWf ? 'Edit Workflow Flow' : 'Create Custom Followup Flow'}
@@ -477,228 +478,231 @@ function WorkflowsContent() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveWorkflow} className="space-y-6">
-                {/* Workflow Name */}
-                <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-500 mb-2">
-                    Workflow Name
-                  </label>
-                  <input
-                    type="text"
-                    value={wfName}
-                    onChange={(e) => setWfName(e.target.value)}
-                    placeholder="e.g. Unanswered Lead 15m Voice Retry"
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                {/* Trigger Selector */}
-                <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-500 mb-2">
-                    Trigger Event (Starts the flow)
-                  </label>
-                  <select
-                    value={wfTrigger}
-                    onChange={(e) => setWfTrigger(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="bulk_message_sent">📢 Bulk WhatsApp Campaign Sent</option>
-                    <option value="call_unanswered">📞 Call Ended — Unanswered / Busy</option>
-                    <option value="call_completed">✅ Call Completed Successfully</option>
-                    <option value="lead_created">👤 New Lead Added to CRM</option>
-                  </select>
-                </div>
-
-                {/* STOP DRIP Setting */}
-                <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/50 p-3.5 rounded-xl">
-                  <label className="flex items-center gap-3 text-xs font-bold text-gray-900 dark:text-gray-100 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={stopOnReply}
-                      onChange={(e) => setStopOnReply(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500"
-                    />
-                    <div>
-                      <span className="font-extrabold text-emerald-700 dark:text-emerald-400">Stop Workflow On Lead Reply</span>
-                      <p className="text-[11px] text-gray-500 font-normal mt-0.5">
-                        Instantly cancels all remaining drip steps if the customer sends a WhatsApp reply.
-                      </p>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Visual Step Builder Canvas */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs font-extrabold uppercase tracking-wider text-gray-500">
-                      Flow Nodes & Action Sequence
+              <form onSubmit={handleSaveWorkflow} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {/* Scrollable Form Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  {/* Workflow Name */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-500 mb-2">
+                      Workflow Name
                     </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => addStep('delay')}
-                        className="px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 hover:bg-amber-100 transition-colors"
-                      >
-                        <Clock className="w-3 h-3" /> + Add Delay
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => addStep('action')}
-                        className="px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 hover:bg-emerald-100 transition-colors"
-                      >
-                        <Plus className="w-3 h-3" /> + Add Action
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      value={wfName}
+                      onChange={(e) => setWfName(e.target.value)}
+                      placeholder="e.g. Unanswered Lead 15m Voice Retry"
+                      required
+                      className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+                    />
                   </div>
 
-                  <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-150 dark:border-gray-850">
-                    {wfSteps.map((step, idx) => (
-                      <React.Fragment key={step.id}>
-                        {idx > 0 && (
-                          <div className="flex justify-center my-1 text-gray-300 dark:text-gray-700">
-                            <ArrowDown className="w-4 h-4" />
-                          </div>
-                        )}
+                  {/* Trigger Selector */}
+                  <div>
+                    <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-500 mb-2">
+                      Trigger Event (Starts the flow)
+                    </label>
+                    <select
+                      value={wfTrigger}
+                      onChange={(e) => setWfTrigger(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="bulk_message_sent">📢 Bulk WhatsApp Campaign Sent</option>
+                      <option value="call_unanswered">📞 Call Ended — Unanswered / Busy</option>
+                      <option value="call_completed">✅ Call Completed Successfully</option>
+                      <option value="lead_created">👤 New Lead Added to CRM</option>
+                    </select>
+                  </div>
 
-                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 shadow-xs flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] font-extrabold flex items-center justify-center text-gray-500">
-                              {idx + 1}
-                            </span>
+                  {/* STOP DRIP Setting */}
+                  <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/50 p-3.5 rounded-xl">
+                    <label className="flex items-center gap-3 text-xs font-bold text-gray-900 dark:text-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stopOnReply}
+                        onChange={(e) => setStopOnReply(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500"
+                      />
+                      <div>
+                        <span className="font-extrabold text-emerald-700 dark:text-emerald-400">Stop Workflow On Lead Reply</span>
+                        <p className="text-[11px] text-gray-500 font-normal mt-0.5">
+                          Instantly cancels all remaining drip steps if the customer sends a WhatsApp reply.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
 
-                            {step.type === 'delay' ? (
-                              <div className="flex-1 flex items-center gap-3">
-                                <Clock className="w-4 h-4 text-amber-500 shrink-0" />
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold">Wait</span>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={
-                                      Number(step.delay_minutes || '60') >= 1440 
-                                        ? String(Math.round(Number(step.delay_minutes) / 1440))
-                                        : Number(step.delay_minutes || '60') >= 60 
-                                        ? String(Math.round(Number(step.delay_minutes) / 60))
-                                        : step.delay_minutes || '60'
-                                    }
-                                    onChange={(e) => {
-                                      const num = parseInt(e.target.value || '1');
-                                      const currentMins = parseInt(step.delay_minutes || '60');
-                                      const unit = currentMins >= 1440 ? 1440 : currentMins >= 60 ? 60 : 1;
-                                      updateStep(step.id, { delay_minutes: String(num * unit) });
-                                    }}
-                                    className="w-16 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-center"
-                                  />
-                                  <select
-                                    value={
-                                      Number(step.delay_minutes || '60') >= 1440 ? '1440' : Number(step.delay_minutes || '60') >= 60 ? '60' : '1'
-                                    }
-                                    onChange={(e) => {
-                                      const unit = parseInt(e.target.value);
-                                      const currentMins = parseInt(step.delay_minutes || '60');
-                                      const oldUnit = currentMins >= 1440 ? 1440 : currentMins >= 60 ? 60 : 1;
-                                      const val = Math.max(1, Math.round(currentMins / oldUnit));
-                                      updateStep(step.id, { delay_minutes: String(val * unit) });
-                                    }}
-                                    className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
-                                  >
-                                    <option value="1">Minutes</option>
-                                    <option value="60">Hours</option>
-                                    <option value="1440">Days</option>
-                                  </select>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <select
-                                    value={step.action_type || 'voice_call'}
-                                    onChange={(e) => updateStep(step.id, { action_type: e.target.value as any })}
-                                    className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
-                                  >
-                                    <option value="whatsapp">💬 Send WhatsApp Message</option>
-                                    <option value="voice_call">📞 Trigger AI Voice Call</option>
-                                    <option value="crm_status">🏷️ Update CRM Status</option>
-                                    <option value="human_handover">👤 Trigger Human Handover</option>
-                                    <option value="ai_score">🧠 AI Calculate Lead Score</option>
-                                  </select>
-                                </div>
+                  {/* Visual Step Builder Canvas */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-xs font-extrabold uppercase tracking-wider text-gray-500">
+                        Flow Nodes & Action Sequence
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => addStep('delay')}
+                          className="px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 hover:bg-amber-100 transition-colors"
+                        >
+                          <Clock className="w-3 h-3" /> + Add Delay
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => addStep('action')}
+                          className="px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 hover:bg-emerald-100 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" /> + Add Action
+                        </button>
+                      </div>
+                    </div>
 
-                                {step.action_type === 'voice_call' && (
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <span className="text-gray-400">Agent:</span>
+                    <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-950 rounded-2xl border border-gray-150 dark:border-gray-850">
+                      {wfSteps.map((step, idx) => (
+                        <React.Fragment key={step.id}>
+                          {idx > 0 && (
+                            <div className="flex justify-center my-1 text-gray-300 dark:text-gray-700">
+                              <ArrowDown className="w-4 h-4" />
+                            </div>
+                          )}
+
+                          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 shadow-xs flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 flex-1">
+                              <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] font-extrabold flex items-center justify-center text-gray-500">
+                                {idx + 1}
+                              </span>
+
+                              {step.type === 'delay' ? (
+                                <div className="flex-1 flex items-center gap-3">
+                                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold">Wait</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={
+                                        Number(step.delay_minutes || '60') >= 1440 
+                                          ? String(Math.round(Number(step.delay_minutes) / 1440))
+                                          : Number(step.delay_minutes || '60') >= 60 
+                                          ? String(Math.round(Number(step.delay_minutes) / 60))
+                                          : step.delay_minutes || '60'
+                                      }
+                                      onChange={(e) => {
+                                        const num = parseInt(e.target.value || '1');
+                                        const currentMins = parseInt(step.delay_minutes || '60');
+                                        const unit = currentMins >= 1440 ? 1440 : currentMins >= 60 ? 60 : 1;
+                                        updateStep(step.id, { delay_minutes: String(num * unit) });
+                                      }}
+                                      className="w-16 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-center"
+                                    />
                                     <select
-                                      value={step.agent_id || ''}
-                                      onChange={(e) => updateStep(step.id, { agent_id: e.target.value })}
-                                      className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
+                                      value={
+                                        Number(step.delay_minutes || '60') >= 1440 ? '1440' : Number(step.delay_minutes || '60') >= 60 ? '60' : '1'
+                                      }
+                                      onChange={(e) => {
+                                        const unit = parseInt(e.target.value);
+                                        const currentMins = parseInt(step.delay_minutes || '60');
+                                        const oldUnit = currentMins >= 1440 ? 1440 : currentMins >= 60 ? 60 : 1;
+                                        const val = Math.max(1, Math.round(currentMins / oldUnit));
+                                        updateStep(step.id, { delay_minutes: String(val * unit) });
+                                      }}
+                                      className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
                                     >
-                                      {agents.map(a => (
-                                        <option key={a.id} value={a.id}>{a.name}</option>
-                                      ))}
+                                      <option value="1">Minutes</option>
+                                      <option value="60">Hours</option>
+                                      <option value="1440">Days</option>
                                     </select>
                                   </div>
-                                )}
+                                </div>
+                              ) : (
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      value={step.action_type || 'voice_call'}
+                                      onChange={(e) => updateStep(step.id, { action_type: e.target.value as any })}
+                                      className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                                    >
+                                      <option value="whatsapp">💬 Send WhatsApp Message</option>
+                                      <option value="voice_call">📞 Trigger AI Voice Call</option>
+                                      <option value="crm_status">🏷️ Update CRM Status</option>
+                                      <option value="human_handover">👤 Trigger Human Handover</option>
+                                      <option value="ai_score">🧠 AI Calculate Lead Score</option>
+                                    </select>
+                                  </div>
 
-                                {step.action_type === 'whatsapp' && (
-                                  <div className="flex flex-col gap-2 text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-400 font-medium">Meta Template:</span>
+                                  {step.action_type === 'voice_call' && (
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <span className="text-gray-400">Agent:</span>
                                       <select
-                                        value={step.whatsapp_template_name || ''}
-                                        onChange={(e) => updateStep(step.id, { whatsapp_template_name: e.target.value })}
+                                        value={step.agent_id || ''}
+                                        onChange={(e) => updateStep(step.id, { agent_id: e.target.value })}
                                         className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
                                       >
-                                        <option value="">-- Freeform Text Message --</option>
-                                        <option value="touch_1">touch_1 (Touch 1 Follow-up)</option>
-                                        <option value="touch_2">touch_2 (Touch 2 Template)</option>
-                                        <option value="touch_3">touch_3 (Touch 3 Template)</option>
-                                        <option value="touch_4">touch_4 (Touch 4 Template)</option>
-                                        <option value="touch_5">touch_5 (Touch 5 Template)</option>
-                                        <option value="touch_6">touch_6 (Touch 6 Template)</option>
-                                        <option value="touch_7">touch_7 (Touch 7 Template)</option>
+                                        {agents.map(a => (
+                                          <option key={a.id} value={a.id}>{a.name}</option>
+                                        ))}
                                       </select>
                                     </div>
-                                    <span className="text-gray-400">Message Text (Supports {'{Name}'}, {'{Business_Name}'}, {'{Industry}'}):</span>
-                                    <textarea
-                                      value={step.whatsapp_message || ''}
-                                      onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
-                                      placeholder="Hi {Name}, following up on your {Industry} requirement..."
-                                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[60px]"
-                                    />
-                                  </div>
-                                )}
+                                  )}
 
-                                {step.action_type === 'crm_status' && (
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <span className="text-gray-400">New Status:</span>
-                                    <input
-                                      type="text"
-                                      value={step.new_status || 'Followup Scheduled'}
-                                      onChange={(e) => updateStep(step.id, { new_status: e.target.value })}
-                                      className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                                  {step.action_type === 'whatsapp' && (
+                                    <div className="flex flex-col gap-2 text-xs">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-400 font-medium">Meta Template:</span>
+                                        <select
+                                          value={step.whatsapp_template_name || ''}
+                                          onChange={(e) => updateStep(step.id, { whatsapp_template_name: e.target.value })}
+                                          className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
+                                        >
+                                          <option value="">-- Freeform Text Message --</option>
+                                          <option value="touch_1">touch_1 (Touch 1 Follow-up)</option>
+                                          <option value="touch_2">touch_2 (Touch 2 Template)</option>
+                                          <option value="touch_3">touch_3 (Touch 3 Template)</option>
+                                          <option value="touch_4">touch_4 (Touch 4 Template)</option>
+                                          <option value="touch_5">touch_5 (Touch 5 Template)</option>
+                                          <option value="touch_6">touch_6 (Touch 6 Template)</option>
+                                          <option value="touch_7">touch_7 (Touch 7 Template)</option>
+                                        </select>
+                                      </div>
+                                      <span className="text-gray-400">Message Text (Supports {'{Name}'}, {'{Business_Name}'}, {'{Industry}'}):</span>
+                                      <textarea
+                                        value={step.whatsapp_message || ''}
+                                        onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
+                                        placeholder="Hi {Name}, following up on your {Industry} requirement..."
+                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[60px]"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {step.action_type === 'crm_status' && (
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <span className="text-gray-400">New Status:</span>
+                                      <input
+                                        type="text"
+                                        value={step.new_status || 'Followup Scheduled'}
+                                        onChange={(e) => updateStep(step.id, { new_status: e.target.value })}
+                                        className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeStep(step.id)}
+                              className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => removeStep(step.id)}
-                            className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </React.Fragment>
-                    ))}
+                        </React.Fragment>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Footer Submit */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800">
+                {/* Sticky Footer Submit */}
+                <div className="flex items-center justify-between p-6 pt-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 rounded-b-3xl">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
                     <input
                       type="checkbox"
