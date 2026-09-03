@@ -399,24 +399,11 @@ function LeadsContent() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
                     {leads.map((lead) => {
-                      // Grab key metadata preview fields
-                      const domainName = lead.metadata?.domain_name || lead.metadata?.domain || '';
-                      const companyName = lead.metadata?.company_name || lead.metadata?.company || '';
-                      const industryName = lead.industry || lead.metadata?.industry || '';
-                      const websiteStatus = lead.metadata?.website_status || lead.metadata?.requirement || '';
-                      const timeline = lead.metadata?.timeline || '';
-                      
+                      // Parse followup notes for display
                       let rawFollowup = lead.followup_notes || '';
                       if (rawFollowup.includes('Scheduled Meeting')) {
                         rawFollowup = 'Scheduled Meeting';
                       }
-
-                      const crop = lead.metadata?.crop_requirement || lead.metadata?.cropRequirement || lead.metadata?.crop || '';
-                      const tehsil = lead.metadata?.tehsil || lead.metadata?.taluka || '';
-                      const product = lead.metadata?.product_interest || lead.metadata?.model_name || '';
-                      const course = lead.metadata?.course_interest || lead.metadata?.course || '';
-                      const location = lead.metadata?.location || lead.metadata?.city || '';
-                      const qualification = lead.metadata?.previous_qualification || '';
 
                       // Strict display from DB or metadata as requested
                       const computedStage = lead.stage || lead.metadata?.stage || lead.metadata?.state || 'new';
@@ -472,23 +459,29 @@ function LeadsContent() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-xs max-w-[240px] truncate space-y-0.5">
-                              {domainName && <div className="text-gray-700 dark:text-gray-300">🌐 <span className="font-semibold">{domainName}</span></div>}
-                              {companyName && <div className="text-gray-700 dark:text-gray-300">🏢 <span className="font-semibold">{companyName}</span></div>}
-                              {industryName && <div className="text-emerald-600 dark:text-emerald-400">💼 {industryName}</div>}
-                              {websiteStatus && <div className="text-gray-500">💻 {websiteStatus}</div>}
-                              {timeline && <div className="text-amber-600 dark:text-amber-400">⏱️ {timeline}</div>}
+                            <div className="text-xs max-w-[280px] space-y-1">
                               {rawFollowup && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate font-medium">📌 {rawFollowup}</div>}
+                              
+                              {lead.metadata && Object.keys(lead.metadata).length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {Object.entries(lead.metadata).map(([key, val]) => {
+                                    if (typeof val === 'object' || !val || String(val).trim() === '') return null;
+                                    const skipKeys = ['lead_score', 'lead_quality', 'lead_temperature', 'stage', 'state', 'conversation_id', 'id'];
+                                    if (skipKeys.includes(key.toLowerCase())) return null;
 
-                              {crop && <div className="text-gray-700 dark:text-gray-300">🌾 <span className="font-semibold">{crop}</span></div>}
-                              {tehsil && <div className="text-gray-500">📍 Tehsil: {tehsil}</div>}
-                              {product && <div className="text-gray-500">⚙️ Product: {product}</div>}
-                              
-                              {course && <div className="text-gray-700 dark:text-gray-300">📚 <span className="font-semibold">{course}</span></div>}
-                              {location && <div className="text-gray-500">📍 Location: {location}</div>}
-                              {qualification && <div className="text-gray-500">🎓 Qual: {qualification}</div>}
-                              
-                              {!domainName && !companyName && !industryName && !websiteStatus && !timeline && !rawFollowup && !crop && !tehsil && !product && !course && !location && !qualification && <span className="text-gray-400 italic">No custom data</span>}
+                                    const displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                    const displayVal = String(val).length > 30 ? String(val).substring(0, 30) + '...' : String(val);
+                                    
+                                    return (
+                                      <span key={key} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 truncate max-w-full">
+                                        <span className="font-semibold mr-1 text-gray-500 dark:text-gray-400">{displayKey}:</span> {displayVal}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                !rawFollowup && <span className="text-gray-400 italic">No custom data</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
