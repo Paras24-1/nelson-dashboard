@@ -389,11 +389,8 @@ function LeadsContent() {
                   <thead className="bg-gray-50 dark:bg-gray-950 text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wider text-left uppercase">
                     <tr>
                       <th className="px-6 py-3">Lead Contact</th>
-                      <th className="px-6 py-3">Lead Stage</th>
-                      <th className="px-6 py-3">Lead Quality</th>
-                      <th className="px-6 py-3">Lead Score</th>
                       <th className="px-6 py-3">Key Custom Fields</th>
-                      <th className="px-6 py-3">Date Added</th>
+                      <th className="px-6 py-3 whitespace-nowrap">Date Added</th>
                       <th className="px-6 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -405,19 +402,8 @@ function LeadsContent() {
                         rawFollowup = 'Scheduled Meeting';
                       }
 
-                      // Strict display from DB or metadata as requested
-                      const computedStage = lead.stage || lead.metadata?.stage || lead.metadata?.state || 'new';
+                      // We no longer manually calculate stage, quality, or score since they are strictly metadata fields now
                       
-                      const computedScore = lead.lead_score ?? lead.metadata?.lead_score ?? 0;
-                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || lead.metadata?.lead_temperature || 'UNKNOWN';
-
-                      // Real-time quality derivation from the n8n provided score
-                      if (computedScore >= 70) rawQuality = 'HOT';
-                      else if (computedScore >= 40) rawQuality = 'WARM';
-                      else if (computedScore > 0) rawQuality = 'COLD';
-
-                      const displayQuality = rawQuality.toUpperCase();
-
                       return (
                         <tr 
                           key={lead.id} 
@@ -431,33 +417,6 @@ function LeadsContent() {
                               {lead.phone_number}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase ${STAGE_COLORS[computedStage || 'new'] || 'bg-gray-100 text-gray-700'}`}>
-                              {(computedStage || 'new').replace(/_/g, ' ')}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${QUALITY_COLORS[displayQuality] || QUALITY_COLORS[rawQuality] || 'bg-gray-100 text-gray-600'}`}>
-                              {displayQuality}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                                <div 
-                                  className={`h-2 rounded-full ${computedScore >= 70 ? 'bg-red-500' : computedScore >= 40 ? 'bg-amber-500' : 'bg-blue-500'}`} 
-                                  style={{ width: `${computedScore}%` }} 
-                                />
-                              </div>
-                              <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${
-                                computedScore >= 70 ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 
-                                computedScore >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300' : 
-                                'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
-                              }`}>
-                                {computedScore}/100
-                              </span>
-                            </div>
-                          </td>
                           <td className="px-6 py-4">
                             <div className="text-xs max-w-[280px] space-y-1">
                               {rawFollowup && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate font-medium">📌 {rawFollowup}</div>}
@@ -465,8 +424,7 @@ function LeadsContent() {
                                 const allCustomData = { ...lead, ...(lead.metadata || {}) };
                                 const skipKeys = [
                                   'id', 'created_at', 'updated_at', 'org_id', 'assigned_to', 
-                                  'phone_number', 'name', 'conversation_id', 'lead_score', 
-                                  'lead_quality', 'lead_temperature', 'stage', 'state', 
+                                  'phone_number', 'name', 'conversation_id',
                                   'followup_notes', 'followup_date', 'followup_notified',
                                   'metadata', 'lead_type'
                                 ];

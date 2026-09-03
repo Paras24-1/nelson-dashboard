@@ -73,8 +73,17 @@ export async function PATCH(req: NextRequest) {
       try { parsedMeta = JSON.parse(metadata) } catch (e) {}
     }
 
+    // Move any fields that aren't valid DB columns into metadata
+    const validDbColumns = [
+      'id', 'conversation_id', 'phone_number', 'customer_name', 'name', 
+      'created_at', 'org_id', 'metadata', 'followup_date', 'followup_notes', 
+      'followup_notified', 'lead_temperature'
+    ];
+
+    let mergedMeta = { ...parsedMeta };
+
     // Calculate lead_quality & lead_temperature dynamically based on lead_score sent by n8n
-    const sentScore = updates.lead_score ?? parsedMeta?.lead_score;
+    const sentScore = updates.lead_score ?? mergedMeta?.lead_score;
     if (sentScore !== undefined) {
       const numericScore = Number(sentScore);
       if (!isNaN(numericScore)) {
@@ -83,18 +92,27 @@ export async function PATCH(req: NextRequest) {
         else if (numericScore >= 40) temp = 'WARM';
         
         updates.lead_temperature = temp;
-        updates.lead_quality = temp.toLowerCase();
-        updates.lead_score = numericScore;
+        mergedMeta.lead_quality = temp.toLowerCase();
+        mergedMeta.lead_score = numericScore;
       }
     }
-    if (parsedMeta) {
-      updates.metadata = parsedMeta
+
+    // Move invalid columns from updates to metadata
+    const finalUpdates: any = {};
+    for (const key of Object.keys(updates)) {
+      if (validDbColumns.includes(key)) {
+        finalUpdates[key] = updates[key];
+      } else {
+        mergedMeta[key] = updates[key];
+      }
     }
+
+    finalUpdates.metadata = Object.keys(mergedMeta).length > 0 ? mergedMeta : null;
 
     // First try updating by conversation_id
     let { data, error } = await supabaseAdmin
       .from('leads')
-      .update(updates)
+      .update(finalUpdates)
       .eq('conversation_id', conversation_id)
       .eq('org_id', orgId)
       .select()
@@ -114,7 +132,7 @@ export async function PATCH(req: NextRequest) {
         const { data: leadData, error: leadError } = await supabaseAdmin
           .from('leads')
           .update({
-            ...updates,
+            ...finalUpdates,
             conversation_id // auto-link it
           })
           .ilike('phone_number', `%${phone}`)
@@ -140,12 +158,11 @@ export async function PATCH(req: NextRequest) {
         const { data: upsertData, error: upsertError } = await supabaseAdmin
           .from('leads')
           .upsert({
-            ...updates,
+            ...finalUpdates,
             conversation_id,
             org_id: orgId,
             phone_number: conv.phone_number,
-            name: conv.name || '',
-            stage: updates.stage || 'new'
+            name: conv.name || ''
           }, { onConflict: 'conversation_id' })
           .select()
           .maybeSingle()
