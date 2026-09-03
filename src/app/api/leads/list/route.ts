@@ -55,9 +55,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Safely parse metadata on each lead
+    // Safely parse metadata on each lead and flatten key fields for API consistency
     const parsedLeads = allLeads.map((lead) => {
-      let parsedMetadata = {}
+      let parsedMetadata: Record<string, any> = {}
       if (lead.metadata) {
         if (typeof lead.metadata === 'string') {
           try {
@@ -67,8 +67,24 @@ export async function GET(req: NextRequest) {
           parsedMetadata = lead.metadata
         }
       }
+
+      const score = Number(parsedMetadata.lead_score ?? lead.lead_score) || 0;
+      let quality = (parsedMetadata.lead_quality || parsedMetadata.lead_temperature || lead.lead_temperature || 'cold').toLowerCase();
+      if (score >= 70) quality = 'hot';
+      else if (score >= 40) quality = 'warm';
+      else if (score > 0) quality = 'cold';
+
+      const stage = parsedMetadata.state || parsedMetadata.stage || lead.stage || 'new';
+      const displayName = lead.name || lead.customer_name || parsedMetadata.Name || parsedMetadata.name || parsedMetadata.contact_person || parsedMetadata.customer_name || 'Unknown';
+
       return {
         ...lead,
+        ...parsedMetadata,
+        name: displayName,
+        stage: stage,
+        lead_quality: quality,
+        lead_temperature: quality.toUpperCase(),
+        lead_score: score,
         metadata: parsedMetadata
       }
     })

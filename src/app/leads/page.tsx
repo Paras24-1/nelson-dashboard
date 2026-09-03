@@ -294,7 +294,7 @@ function LeadsContent() {
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 overflow-hidden text-gray-900 dark:text-gray-100">
       
       {/* Header Banner */}
-      <header className="h-14 bg-emerald-600 dark:bg-emerald-800 shrink-0 flex items-center justify-between px-6 z-10 shadow-md">
+      <header className="h-14 bg-emerald-600 dark:bg-emerald-800 shrink-0 flex items-center justify-between px-6 z-50 shadow-md">
         <div className="flex items-center gap-3">
           <Sidebar />
           <span className="text-white font-semibold text-lg flex items-center gap-2">
@@ -317,7 +317,7 @@ function LeadsContent() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex overflow-hidden relative">
+      <main className="flex-1 flex overflow-hidden relative z-0">
         <div className="flex-1 flex flex-col p-6 overflow-y-auto space-y-6">
           
           {/* Quick Metrics */}
