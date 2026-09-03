@@ -6,11 +6,11 @@ export const dynamic = 'force-dynamic'
 // POST /api/workflows/trigger - Receives system event and starts matching workflows
 export async function POST(req: NextRequest) {
   try {
-    const orgId = await getOrgId(req)
-    if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const body = await req.json()
-    const { event_type, lead_id, phone_number, lead_name, contacts, metadata } = body
+    const { event_type, lead_id, phone_number, lead_name, contacts, metadata, org_id: bodyOrgId, orgId: bodyOrgId2 } = body
+    const orgId = (await getOrgId(req)) || bodyOrgId || bodyOrgId2
+
+    if (!orgId) return NextResponse.json({ error: 'Unauthorized: org_id required' }, { status: 401 })
 
     if (!event_type) {
       return NextResponse.json(
@@ -40,17 +40,22 @@ export async function POST(req: NextRequest) {
       .eq('trigger_event', event_type)
       .eq('is_active', true)
 
-    if (!wfError && dbWorkflows) {
+    if (!wfError && dbWorkflows && dbWorkflows.length > 0) {
       activeWorkflows = dbWorkflows
     } else {
-      // Fallback: Read workflows from organization_settings
+      // Fallback: Read workflows from organization_settings.ai_system_prompt __WORKFLOWS_STORE__
       const { data: settings } = await supabaseAdmin
         .from('organization_settings')
-        .select('metadata')
+        .select('ai_system_prompt')
         .eq('org_id', orgId)
         .maybeSingle()
       
-      const allWfs: any[] = settings?.metadata?.workflows || []
+      const promptStr = settings?.ai_system_prompt || ''
+      const match = promptStr.match(/__WORKFLOWS_STORE__=([\s\S]*?)__END_WORKFLOWS_STORE__/)
+      let allWfs: any[] = []
+      if (match) {
+        try { allWfs = JSON.parse(match[1]) } catch (e) {}
+      }
       activeWorkflows = allWfs.filter(w => w.trigger_event === event_type && w.is_active)
     }
 
@@ -98,23 +103,34 @@ export async function POST(req: NextRequest) {
           .single()
 
         if (instErr) {
-          // Fallback: append to organization_settings.metadata.workflow_instances
+          // Fallback: store inside organization_settings.ai_system_prompt __WORKFLOW_INSTANCES_STORE__
           const { data: settings } = await supabaseAdmin
             .from('organization_settings')
-            .select('metadata')
+            .select('ai_system_prompt')
             .eq('org_id', orgId)
             .maybeSingle()
 
-          const currentMeta = settings?.metadata || {}
-          const currentInstances: any[] = currentMeta.workflow_instances || []
+          let promptStr = settings?.ai_system_prompt || ''
+          const storeRegex = /__WORKFLOW_INSTANCES_STORE__=([\s\S]*?)__END_WORKFLOW_INSTANCES_STORE__/
+          const match = promptStr.match(storeRegex)
+          let currentInstances: any[] = []
+          if (match) {
+            try { currentInstances = JSON.parse(match[1]) } catch (e) {}
+          }
+
           const updatedInstances = [instPayload, ...currentInstances]
+          const newStoreStr = `__WORKFLOW_INSTANCES_STORE__=${JSON.stringify(updatedInstances)}__END_WORKFLOW_INSTANCES_STORE__`
+          let newPrompt = promptStr
+          if (storeRegex.test(newPrompt)) {
+            newPrompt = newPrompt.replace(storeRegex, newStoreStr)
+          } else {
+            newPrompt += `\n\n${newStoreStr}`
+          }
 
           await supabaseAdmin
             .from('organization_settings')
-            .upsert({
-              org_id: orgId,
-              metadata: { ...currentMeta, workflow_instances: updatedInstances }
-            })
+            .update({ ai_system_prompt: newPrompt })
+            .eq('org_id', orgId)
 
           createdInstances.push(instPayload)
         } else {

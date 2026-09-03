@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            org_id: orgId,
             event_type: 'bulk_message_sent',
             contacts: uniqueContacts,
             metadata: { campaign_id: campaign.id, template_name }

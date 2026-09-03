@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Process Native Visual Workflow Instances
     try {
-      // Fetch instances from database or fallback metadata
+      // Fetch instances from database or fallback store in ai_system_prompt
       let dueInstances: any[] = []
       const { data: dbInsts, error: instErr } = await supabaseAdmin
         .from('workflow_instances')
@@ -169,20 +169,49 @@ export async function GET(req: NextRequest) {
         .lte('next_run_at', nowIso)
         .limit(25)
 
-      if (!instErr && dbInsts) {
+      if (!instErr && dbInsts && dbInsts.length > 0) {
         dueInstances = dbInsts
       } else {
-        // Fallback: Check organization_settings metadata
-        const { data: allSettings } = await supabaseAdmin.from('organization_settings').select('org_id, metadata')
+        // Fallback: Check organization_settings ai_system_prompt __WORKFLOW_INSTANCES_STORE__
+        const { data: allSettings } = await supabaseAdmin.from('organization_settings').select('org_id, ai_system_prompt')
         if (allSettings) {
           allSettings.forEach(s => {
-            const insts: any[] = s.metadata?.workflow_instances || []
-            insts.forEach(inst => {
-              if ((inst.status === 'pending' || inst.status === 'active') && inst.next_run_at <= nowIso) {
-                dueInstances.push(inst)
-              }
-            })
+            const promptStr = s.ai_system_prompt || ''
+            const match = promptStr.match(/__WORKFLOW_INSTANCES_STORE__=([\s\S]*?)__END_WORKFLOW_INSTANCES_STORE__/)
+            if (match) {
+              try {
+                const insts: any[] = JSON.parse(match[1])
+                insts.forEach(inst => {
+                  if ((inst.status === 'pending' || inst.status === 'active') && inst.next_run_at <= nowIso) {
+                    dueInstances.push(inst)
+                  }
+                })
+              } catch (e) {}
+            }
           })
+        }
+      }
+
+      // Helper to update instance in fallback store if table is missing
+      const updateInstanceInStore = async (instId: string, orgId: string, updates: Record<string, any>) => {
+        const { error } = await supabaseAdmin.from('workflow_instances').update(updates).eq('id', instId)
+        if (error) {
+          const { data: settings } = await supabaseAdmin.from('organization_settings').select('ai_system_prompt').eq('org_id', orgId).maybeSingle()
+          let promptStr = settings?.ai_system_prompt || ''
+          const storeRegex = /__WORKFLOW_INSTANCES_STORE__=([\s\S]*?)__END_WORKFLOW_INSTANCES_STORE__/
+          const match = promptStr.match(storeRegex)
+          if (match) {
+            try {
+              let currentInstances: any[] = JSON.parse(match[1])
+              const target = currentInstances.find(i => i.id === instId)
+              if (target) {
+                Object.assign(target, updates)
+                const newStoreStr = `__WORKFLOW_INSTANCES_STORE__=${JSON.stringify(currentInstances)}__END_WORKFLOW_INSTANCES_STORE__`
+                const newPrompt = promptStr.replace(storeRegex, newStoreStr)
+                await supabaseAdmin.from('organization_settings').update({ ai_system_prompt: newPrompt }).eq('org_id', orgId)
+              }
+            } catch (e) {}
+          }
         }
       }
 
@@ -194,9 +223,15 @@ export async function GET(req: NextRequest) {
           wf = dbWf
         }
         if (!wf) {
-          const { data: settings } = await supabaseAdmin.from('organization_settings').select('metadata').eq('org_id', inst.org_id).maybeSingle()
-          const allWfs: any[] = settings?.metadata?.workflows || []
-          wf = allWfs.find(w => w.id === inst.workflow_id) || allWfs[0]
+          const { data: settings } = await supabaseAdmin.from('organization_settings').select('ai_system_prompt').eq('org_id', inst.org_id).maybeSingle()
+          const promptStr = settings?.ai_system_prompt || ''
+          const match = promptStr.match(/__WORKFLOWS_STORE__=([\s\S]*?)__END_WORKFLOWS_STORE__/)
+          if (match) {
+            try {
+              const allWfs: any[] = JSON.parse(match[1])
+              wf = allWfs.find(w => w.id === inst.workflow_id) || allWfs[0]
+            } catch (e) {}
+          }
         }
 
         if (!wf || !wf.steps || wf.steps.length === 0) continue
@@ -204,7 +239,7 @@ export async function GET(req: NextRequest) {
         let stepIndex = inst.current_step_index || 0
         if (stepIndex >= wf.steps.length) {
           // Workflow completed
-          await supabaseAdmin.from('workflow_instances').update({ status: 'completed' }).eq('id', inst.id)
+          await updateInstanceInStore(inst.id, inst.org_id, { status: 'completed' })
           continue
         }
 
@@ -216,11 +251,11 @@ export async function GET(req: NextRequest) {
           const nextRun = new Date(Date.now() + delayMins * 60 * 1000).toISOString()
           stepIndex += 1
           
-          await supabaseAdmin.from('workflow_instances').update({
+          await updateInstanceInStore(inst.id, inst.org_id, {
             current_step_index: stepIndex,
             next_run_at: nextRun,
             status: stepIndex >= wf.steps.length ? 'completed' : 'pending'
-          }).eq('id', inst.id)
+          })
 
           processed.push({ instance_id: inst.id, step: 'delay', delay_minutes: delayMins })
           continue
@@ -283,11 +318,11 @@ export async function GET(req: NextRequest) {
           }
 
           const finalStatus = stepIndex >= wf.steps.length ? 'completed' : 'pending'
-          await supabaseAdmin.from('workflow_instances').update({
+          await updateInstanceInStore(inst.id, inst.org_id, {
             current_step_index: stepIndex,
             next_run_at: nextRun,
             status: finalStatus
-          }).eq('id', inst.id)
+          })
 
           processed.push({ instance_id: inst.id, step: 'action', action_type: currentStep.action_type })
         }
