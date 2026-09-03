@@ -391,6 +391,7 @@ function LeadsContent() {
                       <th className="px-6 py-3">Lead Contact</th>
                       <th className="px-6 py-3">Lead Stage</th>
                       <th className="px-6 py-3">Lead Quality</th>
+                      <th className="px-6 py-3">Lead Score</th>
                       <th className="px-6 py-3">Key Custom Fields</th>
                       <th className="px-6 py-3">Date Added</th>
                       <th className="px-6 py-3 text-right">Actions</th>
@@ -404,7 +405,11 @@ function LeadsContent() {
                       const industryName = lead.industry || lead.metadata?.industry || '';
                       const websiteStatus = lead.metadata?.website_status || lead.metadata?.requirement || '';
                       const timeline = lead.metadata?.timeline || '';
-                      const followupNotes = lead.followup_notes || '';
+                      
+                      let rawFollowup = lead.followup_notes || '';
+                      if (rawFollowup.includes('Scheduled Meeting')) {
+                        rawFollowup = 'Scheduled Meeting';
+                      }
 
                       const crop = lead.metadata?.crop_requirement || lead.metadata?.cropRequirement || lead.metadata?.crop || '';
                       const tehsil = lead.metadata?.tehsil || lead.metadata?.taluka || '';
@@ -434,6 +439,13 @@ function LeadsContent() {
 
                       const displayQuality = rawQuality.toUpperCase();
 
+                      let computedScore = lead.lead_score || (lead.metadata?.lead_score || 0);
+                      if (computedScore === 0) {
+                        if (displayQuality === 'HOT') computedScore = 80;
+                        else if (displayQuality === 'WARM') computedScore = 50;
+                        else computedScore = 25;
+                      }
+
                       return (
                         <tr 
                           key={lead.id} 
@@ -457,6 +469,23 @@ function LeadsContent() {
                               {displayQuality}
                             </span>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-gray-200 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className={`h-2 rounded-full ${computedScore >= 70 ? 'bg-red-500' : computedScore >= 40 ? 'bg-amber-500' : 'bg-blue-500'}`} 
+                                  style={{ width: `${computedScore}%` }} 
+                                />
+                              </div>
+                              <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${
+                                computedScore >= 70 ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300' : 
+                                computedScore >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300' : 
+                                'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
+                              }`}>
+                                {computedScore}/100
+                              </span>
+                            </div>
+                          </td>
                           <td className="px-6 py-4">
                             <div className="text-xs max-w-[240px] truncate space-y-0.5">
                               {domainName && <div className="text-gray-700 dark:text-gray-300">🌐 <span className="font-semibold">{domainName}</span></div>}
@@ -464,7 +493,7 @@ function LeadsContent() {
                               {industryName && <div className="text-emerald-600 dark:text-emerald-400">💼 {industryName}</div>}
                               {websiteStatus && <div className="text-gray-500">💻 {websiteStatus}</div>}
                               {timeline && <div className="text-amber-600 dark:text-amber-400">⏱️ {timeline}</div>}
-                              {followupNotes && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate">📌 {followupNotes}</div>}
+                              {rawFollowup && <div className="text-cyan-600 dark:text-cyan-400 text-[11px] truncate font-medium">📌 {rawFollowup}</div>}
 
                               {crop && <div className="text-gray-700 dark:text-gray-300">🌾 <span className="font-semibold">{crop}</span></div>}
                               {tehsil && <div className="text-gray-500">📍 Tehsil: {tehsil}</div>}
@@ -474,7 +503,7 @@ function LeadsContent() {
                               {location && <div className="text-gray-500">📍 Location: {location}</div>}
                               {qualification && <div className="text-gray-500">🎓 Qual: {qualification}</div>}
                               
-                              {!domainName && !companyName && !industryName && !websiteStatus && !timeline && !followupNotes && !crop && !tehsil && !product && !course && !location && !qualification && <span className="text-gray-400 italic">No custom data</span>}
+                              {!domainName && !companyName && !industryName && !websiteStatus && !timeline && !rawFollowup && !crop && !tehsil && !product && !course && !location && !qualification && <span className="text-gray-400 italic">No custom data</span>}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
