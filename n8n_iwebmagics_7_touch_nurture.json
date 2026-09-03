@@ -1,5 +1,5 @@
 {
-  "name": "iWebMagics 7-Touch WhatsApp Nurture Workflow",
+  "name": "iWebMagics 7-Touch WhatsApp Template Nurture Workflow",
   "nodes": [
     {
       "parameters": {
@@ -58,10 +58,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const d = item.json;\n  const step = d.touch_step || 1;\n  const name = d.lead_name || 'there';\n  const meta = d.lead_metadata || {};\n  const industry = meta.industry || 'business';\n  const bizName = meta.business_name || 'your business';\n  \n  let msg = '';\n  if (step === 1) {\n    msg = `Hi ${name}! 👋 Congratulations on starting ${bizName}! We help new ${industry} businesses get their websites ready. Would you like me to send over a few relevant design options?`;\n  } else if (step === 2) {\n    msg = `Hi ${name}! 🎨 Just wanted to clarify about the designs — they are fully customized for your brand logo, colors, and products. Would you like to see how we can customize one for ${bizName}?`;\n  } else if (step === 3) {\n    msg = `Hi ${name}! A professional website helps ${industry} customers send inquiries directly on WhatsApp and build trust. Would you like to see a live example?`;\n  } else if (step === 4) {\n    msg = `Hi ${name}! One mistake new businesses make is waiting until everything is perfect. You can start with essential pages now and expand later! Would you like me to suggest what pages your website should include?`;\n  } else if (step === 5) {\n    msg = `Hi ${name}! If you are still planning, that is completely fine. We can give you a simple recommendation on initial page structure and budget. Would you like a simple recommendation?`;\n  } else if (step === 6) {\n    msg = `Hi ${name}! Just so you have an idea, our website packages start from ₹9,999 depending on pages and features. Would you like me to explain the suitable options?`;\n  } else {\n    msg = `Hi ${name}! Checking in one last time regarding the website for ${bizName}. If you'd like to explore this now, simply reply WEBSITE and I'll help you with the next step!`;\n  }\n  \n  return {\n    json: {\n      drip_id: d.drip_id,\n      lead_id: d.lead_id,\n      phone_number: d.phone_number,\n      touch_step: step,\n      message_text: msg\n    }\n  };\n});"
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const d = item.json;\n  const step = d.touch_step || 1;\n  const name = d.lead_name || 'Customer';\n  const meta = d.lead_metadata || {};\n  const industry = meta.industry || 'Business';\n  const bizName = meta.business_name || 'Your Business';\n  const link1 = meta.demo_link_1 || 'https://iwebmagics.com/demo1';\n  const link2 = meta.demo_link_2 || 'https://iwebmagics.com/demo2';\n  const link3 = meta.demo_link_3 || 'https://iwebmagics.com/demo3';\n  \n  const templateName = `touch_${step}`;\n  let parameters = [];\n  \n  if (step === 1) {\n    // touch_1: {{1}} name, {{2}} business_name, {{3}} industry, {{4}} link1, {{5}} link2, {{6}} link3\n    parameters = [\n      { type: 'text', text: name },\n      { type: 'text', text: bizName },\n      { type: 'text', text: industry },\n      { type: 'text', text: link1 },\n      { type: 'text', text: link2 },\n      { type: 'text', text: link3 }\n    ];\n  } else if (step === 3) {\n    // touch_3: {{1}} name, {{2}} industry\n    parameters = [\n      { type: 'text', text: name },\n      { type: 'text', text: industry }\n    ];\n  } else {\n    // touch_2, touch_4, touch_5, touch_6, touch_7: {{1}} name, {{2}} business_name\n    parameters = [\n      { type: 'text', text: name },\n      { type: 'text', text: bizName }\n    ];\n  }\n  \n  return {\n    json: {\n      drip_id: d.drip_id,\n      lead_id: d.lead_id,\n      phone_number: String(d.phone_number).replace(/\\D/g, ''),\n      touch_step: step,\n      template_name: templateName,\n      template_parameters: parameters\n    }\n  };\n});"
       },
-      "id": "prepare-touch-message-node",
-      "name": "Prepare Dynamic Touch Message",
+      "id": "prepare-template-payload-node",
+      "name": "Format Meta Template Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -71,16 +71,30 @@
     },
     {
       "parameters": {
-        "operation": "send",
-        "phoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
-        "recipientPhoneNumber": "={{ $json.phone_number }}",
-        "textBody": "={{ $json.message_text }}",
-        "additionalFields": {}
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/YOUR_WHATSAPP_PHONE_NUMBER_ID/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_WHATSAPP_SYSTEM_USER_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"={{ $json.phone_number }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"={{ $json.template_name }}\",\n    \"language\": {\n      \"code\": \"en\"\n    },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": ={{ JSON.stringify($json.template_parameters) }}\n      }\n    ]\n  }\n}",
+        "options": {}
       },
-      "id": "send-whatsapp-node",
-      "name": "Send WhatsApp Message",
-      "type": "n8n-nodes-base.whatsApp",
-      "typeVersion": 1.1,
+      "id": "send-meta-template-node",
+      "name": "Send Meta Approved WhatsApp Template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
         860,
         300
@@ -138,25 +152,25 @@
       "main": [
         [
           {
-            "node": "Prepare Dynamic Touch Message",
+            "node": "Format Meta Template Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Dynamic Touch Message": {
+    "Format Meta Template Payload": {
       "main": [
         [
           {
-            "node": "Send WhatsApp Message",
+            "node": "Send Meta Approved WhatsApp Template",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send WhatsApp Message": {
+    "Send Meta Approved WhatsApp Template": {
       "main": [
         [
           {
