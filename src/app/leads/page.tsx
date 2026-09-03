@@ -384,19 +384,26 @@ function LeadsContent() {
                 <p className="text-xs text-gray-500 mt-1 max-w-xs">Adjust your search parameters or check your n8n workflow connections.</p>
               </div>
             ) : (() => {
+              // Only show metadata fields as columns — these are the ONLY source of truth.
+              // Top-level DB columns like lead_quality, lead_score, customer_name etc.
+              // are stale or deleted; we skip them entirely.
               const skipKeys = [
                 'id', 'created_at', 'updated_at', 'org_id', 'assigned_to', 
                 'phone_number', 'name', 'conversation_id',
                 'followup_notes', 'followup_date', 'followup_notified',
-                'metadata', 'lead_type'
+                'metadata', 'lead_type',
+                // Skip raw DB columns that are stale / deleted — real data is in metadata
+                'lead_score', 'lead_quality', 'lead_temperature', 'stage',
+                'customer_name', 'industry', 'followup_notified'
               ];
-              
+
+              // Collect unique keys ONLY from metadata (not from top-level lead)
               const uniqueCustomKeys = Array.from(new Set(
                 leads.flatMap(lead => {
-                  const allCustomData = { ...lead, ...(lead.metadata || {}) } as Record<string, any>;
-                  return Object.keys(allCustomData).filter(key => {
+                  const meta = (lead.metadata || {}) as Record<string, any>;
+                  return Object.keys(meta).filter(key => {
                     if (skipKeys.includes(key.toLowerCase())) return false;
-                    const val = allCustomData[key];
+                    const val = meta[key];
                     if (typeof val === 'object' || val === null || val === undefined || String(val).trim() === '') return false;
                     return true;
                   });
@@ -425,7 +432,16 @@ function LeadsContent() {
                           rawFollowup = 'Scheduled Meeting';
                         }
 
-                        const allCustomData = { ...lead, ...(lead.metadata || {}) } as Record<string, any>;
+                        // Use ONLY metadata as data source to avoid stale DB columns polluting the view
+                        const allCustomData = (lead.metadata || {}) as Record<string, any>;
+                        // Dynamically derive temperature from score stored in metadata
+                        const metaScore = Number(allCustomData.lead_score) || 0;
+                        if (metaScore > 0 && !allCustomData.lead_temperature) {
+                          allCustomData.lead_temperature = metaScore >= 70 ? 'HOT' : metaScore >= 40 ? 'WARM' : 'COLD';
+                        }
+                        if (metaScore >= 70) allCustomData.lead_temperature = 'HOT';
+                        else if (metaScore >= 40 && metaScore > 0) allCustomData.lead_temperature = 'WARM';
+                        else if (metaScore > 0) allCustomData.lead_temperature = 'COLD';
 
                         return (
                           <tr 
