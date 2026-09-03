@@ -439,12 +439,7 @@ function LeadsContent() {
 
                       const displayQuality = rawQuality.toUpperCase();
 
-                      let computedScore = lead.lead_score || (lead.metadata?.lead_score || 0);
-                      if (computedScore === 0) {
-                        if (displayQuality === 'HOT') computedScore = 80;
-                        else if (displayQuality === 'WARM') computedScore = 50;
-                        else computedScore = 25;
-                      }
+                      const computedScore = lead.lead_score || (lead.metadata?.lead_score || 0);
 
                       return (
                         <tr 
