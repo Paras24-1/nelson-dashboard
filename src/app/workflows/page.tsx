@@ -42,6 +42,7 @@ interface WorkflowStep {
   email_subject?: string
   email_body?: string
   whatsapp_message?: string
+  whatsapp_template_name?: string
   new_status?: string
 }
 
@@ -50,6 +51,7 @@ interface WorkflowDefinition {
   name: string
   trigger_event: string
   is_active: boolean
+  stop_on_reply?: boolean
   steps: WorkflowStep[]
   created_at: string
   updated_at?: string
@@ -85,8 +87,9 @@ function WorkflowsContent() {
   const [showModal, setShowModal] = useState(false)
   const [editingWf, setEditingWf] = useState<WorkflowDefinition | null>(null)
   const [wfName, setWfName] = useState('')
-  const [wfTrigger, setWfTrigger] = useState('call_unanswered')
+  const [wfTrigger, setWfTrigger] = useState('bulk_message_sent')
   const [wfIsActive, setWfIsActive] = useState(true)
+  const [stopOnReply, setStopOnReply] = useState(true)
   const [wfSteps, setWfSteps] = useState<WorkflowStep[]>([])
   const [saving, setSaving] = useState(false)
 
@@ -149,25 +152,53 @@ function WorkflowsContent() {
       setWfName(wf.name)
       setWfTrigger(wf.trigger_event)
       setWfIsActive(wf.is_active)
+      setStopOnReply(wf.stop_on_reply ?? true)
       setWfSteps(wf.steps || [])
     } else {
       setEditingWf(null)
       setWfName('')
-      setWfTrigger('call_unanswered')
+      setWfTrigger('bulk_message_sent')
       setWfIsActive(true)
+      setStopOnReply(true)
       setWfSteps([
-        { id: '1', type: 'delay', delay_minutes: '15' },
-        { id: '2', type: 'action', action_type: 'voice_call', agent_id: agents[0]?.id || '' }
+        { id: '1', type: 'delay', delay_minutes: '720' }, // 12 Hours
+        { id: '2', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_1', whatsapp_message: 'Hi {Name}, following up on your requirement.' }
       ])
     }
+    setShowModal(true)
+  }
+
+  // Load iWebMagics 7-Touch Preset
+  const load7TouchPreset = () => {
+    setEditingWf(null)
+    setWfName('iWebMagics 7-Touch Nurture Drip')
+    setWfTrigger('bulk_message_sent')
+    setWfIsActive(true)
+    setStopOnReply(true)
+    setWfSteps([
+      { id: 'step-0', type: 'delay', delay_minutes: '720' }, // 12 Hours Wait
+      { id: 'step-1', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_1', whatsapp_message: 'Hi {Name}, following up on your {Industry} requirement.' },
+      { id: 'step-2', type: 'delay', delay_minutes: '2160' }, // 36 Hours (Day 2)
+      { id: 'step-3', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_2', whatsapp_message: 'Touch 2 Meta Template' },
+      { id: 'step-4', type: 'delay', delay_minutes: '4320' }, // 72 Hours (Day 5)
+      { id: 'step-5', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_3', whatsapp_message: 'Touch 3 Meta Template' },
+      { id: 'step-6', type: 'delay', delay_minutes: '5760' }, // 96 Hours (Day 9)
+      { id: 'step-7', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_4', whatsapp_message: 'Touch 4 Meta Template' },
+      { id: 'step-8', type: 'delay', delay_minutes: '8640' }, // 144 Hours (Day 15)
+      { id: 'step-9', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_5', whatsapp_message: 'Touch 5 Meta Template' },
+      { id: 'step-10', type: 'delay', delay_minutes: '11520' }, // 192 Hours (Day 23)
+      { id: 'step-11', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_6', whatsapp_message: 'Touch 6 Meta Template' },
+      { id: 'step-12', type: 'delay', delay_minutes: '17280' }, // 288 Hours (Day 35)
+      { id: 'step-13', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_7', whatsapp_message: 'Touch 7 Meta Template' }
+    ])
     setShowModal(true)
   }
 
   // Add Step to Flow
   const addStep = (type: 'delay' | 'action') => {
     const newStep: WorkflowStep = type === 'delay'
-      ? { id: String(Date.now()), type: 'delay', delay_minutes: '30' }
-      : { id: String(Date.now()), type: 'action', action_type: 'voice_call', agent_id: agents[0]?.id || '' }
+      ? { id: String(Date.now()), type: 'delay', delay_minutes: '60' }
+      : { id: String(Date.now()), type: 'action', action_type: 'whatsapp', whatsapp_message: '' }
     setWfSteps([...wfSteps, newStep])
   }
 
@@ -194,6 +225,7 @@ function WorkflowsContent() {
         name: wfName,
         trigger_event: wfTrigger,
         is_active: wfIsActive,
+        stop_on_reply: stopOnReply,
         steps: wfSteps
       }
 
@@ -260,6 +292,7 @@ function WorkflowsContent() {
   }
 
   const getTriggerLabel = (t: string) => {
+    if (t === 'bulk_message_sent') return '📢 Bulk WhatsApp Campaign Sent'
     if (t === 'call_unanswered') return '📞 Call Ended — Unanswered / Busy'
     if (t === 'call_completed') return '✅ Call Completed Successfully'
     if (t === 'lead_created') return '👤 New Lead Added to CRM'
@@ -294,6 +327,13 @@ function WorkflowsContent() {
               title="Refresh Workflows"
             >
               <RefreshCw className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={load7TouchPreset}
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Sparkles className="w-4 h-4" /> Load 7-Touch Drip Preset
             </button>
 
             <button
@@ -463,10 +503,29 @@ function WorkflowsContent() {
                     onChange={(e) => setWfTrigger(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
                   >
+                    <option value="bulk_message_sent">📢 Bulk WhatsApp Campaign Sent</option>
                     <option value="call_unanswered">📞 Call Ended — Unanswered / Busy</option>
                     <option value="call_completed">✅ Call Completed Successfully</option>
                     <option value="lead_created">👤 New Lead Added to CRM</option>
                   </select>
+                </div>
+
+                {/* STOP DRIP Setting */}
+                <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/50 p-3.5 rounded-xl">
+                  <label className="flex items-center gap-3 text-xs font-bold text-gray-900 dark:text-gray-100 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stopOnReply}
+                      onChange={(e) => setStopOnReply(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="font-extrabold text-emerald-700 dark:text-emerald-400">Stop Workflow On Lead Reply</span>
+                      <p className="text-[11px] text-gray-500 font-normal mt-0.5">
+                        Instantly cancels all remaining drip steps if the customer sends a WhatsApp reply.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
                 {/* Visual Step Builder Canvas */}
@@ -516,11 +575,38 @@ function WorkflowsContent() {
                                   <input
                                     type="number"
                                     min="1"
-                                    value={step.delay_minutes || '15'}
-                                    onChange={(e) => updateStep(step.id, { delay_minutes: e.target.value })}
+                                    value={
+                                      Number(step.delay_minutes || '60') >= 1440 
+                                        ? String(Math.round(Number(step.delay_minutes) / 1440))
+                                        : Number(step.delay_minutes || '60') >= 60 
+                                        ? String(Math.round(Number(step.delay_minutes) / 60))
+                                        : step.delay_minutes || '60'
+                                    }
+                                    onChange={(e) => {
+                                      const num = parseInt(e.target.value || '1');
+                                      const currentMins = parseInt(step.delay_minutes || '60');
+                                      const unit = currentMins >= 1440 ? 1440 : currentMins >= 60 ? 60 : 1;
+                                      updateStep(step.id, { delay_minutes: String(num * unit) });
+                                    }}
                                     className="w-16 px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold text-center"
                                   />
-                                  <span className="text-xs font-bold">minutes</span>
+                                  <select
+                                    value={
+                                      Number(step.delay_minutes || '60') >= 1440 ? '1440' : Number(step.delay_minutes || '60') >= 60 ? '60' : '1'
+                                    }
+                                    onChange={(e) => {
+                                      const unit = parseInt(e.target.value);
+                                      const currentMins = parseInt(step.delay_minutes || '60');
+                                      const oldUnit = currentMins >= 1440 ? 1440 : currentMins >= 60 ? 60 : 1;
+                                      const val = Math.max(1, Math.round(currentMins / oldUnit));
+                                      updateStep(step.id, { delay_minutes: String(val * unit) });
+                                    }}
+                                    className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                                  >
+                                    <option value="1">Minutes</option>
+                                    <option value="60">Hours</option>
+                                    <option value="1440">Days</option>
+                                  </select>
                                 </div>
                               </div>
                             ) : (
@@ -531,8 +617,8 @@ function WorkflowsContent() {
                                     onChange={(e) => updateStep(step.id, { action_type: e.target.value as any })}
                                     className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
                                   >
-                                    <option value="voice_call">📞 Trigger AI Voice Call</option>
                                     <option value="whatsapp">💬 Send WhatsApp Message</option>
+                                    <option value="voice_call">📞 Trigger AI Voice Call</option>
                                     <option value="crm_status">🏷️ Update CRM Status</option>
                                     <option value="human_handover">👤 Trigger Human Handover</option>
                                     <option value="ai_score">🧠 AI Calculate Lead Score</option>
@@ -556,11 +642,28 @@ function WorkflowsContent() {
 
                                 {step.action_type === 'whatsapp' && (
                                   <div className="flex flex-col gap-2 text-xs">
-                                    <span className="text-gray-400">Message (Supports {'{Name}'}, {'{Business_Name}'}, {'{Industry}'}):</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-400 font-medium">Meta Template:</span>
+                                      <select
+                                        value={step.whatsapp_template_name || ''}
+                                        onChange={(e) => updateStep(step.id, { whatsapp_template_name: e.target.value })}
+                                        className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
+                                      >
+                                        <option value="">-- Freeform Text Message --</option>
+                                        <option value="touch_1">touch_1 (Touch 1 Follow-up)</option>
+                                        <option value="touch_2">touch_2 (Touch 2 Template)</option>
+                                        <option value="touch_3">touch_3 (Touch 3 Template)</option>
+                                        <option value="touch_4">touch_4 (Touch 4 Template)</option>
+                                        <option value="touch_5">touch_5 (Touch 5 Template)</option>
+                                        <option value="touch_6">touch_6 (Touch 6 Template)</option>
+                                        <option value="touch_7">touch_7 (Touch 7 Template)</option>
+                                      </select>
+                                    </div>
+                                    <span className="text-gray-400">Message Text (Supports {'{Name}'}, {'{Business_Name}'}, {'{Industry}'}):</span>
                                     <textarea
                                       value={step.whatsapp_message || ''}
                                       onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
-                                      placeholder="Hi {Name}, here are some designs for your {Industry} business..."
+                                      placeholder="Hi {Name}, following up on your {Industry} requirement..."
                                       className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[60px]"
                                     />
                                   </div>

@@ -124,6 +124,22 @@ export async function POST(req: NextRequest) {
           }),
         }).catch(console.error)
       }
+
+      // Auto-enroll campaign contacts into active bulk_message_sent workflows natively
+      try {
+        const triggerUrl = new URL('/api/workflows/trigger', req.url).toString()
+        await fetch(triggerUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_type: 'bulk_message_sent',
+            contacts: uniqueContacts,
+            metadata: { campaign_id: campaign.id, template_name }
+          })
+        }).catch(console.error)
+      } catch (wfErr) {
+        console.error('[campaigns] Native workflow trigger error:', wfErr)
+      }
     }
 
     return NextResponse.json({ success: true, campaign_id: campaign.id })

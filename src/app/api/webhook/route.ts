@@ -532,15 +532,45 @@ export async function POST(req: NextRequest) {
     // If we receive an incoming message, pause any active workflows waiting for a delay
     if (direction === 'incoming') {
       try {
-        const { error: stopDripError } = await supabaseAdmin
+        const cleanPhone = String(phone_number).replace(/\D/g, '')
+        await supabaseAdmin
           .from('scheduled_drips')
           .update({ status: 'paused', updated_at: new Date().toISOString() })
           .eq('phone_number', phone_number)
           .eq('status', 'pending')
 
-        if (stopDripError && stopDripError.code !== 'PGRST205') {
-          console.warn('[webhook] Failed to stop drip:', stopDripError.message)
+        await supabaseAdmin
+          .from('workflow_instances')
+          .update({ status: 'paused', updated_at: new Date().toISOString() })
+          .eq('phone_number', cleanPhone)
+          .in('status', ['pending', 'active'])
+
+        // Fallback: Pause in organization_settings metadata
+        const { data: settings } = await supabaseAdmin
+          .from('organization_settings')
+          .select('metadata')
+          .eq('org_id', orgId)
+          .maybeSingle()
+
+        if (settings?.metadata?.workflow_instances) {
+          const insts: any[] = settings.metadata.workflow_instances
+          let updated = false
+          insts.forEach((inst: any) => {
+            if (inst.phone_number === cleanPhone && (inst.status === 'pending' || inst.status === 'active')) {
+              inst.status = 'paused'
+              updated = true
+            }
+          })
+          if (updated) {
+            await supabaseAdmin
+              .from('organization_settings')
+              .update({ metadata: { ...settings.metadata, workflow_instances: insts } })
+              .eq('org_id', orgId)
+          }
         }
+      } catch (stopDripErr) {
+        console.warn('[webhook] Error pausing active workflows on reply:', stopDripErr)
+      }
 
         // Trigger Async Native WhatsApp AI Chatbot
         // ONLY if n8n is NOT handling this org's inbound messages (to prevent duplicate replies)
@@ -561,13 +591,8 @@ export async function POST(req: NextRequest) {
           }).catch(err => {
             console.error('[webhook:native-ai] Failed to trigger async AI reply:', err)
           })
-        } else {
-          console.log(`[webhook] Skipping native AI reply — n8n is handling inbound for org ${orgId}`)
         }
-      } catch (e) {
-        console.error('[webhook] State machine interceptor error:', e)
       }
-    }
 
     return NextResponse.json({ 
       success: true, 

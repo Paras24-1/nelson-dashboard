@@ -158,22 +158,143 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Also process legacy scheduled_drips if table exists
+    // 2. Process Native Visual Workflow Instances
     try {
-      const { data: pendingDrips } = await supabaseAdmin
-        .from('scheduled_drips')
-        .select('*, leads(*)')
-        .eq('status', 'pending')
-        .lte('scheduled_for', nowIso)
+      // Fetch instances from database or fallback metadata
+      let dueInstances: any[] = []
+      const { data: dbInsts, error: instErr } = await supabaseAdmin
+        .from('workflow_instances')
+        .select('*')
+        .in('status', ['pending', 'active'])
+        .lte('next_run_at', nowIso)
         .limit(25)
 
-      if (pendingDrips && pendingDrips.length > 0) {
-        for (const drip of pendingDrips) {
-          await supabaseAdmin.from('scheduled_drips').update({ status: 'sent' }).eq('id', drip.id)
-          processed.push({ drip_id: drip.id, status: 'sent' })
+      if (!instErr && dbInsts) {
+        dueInstances = dbInsts
+      } else {
+        // Fallback: Check organization_settings metadata
+        const { data: allSettings } = await supabaseAdmin.from('organization_settings').select('org_id, metadata')
+        if (allSettings) {
+          allSettings.forEach(s => {
+            const insts: any[] = s.metadata?.workflow_instances || []
+            insts.forEach(inst => {
+              if ((inst.status === 'pending' || inst.status === 'active') && inst.next_run_at <= nowIso) {
+                dueInstances.push(inst)
+              }
+            })
+          })
         }
       }
-    } catch (e) {}
+
+      for (const inst of dueInstances) {
+        // Fetch workflow definition
+        let wf: any = null
+        if (inst.workflow_id) {
+          const { data: dbWf } = await supabaseAdmin.from('workflow_definitions').select('*').eq('id', inst.workflow_id).maybeSingle()
+          wf = dbWf
+        }
+        if (!wf) {
+          const { data: settings } = await supabaseAdmin.from('organization_settings').select('metadata').eq('org_id', inst.org_id).maybeSingle()
+          const allWfs: any[] = settings?.metadata?.workflows || []
+          wf = allWfs.find(w => w.id === inst.workflow_id) || allWfs[0]
+        }
+
+        if (!wf || !wf.steps || wf.steps.length === 0) continue
+
+        let stepIndex = inst.current_step_index || 0
+        if (stepIndex >= wf.steps.length) {
+          // Workflow completed
+          await supabaseAdmin.from('workflow_instances').update({ status: 'completed' }).eq('id', inst.id)
+          continue
+        }
+
+        let currentStep = wf.steps[stepIndex]
+
+        // Handle Delay Node if hit directly
+        if (currentStep.type === 'delay') {
+          const delayMins = parseInt(currentStep.delay_minutes || '60')
+          const nextRun = new Date(Date.now() + delayMins * 60 * 1000).toISOString()
+          stepIndex += 1
+          
+          await supabaseAdmin.from('workflow_instances').update({
+            current_step_index: stepIndex,
+            next_run_at: nextRun,
+            status: stepIndex >= wf.steps.length ? 'completed' : 'pending'
+          }).eq('id', inst.id)
+
+          processed.push({ instance_id: inst.id, step: 'delay', delay_minutes: delayMins })
+          continue
+        }
+
+        // Handle Action Node
+        if (currentStep.type === 'action') {
+          if (currentStep.action_type === 'whatsapp') {
+            const cleanPhone = String(inst.phone_number || '').replace(/\D/g, '')
+            if (cleanPhone) {
+              const { data: orgSettings } = await supabaseAdmin.from('organization_settings').select('whatsapp_token, whatsapp_phone_id').eq('org_id', inst.org_id).maybeSingle()
+              const whatsappToken = orgSettings?.whatsapp_token || process.env.WHATSAPP_TOKEN
+              const activePhoneId = orgSettings?.whatsapp_phone_id || process.env.WHATSAPP_PHONE_ID
+
+              if (whatsappToken && activePhoneId) {
+                let payload: any = null
+                if (currentStep.whatsapp_template_name) {
+                  payload = {
+                    messaging_product: 'whatsapp',
+                    to: cleanPhone,
+                    type: 'template',
+                    template: {
+                      name: currentStep.whatsapp_template_name,
+                      language: { code: 'en' }
+                    }
+                  }
+                } else {
+                  const msgText = (currentStep.whatsapp_message || 'Hello!')
+                    .replace('{Name}', inst.lead_name || 'there')
+                    .replace('{Industry}', 'business')
+                  payload = {
+                    messaging_product: 'whatsapp',
+                    to: cleanPhone,
+                    type: 'text',
+                    text: { body: msgText }
+                  }
+                }
+
+                try {
+                  const metaRes = await fetch(`https://graph.facebook.com/v20.0/${activePhoneId}/messages`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${whatsappToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                  })
+                  if (!metaRes.ok) console.error('[cron:native_wf] Meta API error:', await metaRes.text())
+                } catch (e) {
+                  console.error('[cron:native_wf] Meta fetch error:', e)
+                }
+              }
+            }
+          }
+
+          // Advance to next step after action
+          stepIndex += 1
+          let nextRun = new Date().toISOString()
+          if (stepIndex < wf.steps.length && wf.steps[stepIndex].type === 'delay') {
+            const delayMins = parseInt(wf.steps[stepIndex].delay_minutes || '60')
+            nextRun = new Date(Date.now() + delayMins * 60 * 1000).toISOString()
+            stepIndex += 1 // Advance past delay node
+          }
+
+          const finalStatus = stepIndex >= wf.steps.length ? 'completed' : 'pending'
+          await supabaseAdmin.from('workflow_instances').update({
+            current_step_index: stepIndex,
+            next_run_at: nextRun,
+            status: finalStatus
+          }).eq('id', inst.id)
+
+          processed.push({ instance_id: inst.id, step: 'action', action_type: currentStep.action_type })
+        }
+      }
+    } catch (wfCronErr) {
+      console.error('[cron] Error processing native workflow instances:', wfCronErr)
+    }
 
     return NextResponse.json({ success: true, processed_count: processed.length, processed })
   } catch (error: any) {
