@@ -421,10 +421,15 @@ function LeadsContent() {
                       // Strict display from DB or metadata as requested
                       const computedStage = lead.stage || lead.metadata?.stage || lead.metadata?.state || 'new';
                       
-                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || lead.metadata?.lead_temperature || 'UNKNOWN';
-                      const displayQuality = rawQuality.toUpperCase();
-
                       const computedScore = lead.lead_score ?? lead.metadata?.lead_score ?? 0;
+                      let rawQuality = lead.lead_temperature || lead.lead_quality || lead.metadata?.lead_quality || lead.metadata?.lead_temperature || 'UNKNOWN';
+
+                      // Real-time quality derivation from the n8n provided score
+                      if (computedScore >= 70) rawQuality = 'HOT';
+                      else if (computedScore >= 40) rawQuality = 'WARM';
+                      else if (computedScore > 0) rawQuality = 'COLD';
+
+                      const displayQuality = rawQuality.toUpperCase();
 
                       return (
                         <tr 

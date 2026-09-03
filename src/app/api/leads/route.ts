@@ -73,8 +73,20 @@ export async function PATCH(req: NextRequest) {
       try { parsedMeta = JSON.parse(metadata) } catch (e) {}
     }
 
-    // Score calculation has been removed. Scores will only be updated if explicitly provided by n8n or the client.
-
+    // Calculate lead_quality & lead_temperature dynamically based on lead_score sent by n8n
+    const sentScore = updates.lead_score ?? parsedMeta?.lead_score;
+    if (sentScore !== undefined) {
+      const numericScore = Number(sentScore);
+      if (!isNaN(numericScore)) {
+        let temp = 'COLD';
+        if (numericScore >= 70) temp = 'HOT';
+        else if (numericScore >= 40) temp = 'WARM';
+        
+        updates.lead_temperature = temp;
+        updates.lead_quality = temp.toLowerCase();
+        updates.lead_score = numericScore;
+      }
+    }
     if (parsedMeta) {
       updates.metadata = parsedMeta
     }
