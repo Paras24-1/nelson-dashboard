@@ -64,8 +64,45 @@ export async function PATCH(req: NextRequest) {
     const orgId = await getOrgId(req)
     if (!orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { conversation_id, ...updates } = await req.json()
+    const body = await req.json()
+    const { conversation_id, metadata, ...updates } = body
     if (!conversation_id) return NextResponse.json({ error: 'conversation_id required' }, { status: 400 })
+
+    let parsedMeta: any = metadata
+    if (metadata && typeof metadata === 'string') {
+      try { parsedMeta = JSON.parse(metadata) } catch (e) {}
+    }
+
+    // Auto-calculate lead_score & temperature from n8n metadata payloads if not explicitly set
+    if (parsedMeta && typeof parsedMeta === 'object' && updates.lead_score === undefined) {
+      const state = parsedMeta.state || ''
+      const intent = parsedMeta.business_intent || parsedMeta.voice_summary || ''
+      const demo = parsedMeta.demo_selected || ''
+      const pricing = parsedMeta.pricing_requested || ''
+      const consult = parsedMeta.consultation_ready || ''
+
+      let score = 40
+      let temp = 'WARM'
+
+      if (consult === 'yes' || pricing === 'yes' || state === 'human_handover') {
+        score = 80
+        temp = 'HOT'
+      } else if (demo || intent || state === 'qualification' || state === 'demo_shown' || parsedMeta.industry) {
+        score = 50
+        temp = 'WARM'
+      } else {
+        score = 30
+        temp = 'COLD'
+      }
+
+      updates.lead_score = score
+      updates.lead_temperature = temp
+      updates.lead_quality = temp.toLowerCase()
+    }
+
+    if (parsedMeta) {
+      updates.metadata = parsedMeta
+    }
 
     // First try updating by conversation_id
     let { data, error } = await supabaseAdmin
