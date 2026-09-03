@@ -1,0 +1,171 @@
+{
+  "name": "iWebMagics 7-Touch WhatsApp Nurture Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-node",
+      "name": "Every Hour Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://jncmizoejeaclpnfxazg.supabase.co/rest/v1/rpc/get_due_scheduled_drips",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"p_org_id\": \"f452203e-c1b4-49c9-87c7-2b7d7a4ce2e2\"\n}",
+        "options": {}
+      },
+      "id": "get-due-drips-node",
+      "name": "Fetch Due Scheduled Drips",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const d = item.json;\n  const step = d.touch_step || 1;\n  const name = d.lead_name || 'there';\n  const meta = d.lead_metadata || {};\n  const industry = meta.industry || 'business';\n  const bizName = meta.business_name || 'your business';\n  \n  let msg = '';\n  if (step === 1) {\n    msg = `Hi ${name}! 👋 Congratulations on starting ${bizName}! We help new ${industry} businesses get their websites ready. Would you like me to send over a few relevant design options?`;\n  } else if (step === 2) {\n    msg = `Hi ${name}! 🎨 Just wanted to clarify about the designs — they are fully customized for your brand logo, colors, and products. Would you like to see how we can customize one for ${bizName}?`;\n  } else if (step === 3) {\n    msg = `Hi ${name}! A professional website helps ${industry} customers send inquiries directly on WhatsApp and build trust. Would you like to see a live example?`;\n  } else if (step === 4) {\n    msg = `Hi ${name}! One mistake new businesses make is waiting until everything is perfect. You can start with essential pages now and expand later! Would you like me to suggest what pages your website should include?`;\n  } else if (step === 5) {\n    msg = `Hi ${name}! If you are still planning, that is completely fine. We can give you a simple recommendation on initial page structure and budget. Would you like a simple recommendation?`;\n  } else if (step === 6) {\n    msg = `Hi ${name}! Just so you have an idea, our website packages start from ₹9,999 depending on pages and features. Would you like me to explain the suitable options?`;\n  } else {\n    msg = `Hi ${name}! Checking in one last time regarding the website for ${bizName}. If you'd like to explore this now, simply reply WEBSITE and I'll help you with the next step!`;\n  }\n  \n  return {\n    json: {\n      drip_id: d.drip_id,\n      lead_id: d.lead_id,\n      phone_number: d.phone_number,\n      touch_step: step,\n      message_text: msg\n    }\n  };\n});"
+      },
+      "id": "prepare-touch-message-node",
+      "name": "Prepare Dynamic Touch Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "={{ $json.phone_number }}",
+        "textBody": "={{ $json.message_text }}",
+        "additionalFields": {}
+      },
+      "id": "send-whatsapp-node",
+      "name": "Send WhatsApp Message",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://jncmizoejeaclpnfxazg.supabase.co/rest/v1/scheduled_drips?id=eq.{{ $json.drip_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"status\": \"sent\",\n  \"updated_at\": \"={{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "mark-drip-sent-node",
+      "name": "Mark Drip as Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1080,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every Hour Check": {
+      "main": [
+        [
+          {
+            "node": "Fetch Due Scheduled Drips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Due Scheduled Drips": {
+      "main": [
+        [
+          {
+            "node": "Prepare Dynamic Touch Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Dynamic Touch Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Mark Drip as Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
