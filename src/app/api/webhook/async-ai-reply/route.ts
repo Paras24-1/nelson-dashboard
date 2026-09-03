@@ -156,8 +156,17 @@ export async function POST(req: NextRequest) {
       `${m.direction === 'incoming' ? 'Customer' : 'AI'}: ${m.message}`
     ).join('\n')
 
-    const metadata = lead?.metadata || {}
-    const industry = metadata.industry || lead?.industry || 'Business'
+    let metadata = lead?.metadata || {}
+    if (typeof metadata === 'string') {
+      try {
+        metadata = JSON.parse(metadata)
+      } catch (e) {
+        metadata = {}
+      }
+    }
+
+    const industry = metadata.industry || (metadata.business_intent && metadata.business_intent.toLowerCase().includes('clothing') ? 'Fashion' : '') || lead?.industry || 'Fashion'
+    const businessIntent = metadata.business_intent || metadata.conversation_summary || 'New Website'
     const websiteStatus = metadata.website_status || 'Unknown'
     const currentScore = lead?.lead_score || 0
 
@@ -178,6 +187,7 @@ export async function POST(req: NextRequest) {
       .replace(/\{\{assigned_employee_name\}\}/g, assignedEmployeeName)
       .replace(/\{\{assigned_employee_phone\}\}/g, assignedEmployeePhone || '')
       .replace(/\{\{stage\}\}/g, lead?.lead_temperature || 'COLD')
+      .replace(/\{\{industry\}\}/g, industry)
     
     // Optional Knowledge Base from Google Sheets
     let knowledgeBaseContext = ''
@@ -208,12 +218,19 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = `${customPromptBase}${knowledgeBaseContext}
 Context:
-Customer Name: ${lead?.name || 'Unknown'}
+Customer Name: ${lead?.name || 'Customer'}
 Phone Number: ${phone_number}
 Assigned Employee: ${assignedEmployeeName}
-Industry: ${industry}
+Target Industry: ${industry}
+Business Intent: ${businessIntent}
+Demo Selected: ${metadata.demo_selected || 'None'}
 Website Status: ${websiteStatus}
 Voice AI Summary: ${metadata.voice_summary || 'N/A'}
+
+STRICT INDUSTRY MATCHING INSTRUCTION:
+The customer's business category is strictly "${industry}" (Intent: "${businessIntent}").
+You MUST ONLY recommend website designs, options, and responses relevant to ${industry} (e.g., for Fashion/Clothing, recommend clothing/e-commerce designs). 
+DO NOT mention or suggest unrelated industries such as Real Estate, Education, or Healthcare.
 
 Do NOT ask questions that have already been answered in the Voice AI Summary.
 Provide a helpful, concise response to the customer's last message.
