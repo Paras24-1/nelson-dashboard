@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       conversation_id
         ? supabaseAdmin
             .from('conversations')
-            .select('provider_phone_id, assigned_to')
+            .select('provider_phone_id, assigned_to, name')
             .eq('id', conversation_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -48,9 +48,50 @@ export async function POST(req: NextRequest) {
     ])
 
     const orgSettings = orgSettingsRes.data
-    const lead = leadRes.data
+    let lead = leadRes.data
     const conv = convRes.data
     const history = historyRes.data
+
+    // Fallback lead lookup by 10-digit phone suffix or conversation_id if exact match missed
+    const cleanDigits = phone_number.replace(/\D/g, '').slice(-10)
+    if (!lead && cleanDigits) {
+      const { data: matchedLead } = await supabaseAdmin
+        .from('leads')
+        .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to, stage')
+        .ilike('phone_number', `%${cleanDigits}`)
+        .eq('org_id', orgId)
+        .maybeSingle()
+      if (matchedLead) lead = matchedLead
+    }
+
+    if (!lead && conversation_id) {
+      const { data: matchedLead } = await supabaseAdmin
+        .from('leads')
+        .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to, stage')
+        .eq('conversation_id', conversation_id)
+        .eq('org_id', orgId)
+        .maybeSingle()
+      if (matchedLead) lead = matchedLead
+    }
+
+    // Auto-create lead if customer interacts via WhatsApp and no lead record exists yet
+    if (!lead && cleanDigits) {
+      const { data: newLead } = await supabaseAdmin
+        .from('leads')
+        .insert({
+          phone_number: phone_number,
+          name: conv?.name || 'Customer',
+          org_id: orgId,
+          conversation_id: conversation_id || null,
+          lead_score: 40,
+          lead_temperature: 'WARM',
+          lead_quality: 'warm',
+          metadata: { source: 'whatsapp_inbound', state: 'welcome' }
+        })
+        .select('id, metadata, lead_score, lead_temperature, industry, name, assigned_to, stage')
+        .single()
+      if (newLead) lead = newLead
+    }
 
     console.log(`[async-ai-reply:settings] orgSettingsFound=${!!orgSettings} | hasGeminiKey=${!!orgSettings?.gemini_api_key} | hasPrompt=${!!orgSettings?.ai_system_prompt}`)
 
@@ -271,13 +312,19 @@ Respond in JSON format with exactly these keys:
     const content = JSON.parse(rawText)
     
     // 4. Update Lead Score & Temperature
-    const newScore = currentScore + (content.scoreAdjustment || 0)
-    let newTemp = lead?.lead_temperature || 'COLD'
+    const scoreAdj = content.scoreAdjustment || 0
+    let baselineScore = lead?.lead_score || 0
+    if (baselineScore === 0 && scoreAdj !== -100) {
+      baselineScore = 40 // Baseline score for active conversation
+    }
+
+    const computedScore = scoreAdj === -100 ? 0 : Math.max(0, Math.min(100, baselineScore + scoreAdj))
+    const newScore = computedScore
     
-    if (content.scoreAdjustment === -100) newTemp = 'SUPPRESSED'
+    let newTemp = 'WARM'
+    if (scoreAdj === -100) newTemp = 'SUPPRESSED'
     else if (newScore >= 70) newTemp = 'HOT'
     else if (newScore >= 40) newTemp = 'WARM'
-    else if (newScore >= 20) newTemp = 'COLD'
     else newTemp = 'COLD'
 
     const filteredAiContent = { ...content }
@@ -288,7 +335,7 @@ Respond in JSON format with exactly these keys:
     const newMetadata = { ...metadata, ...filteredAiContent, timeline: content.extractedTimeline || metadata.timeline }
     
     // Non-blocking lead score & temperature update in background
-    if (lead) {
+    if (lead?.id) {
       (async () => {
         try {
           await supabaseAdmin
@@ -300,8 +347,7 @@ Respond in JSON format with exactly these keys:
               metadata: newMetadata,
               updated_at: new Date().toISOString()
             })
-            .eq('phone_number', phone_number)
-            .eq('org_id', orgId)
+            .eq('id', lead.id)
         } catch (e) {
           console.error('[async-ai-reply] Lead update background error:', e)
         }
