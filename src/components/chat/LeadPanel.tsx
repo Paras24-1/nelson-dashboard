@@ -438,6 +438,28 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
 
   const data = sheetData || {}
 
+  // Dynamically compute real-time quality/temperature based on score
+  const computedScore = Number(data.lead_score) || 0;
+  let dynamicTemp = data.lead_temperature || 'COLD';
+  let dynamicQuality = data.lead_quality || 'cold';
+
+  if (computedScore > 0) {
+    if (computedScore >= 70) {
+      dynamicTemp = 'HOT';
+      dynamicQuality = 'hot';
+    } else if (computedScore >= 40) {
+      dynamicTemp = 'WARM';
+      dynamicQuality = 'warm';
+    } else {
+      dynamicTemp = 'COLD';
+      dynamicQuality = 'cold';
+    }
+  }
+
+  // Override the data object so all rendering uses the dynamic values
+  data.lead_temperature = dynamicTemp;
+  data.lead_quality = dynamicQuality;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50 dark:bg-gray-950/20 relative border-l border-gray-150 dark:border-gray-800">
       {/* Header */}

@@ -355,12 +355,14 @@ Respond in JSON format with exactly these keys:
     if (lead?.id) {
       (async () => {
         try {
+          // Move deleted columns into metadata to prevent DB schema errors
+          newMetadata.lead_score = newScore;
+          newMetadata.lead_quality = newTemp.toLowerCase();
+          
           await supabaseAdmin
             .from('leads')
             .update({
-              lead_score: newScore,
               lead_temperature: newTemp,
-              lead_quality: newTemp.toLowerCase(),
               metadata: newMetadata,
               updated_at: new Date().toISOString()
             })
