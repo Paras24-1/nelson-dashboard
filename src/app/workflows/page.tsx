@@ -44,9 +44,21 @@ interface WorkflowStep {
   whatsapp_message?: string
   whatsapp_template_name?: string
   whatsapp_header_image_url?: string
-  whatsapp_param1?: string
-  whatsapp_param2?: string
+  whatsapp_template_params?: Record<string, string>
   new_status?: string
+}
+
+interface Template {
+  id: string
+  name: string
+  language: string
+  status: string
+  category: string
+  body: string
+  header: string
+  header_format?: string | null
+  footer: string
+  variables: string[]
 }
 
 interface WorkflowDefinition {
@@ -85,6 +97,7 @@ function WorkflowsContent() {
   const [instances, setInstances] = useState<WorkflowInstance[]>([])
   const [loading, setLoading] = useState(true)
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([])
+  const [whatsappTemplates, setWhatsappTemplates] = useState<Template[]>([])
 
   // Modal States
   const [showModal, setShowModal] = useState(false)
@@ -110,6 +123,23 @@ function WorkflowsContent() {
       }
     } catch (e) {
       console.error('Failed to fetch voice agents:', e)
+    }
+  }, [])
+
+  // Fetch WhatsApp Templates
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+      const res = await fetch('/api/templates', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setWhatsappTemplates(data || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch templates:', e)
     }
   }, [])
 
@@ -145,8 +175,9 @@ function WorkflowsContent() {
   useEffect(() => {
     fetchWorkflows()
     fetchAgents()
+    fetchTemplates()
     runCronPoller()
-  }, [fetchWorkflows, fetchAgents, runCronPoller])
+  }, [fetchWorkflows, fetchAgents, fetchTemplates, runCronPoller])
 
   // Open Builder Modal (Create or Edit)
   const openBuilderModal = (wf?: WorkflowDefinition) => {
@@ -165,7 +196,7 @@ function WorkflowsContent() {
       setStopOnReply(true)
       setWfSteps([
         { id: '1', type: 'delay', delay_minutes: '720' }, // 12 Hours
-        { id: '2', type: 'action', action_type: 'whatsapp', whatsapp_template_name: 'touch_1', whatsapp_message: 'Hi {Name}, following up on your requirement.' }
+        { id: '2', type: 'action', action_type: 'whatsapp', whatsapp_template_name: '', whatsapp_message: 'Hi {Name}, following up on your requirement.' }
       ])
     }
     setShowModal(true)
@@ -652,56 +683,71 @@ function WorkflowsContent() {
                                         <span className="text-gray-400 font-medium shrink-0">Meta Template:</span>
                                         <select
                                           value={step.whatsapp_template_name || ''}
-                                          onChange={(e) => updateStep(step.id, { whatsapp_template_name: e.target.value })}
+                                          onChange={(e) => {
+                                            updateStep(step.id, { 
+                                              whatsapp_template_name: e.target.value,
+                                              whatsapp_template_params: {} 
+                                            })
+                                          }}
                                           className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
                                         >
                                           <option value="">-- Freeform Text Message --</option>
-                                          <option value="touch_1">touch_1 (Touch 1 Follow-up)</option>
-                                          <option value="touch_2">touch_2 (Touch 2 Template)</option>
-                                          <option value="touch_3">touch_3 (Touch 3 Template)</option>
-                                          <option value="touch_4">touch_4 (Touch 4 Template)</option>
-                                          <option value="touch_5">touch_5 (Touch 5 Template)</option>
-                                          <option value="touch_6">touch_6 (Touch 6 Template)</option>
-                                          <option value="touch_7">touch_7 (Touch 7 Template)</option>
+                                          {whatsappTemplates.map(t => (
+                                            <option key={t.id} value={t.name}>{t.name}</option>
+                                          ))}
                                         </select>
                                       </div>
 
-                                      {step.whatsapp_template_name && (
-                                        <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-                                          <div>
-                                            <span className="text-gray-400 text-[11px] font-medium">Header Image URL (Optional):</span>
-                                            <input
-                                              type="url"
-                                              value={step.whatsapp_header_image_url || ''}
-                                              onChange={(e) => updateStep(step.id, { whatsapp_header_image_url: e.target.value })}
-                                              placeholder="https://example.com/banner.png"
-                                              className="w-full mt-1 px-3 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold"
-                                            />
+                                      {(() => {
+                                        if (!step.whatsapp_template_name) return null;
+                                        const template = whatsappTemplates.find(t => t.name === step.whatsapp_template_name);
+                                        if (!template) return null;
+
+                                        const hasImageHeader = template.header_format === 'IMAGE';
+                                        const variables = Array.from(new Set((template.body || '').match(/{{\s*\w+\s*}}/g) || [])).sort();
+
+                                        if (!hasImageHeader && variables.length === 0) return null;
+
+                                        return (
+                                          <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
+                                            {hasImageHeader && (
+                                              <div>
+                                                <span className="text-gray-400 text-[11px] font-medium">Header Image URL (Optional):</span>
+                                                <input
+                                                  type="url"
+                                                  value={step.whatsapp_header_image_url || ''}
+                                                  onChange={(e) => updateStep(step.id, { whatsapp_header_image_url: e.target.value })}
+                                                  placeholder="https://example.com/banner.png"
+                                                  className="w-full mt-1 px-3 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold"
+                                                />
+                                              </div>
+                                            )}
+                                            {variables.length > 0 && (
+                                              <div className="grid grid-cols-2 gap-2">
+                                                {variables.map((v, i) => {
+                                                  const key = v.replace(/[{}]/g, ''); // e.g. "1"
+                                                  return (
+                                                    <div key={v}>
+                                                      <span className="text-gray-400 text-[11px] font-medium">Var {key} {v}:</span>
+                                                      <input
+                                                        type="text"
+                                                        value={step.whatsapp_template_params?.[key] || ''}
+                                                        onChange={(e) => {
+                                                          const newParams = { ...(step.whatsapp_template_params || {}) };
+                                                          newParams[key] = e.target.value;
+                                                          updateStep(step.id, { whatsapp_template_params: newParams });
+                                                        }}
+                                                        placeholder={i === 0 ? "{Name}" : i === 1 ? "{Industry}" : `Value for ${v}`}
+                                                        className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
+                                                      />
+                                                    </div>
+                                                  )
+                                                })}
+                                              </div>
+                                            )}
                                           </div>
-                                          <div className="grid grid-cols-2 gap-2">
-                                            <div>
-                                              <span className="text-gray-400 text-[11px] font-medium">Var 1 {'{{1}}'}:</span>
-                                              <input
-                                                type="text"
-                                                value={step.whatsapp_param1 || '{Name}'}
-                                                onChange={(e) => updateStep(step.id, { whatsapp_param1: e.target.value })}
-                                                placeholder="{Name}"
-                                                className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
-                                              />
-                                            </div>
-                                            <div>
-                                              <span className="text-gray-400 text-[11px] font-medium">Var 2 {'{{2}}'}:</span>
-                                              <input
-                                                type="text"
-                                                value={step.whatsapp_param2 || '{Industry}'}
-                                                onChange={(e) => updateStep(step.id, { whatsapp_param2: e.target.value })}
-                                                placeholder="{Industry}"
-                                                className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
-                                              />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
+                                        )
+                                      })()}
 
                                       <span className="text-gray-400 font-medium">Message Text / Preview:</span>
                                       <textarea

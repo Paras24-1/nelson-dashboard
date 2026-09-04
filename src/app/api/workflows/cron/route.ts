@@ -274,18 +274,30 @@ export async function GET(req: NextRequest) {
                 let payload: any = null
                 if (currentStep.whatsapp_template_name) {
                   const headerImg = currentStep.whatsapp_header_image_url || inst.metadata?.header_image_url
-                  const param1Val = (currentStep.whatsapp_param1 || '{Name}').replace('{Name}', inst.lead_name || 'there')
-                  const param2Val = (currentStep.whatsapp_param2 || '{Industry}').replace('{Industry}', 'business')
+                  const paramsDict = currentStep.whatsapp_template_params || {}
+                  
+                  // Backward compatibility for older steps
+                  if (Object.keys(paramsDict).length === 0) {
+                    if (currentStep.whatsapp_param1) paramsDict['1'] = currentStep.whatsapp_param1
+                    if (currentStep.whatsapp_param2) paramsDict['2'] = currentStep.whatsapp_param2
+                  }
 
-                  const components: any[] = [
-                    {
+                  const bodyParameters: any[] = []
+                  const sortedKeys = Object.keys(paramsDict).sort((a, b) => parseInt(a) - parseInt(b))
+                  for (const key of sortedKeys) {
+                    let val = paramsDict[key] || ''
+                    val = val.replace('{Name}', inst.lead_name || 'there')
+                             .replace('{Industry}', 'business')
+                    bodyParameters.push({ type: 'text', text: val })
+                  }
+
+                  const components: any[] = []
+                  if (bodyParameters.length > 0) {
+                    components.push({
                       type: 'body',
-                      parameters: [
-                        { type: 'text', text: param1Val },
-                        { type: 'text', text: param2Val }
-                      ]
-                    }
-                  ]
+                      parameters: bodyParameters
+                    })
+                  }
 
                   if (headerImg) {
                     components.unshift({
