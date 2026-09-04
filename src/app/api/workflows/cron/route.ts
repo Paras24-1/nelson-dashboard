@@ -356,7 +356,52 @@ export async function GET(req: NextRequest) {
                     headers: { 'Authorization': `Bearer ${whatsappToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                   })
-                  if (!metaRes.ok) console.error('[cron:native_wf] Meta API error:', await metaRes.text())
+                  
+                  if (!metaRes.ok) {
+                    console.error('[cron:native_wf] Meta API error:', await metaRes.text())
+                  } else {
+                    const metaData = await metaRes.json()
+                    const wamid = metaData?.messages?.[0]?.id || null
+
+                    // Log message to database so it appears in Chat UI
+                    let convId = null
+                    const { data: conv } = await supabaseAdmin
+                      .from('conversations')
+                      .select('id')
+                      .eq('phone_number', cleanPhone)
+                      .eq('org_id', inst.org_id)
+                      .maybeSingle()
+                      
+                    if (conv) {
+                      convId = conv.id
+                    } else {
+                      const { data: newConv } = await supabaseAdmin.from('conversations').insert({
+                        org_id: inst.org_id,
+                        phone_number: cleanPhone,
+                        customer_name: inst.lead_name || 'Unknown',
+                        status: 'active',
+                        provider_phone_id: activePhoneId
+                      }).select('id').single()
+                      if (newConv) convId = newConv.id
+                    }
+
+                    if (convId) {
+                      const msgContent = currentStep.whatsapp_template_name 
+                        ? `[Automated Template Sent: ${currentStep.whatsapp_template_name}]`
+                        : payload.text?.body || 'Automated message sent'
+
+                      await supabaseAdmin.from('messages').insert({
+                        conversation_id: convId,
+                        org_id: inst.org_id,
+                        sender_type: 'bot',
+                        direction: 'outgoing',
+                        content: msgContent,
+                        meta_message_id: wamid,
+                        status: 'sent',
+                        created_at: new Date().toISOString()
+                      })
+                    }
+                  }
                 } catch (e) {
                   console.error('[cron:native_wf] Meta fetch error:', e)
                 }
