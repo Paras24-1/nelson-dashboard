@@ -123,6 +123,26 @@ export default function OrgProvider({ children }: { children: React.ReactNode })
     window.location.href = '/login'
   }
 
+  // Global Background Workflow Engine Poller
+  // This simulates a background cron job for the organization while they have the dashboard open
+  useEffect(() => {
+    if (!user) return;
+    
+    const runCron = async () => {
+      try {
+        await fetch('/api/workflows/cron')
+      } catch (e) {
+        console.error('[Background Cron] Failed to poll workflows:', e)
+      }
+    }
+
+    // Run once on mount and then every 30 seconds
+    runCron();
+    const interval = setInterval(runCron, 30 * 1000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
 
   const isSubscriptionInactive = !loading && !!user && !!org && Boolean(org.subscription_status && ['inactive', 'expired', 'suspended'].includes(org.subscription_status.toLowerCase()))
 
