@@ -542,12 +542,29 @@ function WorkflowsContent() {
                   </h2>
                   <p className="text-xs text-gray-400">Configure trigger events, delays, and automated action nodes.</p>
                 </div>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-4">
+                  <label className={`flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl border transition-colors ${
+                    wfIsActive 
+                      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50' 
+                      : 'bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700'
+                  }`}>
+                    <span className={`text-xs font-bold ${wfIsActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'}`}>
+                      {wfIsActive ? '🟢 Active' : '⚪ Paused'}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={wfIsActive}
+                      onChange={(e) => setWfIsActive(e.target.checked)}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleSaveWorkflow} className="flex-1 flex flex-col min-h-0 overflow-hidden">

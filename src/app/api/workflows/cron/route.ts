@@ -236,6 +236,11 @@ export async function GET(req: NextRequest) {
 
         if (!wf || !wf.steps || wf.steps.length === 0) continue
 
+        // If the workflow is deactivated/paused, skip processing its instances
+        if (wf.is_active === false) {
+          continue
+        }
+
         let stepIndex = inst.current_step_index || 0
         if (stepIndex >= wf.steps.length) {
           // Workflow completed
