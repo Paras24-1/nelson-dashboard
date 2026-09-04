@@ -749,13 +749,64 @@ function WorkflowsContent() {
                                         )
                                       })()}
 
-                                      <span className="text-gray-400 font-medium">Message Text / Preview:</span>
-                                      <textarea
-                                        value={step.whatsapp_message || ''}
-                                        onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
-                                        placeholder="Hi {Name}, following up on your {Industry} requirement..."
-                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[50px]"
-                                      />
+                                      {(() => {
+                                        if (step.whatsapp_template_name) {
+                                          const template = whatsappTemplates.find(t => t.name === step.whatsapp_template_name);
+                                          if (!template) return null;
+                                          
+                                          let previewBody = template.body || '';
+                                          let headerPreview = '';
+                                          if (template.header_format === 'TEXT') {
+                                            headerPreview = `*${template.header}*\n\n`;
+                                          } else if (template.header_format === 'IMAGE') {
+                                            headerPreview = `[🖼️ Image Header]\n\n`;
+                                          } else if (template.header_format === 'DOCUMENT') {
+                                            headerPreview = `[📄 Document Header]\n\n`;
+                                          } else if (template.header_format === 'VIDEO') {
+                                            headerPreview = `[🎥 Video Header]\n\n`;
+                                          }
+
+                                          const variables = Array.from(new Set((previewBody).match(/{{\s*\w+\s*}}/g) || []));
+                                          variables.forEach(v => {
+                                            const key = v.replace(/[{}]/g, '');
+                                            let paramVal = step.whatsapp_template_params?.[key];
+                                            if (!paramVal) {
+                                              if (key === '1') paramVal = '{Name}';
+                                              else if (key === '2') paramVal = '{Industry}';
+                                              else paramVal = v;
+                                            }
+                                            previewBody = previewBody.replace(new RegExp(v, 'g'), `[${paramVal}]`);
+                                          });
+
+                                          let footerPreview = '';
+                                          if (template.footer) {
+                                            footerPreview = `\n\n_${template.footer}_`;
+                                          }
+
+                                          const fullPreview = headerPreview + previewBody + footerPreview;
+
+                                          return (
+                                            <div className="mt-2">
+                                              <span className="text-gray-400 font-medium text-xs">Real-time Preview:</span>
+                                              <div className="w-full mt-1 px-3 py-3 bg-[#e4fce4] dark:bg-[#112a1e] text-gray-800 dark:text-gray-200 rounded-lg text-sm border border-emerald-200 dark:border-emerald-800/30 whitespace-pre-wrap font-sans shadow-inner">
+                                                {fullPreview}
+                                              </div>
+                                            </div>
+                                          );
+                                        }
+
+                                        return (
+                                          <div className="mt-2">
+                                            <span className="text-gray-400 font-medium text-xs">Message Text:</span>
+                                            <textarea
+                                              value={step.whatsapp_message || ''}
+                                              onChange={(e) => updateStep(step.id, { whatsapp_message: e.target.value })}
+                                              placeholder="Hi {Name}, following up on your {Industry} requirement..."
+                                              className="w-full mt-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold min-h-[80px]"
+                                            />
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   )}
 
