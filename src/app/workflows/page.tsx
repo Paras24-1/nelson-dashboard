@@ -43,6 +43,7 @@ interface WorkflowStep {
   email_body?: string
   whatsapp_message?: string
   whatsapp_template_name?: string
+  whatsapp_phonebook_id?: string
   whatsapp_header_image_url?: string
   whatsapp_template_params?: Record<string, string>
   new_status?: string
@@ -98,6 +99,8 @@ function WorkflowsContent() {
   const [loading, setLoading] = useState(true)
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([])
   const [whatsappTemplates, setWhatsappTemplates] = useState<Template[]>([])
+  const [phonebooks, setPhonebooks] = useState<{ id: string; name: string }[]>([])
+  const [phonebookColumns, setPhonebookColumns] = useState<Record<string, string[]>>({})
 
   // Modal States
   const [showModal, setShowModal] = useState(false)
@@ -143,6 +146,40 @@ function WorkflowsContent() {
     }
   }, [])
 
+  // Fetch Phonebooks
+  const fetchPhonebooks = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+      const res = await fetch('/api/phonebooks', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPhonebooks(data || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch phonebooks:', e)
+    }
+  }, [])
+
+  const fetchPhonebookColumns = async (phonebookId: string) => {
+    if (!phonebookId || phonebookColumns[phonebookId]) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+      const res = await fetch(`/api/phonebooks/${phonebookId}/columns`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const columns = await res.json()
+        setPhonebookColumns(prev => ({ ...prev, [phonebookId]: columns }))
+      }
+    } catch (e) {
+      console.error('Failed to fetch phonebook columns:', e)
+    }
+  }
+
   // Fetch Workflow Definitions
   const fetchWorkflows = useCallback(async () => {
     setLoading(true)
@@ -176,8 +213,9 @@ function WorkflowsContent() {
     fetchWorkflows()
     fetchAgents()
     fetchTemplates()
+    fetchPhonebooks()
     runCronPoller()
-  }, [fetchWorkflows, fetchAgents, fetchTemplates, runCronPoller])
+  }, [fetchWorkflows, fetchAgents, fetchTemplates, fetchPhonebooks, runCronPoller])
 
   // Open Builder Modal (Create or Edit)
   const openBuilderModal = (wf?: WorkflowDefinition) => {
@@ -698,6 +736,24 @@ function WorkflowsContent() {
                                         </select>
                                       </div>
 
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-400 font-medium shrink-0">Phonebook (Optional):</span>
+                                        <select
+                                          value={step.whatsapp_phonebook_id || ''}
+                                          onChange={(e) => {
+                                            const pbId = e.target.value;
+                                            updateStep(step.id, { whatsapp_phonebook_id: pbId });
+                                            if (pbId) fetchPhonebookColumns(pbId);
+                                          }}
+                                          className="px-3 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold flex-1"
+                                        >
+                                          <option value="">-- None (Manual mapping) --</option>
+                                          {phonebooks.map(pb => (
+                                            <option key={pb.id} value={pb.id}>{pb.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+
                                       {(() => {
                                         if (!step.whatsapp_template_name) return null;
                                         const template = whatsappTemplates.find(t => t.name === step.whatsapp_template_name);
@@ -731,15 +787,29 @@ function WorkflowsContent() {
                                                       <span className="text-gray-400 text-[11px] font-medium">Var {key} {v}:</span>
                                                       <input
                                                         type="text"
+                                                        list={`datalist-${step.id}-${key}`}
                                                         value={step.whatsapp_template_params?.[key] || ''}
                                                         onChange={(e) => {
                                                           const newParams = { ...(step.whatsapp_template_params || {}) };
-                                                          newParams[key] = e.target.value;
+                                                          let val = e.target.value;
+                                                          // Auto-wrap in {} if it matches a column exactly and doesn't already have {}
+                                                          const columns = step.whatsapp_phonebook_id ? phonebookColumns[step.whatsapp_phonebook_id] || [] : [];
+                                                          if (columns.includes(val) && !val.startsWith('{')) {
+                                                            val = `{${val}}`;
+                                                          }
+                                                          newParams[key] = val;
                                                           updateStep(step.id, { whatsapp_template_params: newParams });
                                                         }}
                                                         placeholder={i === 0 ? "{Name}" : i === 1 ? "{Company}" : `{City}, {Industry}, etc.`}
                                                         className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
                                                       />
+                                                      {step.whatsapp_phonebook_id && phonebookColumns[step.whatsapp_phonebook_id] && (
+                                                        <datalist id={`datalist-${step.id}-${key}`}>
+                                                          {phonebookColumns[step.whatsapp_phonebook_id].map(col => (
+                                                            <option key={col} value={col} />
+                                                          ))}
+                                                        </datalist>
+                                                      )}
                                                     </div>
                                                   )
                                                 })}
