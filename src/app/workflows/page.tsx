@@ -737,7 +737,7 @@ function WorkflowsContent() {
                                                           newParams[key] = e.target.value;
                                                           updateStep(step.id, { whatsapp_template_params: newParams });
                                                         }}
-                                                        placeholder={i === 0 ? "{Name}" : i === 1 ? "{Industry}" : `Value for ${v}`}
+                                                        placeholder={i === 0 ? "{Name}" : i === 1 ? "{Company}" : `{City}, {Industry}, etc.`}
                                                         className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-bold"
                                                       />
                                                     </div>

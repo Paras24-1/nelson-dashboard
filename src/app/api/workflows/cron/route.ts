@@ -288,6 +288,13 @@ export async function GET(req: NextRequest) {
                     let val = paramsDict[key] || ''
                     val = val.replace('{Name}', inst.lead_name || 'there')
                              .replace('{Industry}', 'business')
+
+                    // Replace custom variables from phonebooks/bulk campaigns (e.g. {City}, {Company})
+                    const customVars = inst.metadata?.variables || {}
+                    for (const [varName, varVal] of Object.entries(customVars)) {
+                      val = val.replace(new RegExp(`{${varName}}`, 'g'), String(varVal))
+                    }
+
                     bodyParameters.push({ type: 'text', text: val })
                   }
 

@@ -20,11 +20,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Build normalized list of contacts
-    let targetContacts: { phone: string; name?: string; id?: string }[] = []
+    let targetContacts: { phone: string; name?: string; id?: string; variables?: Record<string, any> }[] = []
     if (Array.isArray(contacts) && contacts.length > 0) {
-      targetContacts = contacts.map(c => typeof c === 'string' ? { phone: c } : { phone: c.phone || c.phone_number || '', name: c.name || c.contact_person, id: c.id })
+      targetContacts = contacts.map(c => typeof c === 'string' 
+        ? { phone: c } 
+        : { phone: c.phone || c.phone_number || '', name: c.name || c.contact_person, id: c.id, variables: c.variables || {} }
+      )
     } else if (phone_number || lead_id) {
-      targetContacts = [{ phone: phone_number || '', name: lead_name || 'Lead', id: lead_id }]
+      targetContacts = [{ phone: phone_number || '', name: lead_name || 'Lead', id: lead_id, variables: metadata?.variables || {} }]
     }
 
     if (targetContacts.length === 0) {
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
           status: firstStep.type === 'delay' ? 'pending' : 'active',
           next_run_at: nextRunAt,
           stop_on_reply: wf.stop_on_reply ?? true,
-          metadata: metadata || {},
+          metadata: { ...(metadata || {}), variables: contact.variables || {} },
           created_at: new Date().toISOString()
         }
 
