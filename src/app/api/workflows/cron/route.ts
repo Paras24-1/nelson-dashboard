@@ -295,6 +295,14 @@ export async function GET(req: NextRequest) {
                       val = val.replace(new RegExp(`{${varName}}`, 'g'), String(varVal))
                     }
 
+                    // Remove any remaining unmatched {Variable} placeholders to prevent Meta API errors
+                    val = val.replace(/{[^}]+}/g, ' ')
+
+                    // Meta API requires parameters to be non-empty strings. Provide a fallback space if it's completely empty.
+                    if (!val || val.trim() === '') {
+                      val = ' '
+                    }
+
                     bodyParameters.push({ type: 'text', text: val })
                   }
 

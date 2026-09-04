@@ -75,3 +75,12 @@
  ✓ Compiled in 122ms (203 modules)
  ✓ Compiled in 122ms (203 modules)
  ✓ Compiled in 78ms (203 modules)
+ ○ Compiling /api/leads ...
+ ✓ Compiled /api/leads in 846ms (98 modules)
+ PATCH /api/leads 401 in 1142ms
+ ✓ Compiled in 230ms (98 modules)
+ ✓ Compiled in 154ms (98 modules)
+ ✓ Compiled in 116ms (98 modules)
+ ✓ Compiled /api/workflows/trigger in 261ms (98 modules)
+ POST /api/workflows/trigger 200 in 2069ms
+ ✓ Compiled in 155ms
