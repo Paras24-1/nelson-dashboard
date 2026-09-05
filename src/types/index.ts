@@ -30,6 +30,9 @@ export type Stage =
   | 'low_budget'
   | 'hot_customer'
   | 'not_connected'
+  | 'joined'
+  | 'not_joined'
+  | 'unknown'
 
 export interface Message {
   id: string

@@ -51,7 +51,11 @@ const STAGES = [
   'not_interested',
   'call_done',
   'low_budget',
-  'hot_customer'
+  'hot_customer',
+  'not_connected',
+  'joined',
+  'not_joined',
+  'unknown'
 ]
 
 const STAGE_COLORS: Record<string, string> = {
@@ -65,7 +69,11 @@ const STAGE_COLORS: Record<string, string> = {
   not_interested: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   call_done: 'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300',
   low_budget: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  hot_customer: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300'
+  hot_customer: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  not_connected: 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+  joined: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  not_joined: 'bg-zinc-150 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+  unknown: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
 }
 
 const QUALITY_COLORS: Record<string, string> = {

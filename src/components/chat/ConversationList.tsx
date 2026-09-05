@@ -8,7 +8,7 @@ import { Search, Filter, Wifi, Trash2, X, UserPlus } from 'lucide-react'
 import { useOrg } from '@/contexts/OrgContext'
 import { supabase } from '@/lib/supabaseClient'
 
-const STAGES: Stage[] = ['new', 'interested', 'booking', 'confirmed', 'cancelled', 'completed', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer', 'not_connected']
+const STAGES: Stage[] = ['new', 'interested', 'booking', 'confirmed', 'cancelled', 'completed', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer', 'not_connected', 'joined', 'not_joined', 'unknown']
 
 const STAGE_COLORS: Record<Stage, string> = {
   new:        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -23,6 +23,9 @@ const STAGE_COLORS: Record<Stage, string> = {
   low_budget:  'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
 hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 not_connected:  'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
+joined:         'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+not_joined:     'bg-zinc-150 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+unknown:        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
 }
 
 interface Props {
@@ -222,7 +225,7 @@ export default function ConversationList({ selectedId, onSelect, onDelete }: Pro
           >
             <option value="">All stages</option>
             {STAGES.map((s) => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
             ))}
           </select>
 
@@ -387,7 +390,7 @@ function ConversationItem({
         </p>
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${STAGE_COLORS[conv.stage as Stage] || STAGE_COLORS.new}`}>
-            {conv.stage}
+            {conv.stage?.replace(/_/g, ' ')}
           </span>
 
           {/* Platform Badge */}

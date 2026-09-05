@@ -43,7 +43,7 @@ export default function ChatWindow({ conversation, onAIToggle }: Props) {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
 
-  const STAGES = ['new', 'interested', 'booking', 'confirmed', 'cancelled', 'completed', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer', 'not_connected'] as const
+  const STAGES = ['new', 'interested', 'booking', 'confirmed', 'cancelled', 'completed', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer', 'not_connected', 'joined', 'not_joined', 'unknown'] as const
   const STAGE_COLORS: Record<string, string> = {
     new:        'bg-gray-100 text-gray-600',
     interested: 'bg-blue-100 text-blue-700',
@@ -51,14 +51,15 @@ export default function ChatWindow({ conversation, onAIToggle }: Props) {
     confirmed:  'bg-green-100 text-green-700',
     cancelled:  'bg-red-100 text-red-600',
     completed:  'bg-purple-100 text-purple-700',
-   followup:      'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
-  not_interested:'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-      call_done:      'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300',
+    followup:      'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
+    not_interested:'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+    call_done:      'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300',
     low_budget:  'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+    hot_customer:'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
     not_connected:  'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300',
-
-
+    joined:         'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    not_joined:     'bg-zinc-150 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+    unknown:        'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
   }
 
   const [stage, setStage] = useState(conversation?.stage || 'new')

@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     ])
 
     // 4. Fetch stage counts (including handling null as 'new')
-    const stages = ['interested', 'booking', 'confirmed', 'completed', 'cancelled', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer']
+    const stages = ['interested', 'booking', 'confirmed', 'completed', 'cancelled', 'followup', 'not_interested', 'call_done', 'low_budget', 'hot_customer', 'not_connected', 'joined', 'not_joined', 'unknown']
     
     const stagePromises = stages.map(async (stage) => {
       const { count } = await supabaseAdmin
