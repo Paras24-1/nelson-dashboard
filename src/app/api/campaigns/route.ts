@@ -64,6 +64,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No valid contacts provided' }, { status: 400 })
     }
 
+    // Fix past scheduling bug: If scheduled time is in the past, treat it as immediate send
+    let finalScheduledAt = scheduled_at
+    if (finalScheduledAt) {
+      const scheduledTime = new Date(finalScheduledAt).getTime()
+      if (scheduledTime <= Date.now()) {
+        finalScheduledAt = null // Fire immediately
+      }
+    }
+
     const storedTemplateBody = phonebook_name
       ? `__PHONEBOOK__=${phonebook_name}__END_PHONEBOOK__\n${template_body || ''}`
       : (template_body || '')
@@ -77,9 +86,9 @@ export async function POST(req: NextRequest) {
         template_body: storedTemplateBody,
         template_language: template_language || 'en',
         total: uniqueContacts.length,
-        status: scheduled_at ? 'draft' : 'sending',
-        scheduled_at: scheduled_at || null,
-        started_at: scheduled_at ? null : new Date().toISOString(),
+        status: finalScheduledAt ? 'draft' : 'sending',
+        scheduled_at: finalScheduledAt || null,
+        started_at: finalScheduledAt ? null : new Date().toISOString(),
       })
       .select()
       .single()
@@ -102,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (contactError) throw contactError
 
     // Get org's n8n bulk webhook
-    if (!scheduled_at) {
+    if (!finalScheduledAt) {
       const { data: settings } = await supabaseAdmin
         .from('organization_settings')
         .select('n8n_webhook_url')

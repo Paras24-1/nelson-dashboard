@@ -12,6 +12,65 @@ export async function GET(req: NextRequest) {
     const nowIso = new Date().toISOString()
     const processed: any[] = []
 
+    // 0. Process Scheduled Campaigns
+    try {
+      const { data: scheduledCampaigns } = await supabaseAdmin
+        .from('campaigns')
+        .select('*')
+        .eq('status', 'draft')
+        .lte('scheduled_at', nowIso)
+
+      if (scheduledCampaigns && scheduledCampaigns.length > 0) {
+        for (const camp of scheduledCampaigns) {
+          // Mark as sending
+          await supabaseAdmin.from('campaigns').update({ status: 'sending', started_at: nowIso }).eq('id', camp.id)
+
+          // Fetch contacts
+          const { data: contacts } = await supabaseAdmin.from('campaign_contacts').select('*').eq('campaign_id', camp.id)
+          
+          if (contacts && contacts.length > 0) {
+            // Trigger external webhook (n8n)
+            const { data: settings } = await supabaseAdmin.from('organization_settings').select('n8n_webhook_url').eq('org_id', camp.org_id).maybeSingle()
+            const DEFAULT_BULK_URL = 'https://resplendent-rejoicing-production-4b92.up.railway.app/webhook/bulk-sendMulti'
+            const n8nUrl = settings?.n8n_webhook_url || process.env.N8N_BULK_WEBHOOK_URL || DEFAULT_BULK_URL
+            
+            if (n8nUrl) {
+              await fetch(n8nUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  campaign_id: camp.id, 
+                  template_name: camp.template_name, 
+                  template_language: camp.template_language || 'en',
+                  contacts: contacts,
+                  header_image_url: '' // Header image isn't currently stored in DB, fallback to empty
+                }),
+              }).catch(e => console.error('[cron:campaign] n8n trigger error:', e))
+            }
+
+            // Trigger internal workflow engine
+            try {
+              const triggerUrl = new URL('/api/workflows/trigger', req.url).toString()
+              await fetch(triggerUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  org_id: camp.org_id,
+                  event_type: 'bulk_message_sent',
+                  contacts: contacts,
+                  metadata: { campaign_id: camp.id, template_name: camp.template_name }
+                })
+              }).catch(e => console.error('[cron:campaign] workflow trigger fetch error:', e))
+            } catch (wfErr) {
+              console.error('[cron:campaign] Native workflow trigger error:', wfErr)
+            }
+          }
+        }
+      }
+    } catch (campErr) {
+      console.error('[cron:campaign] Error processing scheduled campaigns:', campErr)
+    }
+
     // 1. Fetch leads whose 6-hour automated follow-up is due
     const { data: dueLeads, error: leadsError } = await supabaseAdmin
       .from('leads')

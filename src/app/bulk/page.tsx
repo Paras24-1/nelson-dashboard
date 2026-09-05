@@ -939,8 +939,13 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
               <div>
                 <label className="text-xs text-gray-500 font-medium uppercase tracking-wide">Schedule (optional)</label>
                 <div className="flex gap-2">
-                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
-                    className="flex-1 mt-1 px-3 py-2 text-sm rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <input 
+                    type="datetime-local" 
+                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    value={scheduledAt} 
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="flex-1 mt-1 px-3 py-2 text-sm rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                  />
                   {scheduledAt && (
                     <button onClick={() => setScheduledAt('')} className="mt-1 px-3 py-2 bg-red-100 text-red-600 text-sm rounded-xl hover:bg-red-200">Clear</button>
                   )}
