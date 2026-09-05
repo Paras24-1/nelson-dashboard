@@ -557,7 +557,7 @@ function NewCampaign({ onCreated }: { onCreated: () => void }) {
           template_body: templateBody,
           template_language: selectedTemplate?.language || 'en',
           phonebook_name: activePhonebookName || null,
-          scheduled_at: scheduledAt || null,
+          scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
           variable_mapping: variableMapping,
           header_image_url: headerImageUrl || '',
           contacts: filteredContacts.map((c) => {
