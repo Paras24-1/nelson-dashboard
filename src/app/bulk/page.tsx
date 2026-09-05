@@ -1120,7 +1120,10 @@ function CampaignHistory({ campaigns, onRefresh }: { campaigns: Campaign[]; onRe
                   </div>
                   <p className="text-xs text-gray-400">
                     Template: <span className="font-mono text-gray-600 dark:text-gray-300">{campaign.template_name}</span>
-                    {' · '}{new Date(campaign.created_at).toLocaleDateString()}
+                    {' · '}
+                    {campaign.status === 'draft' && campaign.scheduled_at
+                      ? `Scheduled: ${new Date(campaign.scheduled_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`
+                      : `Sent: ${new Date(campaign.started_at || campaign.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`}
                   </p>
                 </div>
                 <div className="flex gap-2">
