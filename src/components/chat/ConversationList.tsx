@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Conversation, Stage } from '@/types'
 import { useConversations } from '@/hooks'
 import { formatDistanceToNow } from 'date-fns'
-import { Search, Filter, Wifi, Trash2, X, UserPlus } from 'lucide-react'
+import { Search, Filter, Wifi, Trash2, X, UserPlus, Ban } from 'lucide-react'
 import { useOrg } from '@/contexts/OrgContext'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -403,6 +403,13 @@ function ConversationItem({
           }`}>
             {conv.platform || 'whatsapp'}
           </span>
+
+          {/* Blocked Badge */}
+          {conv.is_blocked && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-100/10 flex items-center gap-1">
+              <Ban className="w-2.5 h-2.5" /> BLOCKED
+            </span>
+          )}
           
           {/* Assignment Badge */}
           {assignedEmployee && (
