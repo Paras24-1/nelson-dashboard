@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Conversation, Lead, LeadActivity } from '@/types'
 import { supabase } from '@/lib/supabaseClient'
-import { RefreshCw, Phone, User, Target, MapPin, Wrench, Star, CheckCircle, MessageSquare, TrendingUp, StickyNote, Save, Calendar, Clock, Trash2, X, Plus, Check, Edit2 } from 'lucide-react'
+import { RefreshCw, Phone, User, Target, MapPin, Wrench, Star, CheckCircle, MessageSquare, TrendingUp, StickyNote, Save, Calendar, Clock, Trash2, X, Plus, Check, Edit2, Ban } from 'lucide-react'
 
 const getLocalDateString = (d: Date) => {
   const year = d.getFullYear();
@@ -28,6 +28,8 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(conversation?.is_blocked || false)
+  const [blockingLead, setBlockingLead] = useState(false)
   const [showFollowupModal, setShowFollowupModal] = useState(false)
   const [modalDate, setModalDate] = useState<Date | null>(null)
   const [modalNotes, setModalNotes] = useState('')
@@ -67,6 +69,10 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
       setActivities([])
     }
   }, [lead?.id])
+
+  useEffect(() => {
+    setIsBlocked(conversation?.is_blocked || false)
+  }, [conversation?.is_blocked])
 
   const handleAddManualActivity = async () => {
     if (!lead?.id || !activityDesc.trim()) return
@@ -141,6 +147,31 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
     setEditingActivity(null)
     setActivityNotes('')
     setActivityDesc('')
+  }
+
+  const handleBlockLead = async () => {
+    if (!conversation) return
+    const newStatus = !isBlocked
+    if (newStatus && !window.confirm('Are you sure you want to block this lead? They will no longer be able to message you.')) return
+    
+    setBlockingLead(true)
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}/block`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_blocked: newStatus })
+      })
+      if (res.ok) {
+        setIsBlocked(newStatus)
+      } else {
+        alert('Failed to update block status')
+      }
+    } catch (err) {
+      console.error('Failed to block/unblock lead:', err)
+      alert('Error blocking lead')
+    } finally {
+      setBlockingLead(false)
+    }
   }
 
   const handleMarkFollowupDone = async () => {
@@ -776,6 +807,26 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
             rows={4}
             className="w-full text-xs text-gray-700 dark:text-gray-300 bg-gray-55/50 dark:bg-gray-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none placeholder-gray-400 border border-gray-150 dark:border-gray-700 leading-relaxed font-medium"
           />
+        </div>
+
+        {/* Block Lead Button */}
+        <div className="pt-4 mt-4 border-t border-red-100 dark:border-red-900/30">
+          <button
+            onClick={handleBlockLead}
+            disabled={blockingLead}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all shadow-sm border ${
+              isBlocked
+                ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-900/50 dark:hover:bg-red-900/40'
+                : 'bg-white text-red-500 border-red-100 hover:bg-red-50 hover:border-red-200 dark:bg-gray-900 dark:border-red-900/30 dark:hover:bg-red-900/20'
+            } disabled:opacity-50`}
+          >
+            {blockingLead ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Ban className={`w-4 h-4 ${isBlocked ? 'text-red-600' : 'text-red-400'}`} />
+            )}
+            {isBlocked ? 'Unblock Lead' : 'Block Lead'}
+          </button>
         </div>
       </div>
 

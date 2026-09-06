@@ -55,6 +55,8 @@ const STAGES = [
   'not_connected',
   'joined',
   'not_joined',
+  'contact_save',
+  'contact_not_save',
   'unknown'
 ]
 

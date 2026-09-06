@@ -314,10 +314,15 @@ export async function POST(req: NextRequest) {
     // 1. Check if conversation already exists
     const { data: existing } = await supabaseAdmin
       .from('conversations')
-      .select('id, assigned_to, unread_count')
+      .select('id, assigned_to, unread_count, is_blocked')
       .eq('phone_number', phone_number)
       .eq('org_id', orgId)
       .maybeSingle()
+
+    if (existing?.is_blocked) {
+      console.log(`[webhook] Ignored message from blocked number ${phone_number}`)
+      return NextResponse.json({ success: true, status: 'ignored_blocked' })
+    }
 
     // 2. Get next employee only for NEW conversations
     let assignedTo = existing?.assigned_to || null

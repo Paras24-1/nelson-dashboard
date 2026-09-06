@@ -15,6 +15,7 @@ export interface Conversation {
   platform?: string
   receiver_phone_number?: string
   last_incoming_message_at?: string
+  is_blocked?: boolean
 }
 
 export type Stage =
@@ -32,6 +33,8 @@ export type Stage =
   | 'not_connected'
   | 'joined'
   | 'not_joined'
+  | 'contact_save'
+  | 'contact_not_save'
   | 'unknown'
 
 export interface Message {
