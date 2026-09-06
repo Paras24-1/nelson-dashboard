@@ -164,7 +164,8 @@ export default function LeadPanel({ conversation, lead, onLeadUpdate }: {
       if (res.ok) {
         setIsBlocked(newStatus)
       } else {
-        alert('Failed to update block status')
+        const errData = await res.json().catch(() => ({}))
+        alert(`Failed to update block status: ${errData.error || res.statusText}. Did you run the SQL migration to add is_blocked?`)
       }
     } catch (err) {
       console.error('Failed to block/unblock lead:', err)
