@@ -11,10 +11,12 @@ export async function GET(req: NextRequest) {
     const { userId, orgId, role } = profile
     const isStaffEmployee = role !== 'owner' && role !== 'admin'
 
-    const { searchParams } = new URL(req.url)
+    const searchParams = new URL(req.url).searchParams
     const stage = searchParams.get('stage') || ''
     const quality = searchParams.get('quality') || ''
     const search = searchParams.get('search') || ''
+    const startDate = searchParams.get('start_date') || ''
+    const endDate = searchParams.get('end_date') || ''
 
     let allLeads: any[] = []
     let pageNum = 0
@@ -38,6 +40,12 @@ export async function GET(req: NextRequest) {
       }
       if (quality) {
         query = query.eq('lead_quality', quality)
+      }
+      if (startDate) {
+        query = query.gte('created_at', startDate)
+      }
+      if (endDate) {
+        query = query.lte('created_at', `${endDate}T23:59:59.999Z`)
       }
 
       const { data, error } = await query

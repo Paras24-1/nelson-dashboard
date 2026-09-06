@@ -121,6 +121,8 @@ function LeadsContent() {
   const [search, setSearch] = useState('')
   const [selectedStage, setSelectedStage] = useState('')
   const [selectedQuality, setSelectedQuality] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   
   // Selected Lead for Details Drawer
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
@@ -133,7 +135,7 @@ function LeadsContent() {
 
   useEffect(() => {
     fetchLeads()
-  }, [selectedStage, selectedQuality])
+  }, [selectedStage, selectedQuality, startDate, endDate])
 
   const fetchLeads = async () => {
     setLoading(true)
@@ -147,6 +149,8 @@ function LeadsContent() {
       if (selectedStage) params.set('stage', selectedStage)
       if (selectedQuality) params.set('quality', selectedQuality)
       if (search) params.set('search', search)
+      if (startDate) params.set('start_date', startDate)
+      if (endDate) params.set('end_date', endDate)
 
       const res = await fetch(`/api/leads/list?${params}`, { headers, cache: 'no-store' })
       if (!res.ok) throw new Error('Failed to fetch leads list')
@@ -381,6 +385,26 @@ function LeadsContent() {
                   <option value="warm">WARM</option>
                   <option value="cold">COLD</option>
                 </select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-3 py-1.5 rounded-lg w-full md:w-auto">
+                <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-transparent text-xs text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                  title="Start Date"
+                />
+                <span className="text-gray-400 text-xs shrink-0">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-transparent text-xs text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                  title="End Date"
+                />
               </div>
 
               <button
